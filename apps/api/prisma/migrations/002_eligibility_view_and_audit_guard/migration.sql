@@ -53,3 +53,22 @@ DROP TRIGGER IF EXISTS audit_log_no_delete ON audit_log;
 CREATE TRIGGER audit_log_no_delete
   BEFORE DELETE ON audit_log
   FOR EACH ROW EXECUTE FUNCTION audit_log_is_append_only();
+
+-- Row-level triggers do NOT fire on TRUNCATE — without this a single TRUNCATE would wipe
+-- the entire append-only log and bypass INV-12. Statement-level trigger closes that hole.
+DROP TRIGGER IF EXISTS audit_log_no_truncate ON audit_log;
+CREATE TRIGGER audit_log_no_truncate
+  BEFORE TRUNCATE ON audit_log
+  FOR EACH STATEMENT EXECUTE FUNCTION audit_log_is_append_only();
+
+-- Defense in depth: revoke the mutating grants from the runtime app role too, so even a
+-- SQL-injection reaching the DB cannot UPDATE/DELETE/TRUNCATE the log. INSERT + SELECT only.
+-- (The role is created out-of-band on Supabase / in provisioning; guarded so this migration
+--  is safe to run before the role exists.)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pbb_app') THEN
+    REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM pbb_app;
+    GRANT INSERT, SELECT ON audit_log TO pbb_app;
+  END IF;
+END $$;

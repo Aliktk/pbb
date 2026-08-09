@@ -7,7 +7,11 @@ FROM base AS deps
 COPY pnpm-workspace.yaml package.json .npmrc ./
 COPY packages/types/package.json packages/types/
 COPY apps/api/package.json apps/api/
-RUN pnpm install --frozen-lockfile=false
+COPY pnpm-lock.yaml* ./
+# Frozen lockfile: builds install EXACTLY the committed, resolved versions (supply-chain
+# safety). Requires pnpm-lock.yaml committed — generate it once with a local `pnpm install`.
+# For stronger guarantees, pin the base image by digest (node:22-bookworm-slim@sha256:...).
+RUN pnpm install --frozen-lockfile
 
 FROM base AS build
 COPY --from=deps /repo/node_modules ./node_modules

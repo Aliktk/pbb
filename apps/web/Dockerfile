@@ -8,7 +8,9 @@ FROM base AS deps
 COPY pnpm-workspace.yaml package.json .npmrc ./
 COPY packages/types/package.json packages/types/
 COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile=false
+COPY pnpm-lock.yaml* ./
+# Frozen lockfile for supply-chain safety — requires committed pnpm-lock.yaml.
+RUN pnpm install --frozen-lockfile
 
 FROM base AS build
 COPY --from=deps /repo/node_modules ./node_modules
