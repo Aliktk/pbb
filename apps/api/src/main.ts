@@ -5,7 +5,20 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { cors: true });
+  // CORS is restricted to an explicit allowlist (never `cors: true`, which reflects any
+  // origin). The public site + admin are same-project Next.js on known hosts; anything
+  // else is rejected. Set CORS_ORIGINS to the deployed web origin(s), comma-separated.
+  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const app = await NestFactory.create(AppModule, {
+    cors: {
+      origin: corsOrigins,
+      credentials: true,
+      methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    },
+  });
 
   app.use(helmet());
   // Every endpoint is versioned at /api/v1 (Harness §4).
