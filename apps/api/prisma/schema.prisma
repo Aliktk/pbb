@@ -1,0 +1,630 @@
+// Pashtoonkhwa Blood Bank — data model.
+// Source of truth: PBB Build Harness §3. The migration history IS the audit trail of the
+// schema; this data outlives any of us. The schema freezes at the end of Wave 0 — every
+// entity any track needs is defined here so no track needs a post-freeze schema change.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
+}
+
+datasource db {
+  provider = "postgresql"
+  // Supabase deployment: DATABASE_URL is the POOLED connection (Supavisor/PgBouncer,
+  // port 6543, ?pgbouncer=true) used at runtime; DIRECT_URL is the DIRECT connection
+  // (port 5432) used for migrations and introspection. Locally both point at Docker
+  // Postgres. This split is required for Prisma to work correctly with Supabase.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────── Enums ────────────────────────────────────
+
+enum BloodGroup {
+  A
+  B
+  AB
+  O
+}
+
+enum RhFactor {
+  POSITIVE // +
+  NEGATIVE // −
+}
+
+enum ScreeningResult {
+  NEGATIVE
+  POSITIVE
+  PENDING
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum RequestStatus {
+  OPEN
+  ARRANGING
+  ARRANGED
+  CLOSED
+  CANCELLED
+}
+
+enum RequestUrgency {
+  ROUTINE
+  URGENT
+  CRITICAL
+}
+
+enum RequestSource {
+  PUBLIC_FORM
+  PHONE
+  WALK_IN
+  WHATSAPP
+  STAFF
+}
+
+enum ComponentType {
+  WHOLE_BLOOD
+  PACKED_CELLS
+  PLATELETS
+  PLASMA
+  CRYO
+}
+
+enum CallOutcome {
+  NO_ANSWER
+  DECLINED
+  AGREED
+  DONATED
+  UNREACHABLE
+}
+
+enum WillingFrequency {
+  ANYTIME
+  EMERGENCY_ONLY
+  QUARTERLY
+  RARELY
+}
+
+enum ModeOfIssue {
+  EXCHANGE
+  FREE // thalassemia children — free, without exchange donor (ethical constraint #2)
+  REPLACEMENT
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageChannel {
+  SMS
+  WHATSAPP
+  WEB_FORM
+  PHONE
+}
+
+enum MessageStatus {
+  UNREAD
+  READ
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum PublishState {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PartnerKind {
+  HOSPITAL
+  LABORATORY
+  FOUNDATION
+  CORPORATE
+  GOVERNMENT
+}
+
+enum VolunteerStatus {
+  APPLIED
+  ACTIVE
+  INACTIVE
+}
+
+// ─────────────────────────────── Core ─────────────────────────────────────
+
+/// One list of towns. Every dropdown, filter and table reads this table so a donor can
+/// never end up in a town no search can reach (INV-3).
+model Town {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  servedFrom  Town?    @relation("ServedFrom", fields: [servedFromId], references: [id])
+  servedFromId String?
+  servedTowns Town[]   @relation("ServedFrom")
+  isOffice    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  branches            Branch[]
+  donors              Donor[]
+  requests            BloodRequest[]
+  thalassemiaPatients ThalassemiaPatient[]
+  users               User[]
+
+  @@map("towns")
+}
+
+model Branch {
+  id             String   @id @default(cuid())
+  town           Town     @relation(fields: [townId], references: [id])
+  townId         String
+  address        String
+  phones         String[]
+  bankAccount    String?
+  hasAmbulance   Boolean  @default(false)
+  stockUpdatedAt DateTime?
+  createdAt      DateTime @default(now())
+
+  donors    Donor[]
+  donations Donation[]
+  stock     StockLevel[]
+
+  @@map("branches")
+}
+
+/// The diary page. mrNo is unique per branch (Harness §3).
+model Donor {
+  id                    String            @id @default(cuid())
+  mrNo                  String
+  name                  String
+  bloodGroup            BloodGroup
+  rhFactor              RhFactor
+  dateOfBirth           DateTime // not age — an age written down is wrong a year later
+  phone                 String?
+  emergencyContact      String?
+  emergencyRelationship String?
+  address               String?
+  town                  Town              @relation(fields: [townId], references: [id])
+  townId                String
+  branch                Branch            @relation(fields: [branchId], references: [id])
+  branchId              String
+  quantityMl            Int?
+  willingFrequency      WillingFrequency  @default(ANYTIME)
+  modeOfIssue           ModeOfIssue       @default(EXCHANGE)
+  lastDonatedAt         DateTime?
+  timesDonated          Int               @default(0)
+  deferredReason        String?
+  deferredUntil         DateTime?
+  // consent — a donor who asks to be removed is removed the same day (constraint #4)
+  consentToCall         Boolean           @default(true)
+  consentHours          String            @default("ANY") // ANY | DAYTIME | NONE
+  consentSms            Boolean           @default(true)
+  consentEvents         Boolean           @default(false)
+  createdBy             User?             @relation("DonorCreatedBy", fields: [createdById], references: [id])
+  createdById           String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  deletedAt             DateTime?
+
+  screenings Screening[]
+  donations  Donation[]
+  otps       DonorOtp[]
+
+  @@unique([branchId, mrNo])
+  @@index([bloodGroup, rhFactor, townId])
+  @@index([deletedAt])
+  @@map("donors")
+}
+
+/// Separate table, never a column on Donor — so a result can never be changed while
+/// somebody edits a phone number, and so history is kept (Harness §3).
+model Screening {
+  id           String          @id @default(cuid())
+  donor        Donor           @relation(fields: [donorId], references: [id])
+  donorId      String
+  testedAt     DateTime
+  hcv          ScreeningResult
+  hiv          ScreeningResult
+  hbsAg        ScreeningResult
+  vdrl         ScreeningResult
+  mp           ScreeningResult
+  performedBy  String?
+  labReference String?
+  createdAt    DateTime        @default(now())
+
+  @@index([donorId, testedAt])
+  @@map("screenings")
+}
+
+model Donation {
+  id            String        @id @default(cuid())
+  donor         Donor         @relation(fields: [donorId], references: [id])
+  donorId       String
+  request       BloodRequest? @relation(fields: [requestId], references: [id])
+  requestId     String?
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  branchId      String
+  donatedAt     DateTime
+  quantityMl    Int
+  componentType ComponentType @default(WHOLE_BLOOD)
+  recordedBy    User?         @relation("DonationRecordedBy", fields: [recordedById], references: [id])
+  recordedById  String?
+  createdAt     DateTime      @default(now())
+
+  @@index([donorId, donatedAt])
+  @@index([donatedAt])
+  @@map("donations")
+}
+
+model BloodRequest {
+  id                    String         @id @default(cuid())
+  reference             String         @unique
+  patientName           String? // never appears in any public response (INV-11)
+  hospital              String
+  town                  Town           @relation(fields: [townId], references: [id])
+  townId                String
+  bloodGroup            BloodGroup
+  rhFactor              RhFactor
+  unitsNeeded           Int            @default(1)
+  urgency               RequestUrgency @default(URGENT)
+  requesterName         String
+  requesterRelationship String?
+  requesterPhone        String
+  transportAvailable    Boolean        @default(false)
+  exchangePossible      Boolean        @default(true)
+  reportAvailable       Boolean        @default(false)
+  caseNotes             String?
+  status                RequestStatus  @default(OPEN)
+  source                RequestSource  @default(PUBLIC_FORM)
+  createdAt             DateTime       @default(now())
+  arrangedAt            DateTime?
+  closedAt              DateTime?
+
+  calls     RequestCall[]
+  donations Donation[]
+
+  @@index([status, townId, bloodGroup, rhFactor])
+  @@map("blood_requests")
+}
+
+/// Records that a donor was called against a request, and the outcome.
+model RequestCall {
+  id        String       @id @default(cuid())
+  request   BloodRequest @relation(fields: [requestId], references: [id])
+  requestId String
+  donorId   String?
+  calledBy  User?        @relation("CallCalledBy", fields: [calledById], references: [id])
+  calledById String?
+  outcome   CallOutcome
+  notes     String?
+  createdAt DateTime     @default(now())
+
+  @@index([requestId])
+  @@map("request_calls")
+}
+
+model StockLevel {
+  id             String     @id @default(cuid())
+  branch         Branch     @relation(fields: [branchId], references: [id])
+  branchId       String
+  bloodGroup     BloodGroup
+  rhFactor       RhFactor
+  unitsAvailable Int        @default(0)
+  updatedAt      DateTime   @updatedAt
+  updatedBy      User?      @relation("StockUpdatedBy", fields: [updatedById], references: [id])
+  updatedById    String?
+
+  @@unique([branchId, bloodGroup, rhFactor])
+  @@map("stock_levels")
+}
+
+/// Thalassemia children — transfused free and without an exchange donor (constraint #2).
+model ThalassemiaPatient {
+  id                      String    @id @default(cuid())
+  name                    String
+  dateOfBirth             DateTime
+  bloodGroup              BloodGroup
+  rhFactor                RhFactor
+  guardianName            String
+  guardianPhone           String
+  town                    Town      @relation(fields: [townId], references: [id])
+  townId                  String
+  transfusionIntervalDays Int       @default(21)
+  nextTransfusionDue      DateTime?
+  hospital                String?
+  photoConsent            Boolean   @default(false) // constraint #5
+  photoConsentDocument    MediaAsset? @relation("ConsentDoc", fields: [photoConsentDocumentId], references: [id])
+  photoConsentDocumentId  String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([nextTransfusionDue])
+  @@map("thalassemia_patients")
+}
+
+// ───────────────────────── Community / content ────────────────────────────
+
+model Volunteer {
+  id        String          @id @default(cuid())
+  name      String
+  phone     String
+  email     String?
+  townId    String?
+  skills    String?
+  status    VolunteerStatus @default(APPLIED)
+  createdAt DateTime        @default(now())
+
+  @@map("volunteers")
+}
+
+model Partner {
+  id        String      @id @default(cuid())
+  name      String
+  kind      PartnerKind
+  contact   String?
+  phone     String?
+  townId    String?
+  logoId    String?
+  createdAt DateTime    @default(now())
+
+  @@map("partners")
+}
+
+model Announcement {
+  id         String       @id @default(cuid())
+  title      String
+  body       String
+  state      PublishState @default(DRAFT)
+  startsAt   DateTime?
+  endsAt     DateTime? // an announcement with an end date disappears on its own (§8.5)
+  createdBy  User?        @relation("AnnouncementCreatedBy", fields: [createdById], references: [id])
+  createdById String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([state, startsAt, endsAt])
+  @@map("announcements")
+}
+
+model Event {
+  id        String       @id @default(cuid())
+  title     String
+  location  String?
+  townId    String?
+  startsAt  DateTime
+  endsAt    DateTime?
+  body      String?
+  state     PublishState @default(DRAFT)
+  createdAt DateTime     @default(now())
+
+  @@map("events")
+}
+
+/// A media asset without consent cannot be attached to a public page — enforced by the
+/// API, not the form (§8, T7 gate).
+model MediaAsset {
+  id           String   @id @default(cuid())
+  kind         String   @default("image") // image | video | document
+  url          String
+  alt          String?
+  hasConsent   Boolean  @default(false)
+  consentGrantedBy String?
+  consentReason String?
+  uploadedBy   User?    @relation("MediaUploadedBy", fields: [uploadedById], references: [id])
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  consentFor ThalassemiaPatient[] @relation("ConsentDoc")
+
+  @@map("media_assets")
+}
+
+model Page {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  title     String
+  state     PublishState  @default(DRAFT)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  versions PageVersion[]
+
+  @@map("pages")
+}
+
+/// Publishing + version history (T7 gate).
+model PageVersion {
+  id          String   @id @default(cuid())
+  page        Page     @relation(fields: [pageId], references: [id])
+  pageId      String
+  version     Int
+  contentJson Json
+  publishedAt DateTime?
+  createdBy   User?    @relation("PageVersionCreatedBy", fields: [createdById], references: [id])
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([pageId, version])
+  @@map("page_versions")
+}
+
+/// Inbox / sent — messages to and from the office.
+model Message {
+  id          String           @id @default(cuid())
+  direction   MessageDirection
+  channel     MessageChannel
+  status      MessageStatus    @default(UNREAD)
+  fromName    String?
+  fromPhone   String?
+  toPhone     String?
+  subject     String?
+  body        String
+  townId      String?
+  requestId   String?
+  handledBy   User?            @relation("MessageHandledBy", fields: [handledById], references: [id])
+  handledById String?
+  createdAt   DateTime         @default(now())
+
+  @@index([direction, status])
+  @@map("messages")
+}
+
+/// Outbound notification attempts (SMS/WhatsApp) — audit of what the port sent.
+model NotificationLog {
+  id        String        @id @default(cuid())
+  channel   MessageChannel
+  toPhone   String
+  body      String
+  status    MessageStatus @default(QUEUED)
+  provider  String?
+  providerId String?
+  error     String?
+  createdAt DateTime      @default(now())
+
+  @@map("notification_logs")
+}
+
+// ─────────────────────────────── Access ───────────────────────────────────
+
+model User {
+  id             String     @id @default(cuid())
+  name           String
+  email          String     @unique
+  passwordHash   String? // null while INVITED — an account is created without a password (§8.3)
+  phone          String?
+  role           Role       @relation(fields: [roleId], references: [id])
+  roleId         String
+  town           Town?      @relation(fields: [townId], references: [id])
+  townId         String?
+  status         UserStatus @default(INVITED)
+  twoFactorSecret String?
+  twoFactorEnabled Boolean  @default(false)
+  createdBy      User?      @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdById    String?
+  createdUsers   User[]     @relation("UserCreatedBy")
+  lastSignInAt   DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // back-relations
+  donorsCreated       Donor[]         @relation("DonorCreatedBy")
+  donationsRecorded   Donation[]      @relation("DonationRecordedBy")
+  callsMade           RequestCall[]   @relation("CallCalledBy")
+  stockUpdates        StockLevel[]    @relation("StockUpdatedBy")
+  announcements       Announcement[]  @relation("AnnouncementCreatedBy")
+  mediaUploads        MediaAsset[]    @relation("MediaUploadedBy")
+  pageVersions        PageVersion[]   @relation("PageVersionCreatedBy")
+  messagesHandled     Message[]       @relation("MessageHandledBy")
+  auditLogs           AuditLog[]      @relation("AuditActor")
+  refreshTokens       RefreshToken[]
+  passwordResets      PasswordResetToken[]
+  invitations         Invitation[]    @relation("InvitationCreatedBy")
+
+  @@index([roleId, townId, status])
+  @@map("users")
+}
+
+model Role {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  level       Int // hierarchy depth: lower = more senior. A creator cannot grant a role above their own.
+  permissions Json // { resource: [actions...] } — the permission matrix (T1)
+  isSystem    Boolean @default(false)
+
+  users User[]
+
+  @@map("roles")
+}
+
+/// Append-only. UPDATE and DELETE are revoked at the database role level (INV-12);
+/// enforced in migration 002, not by application code.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actor      User?    @relation("AuditActor", fields: [actorId], references: [id])
+  actorId    String?
+  action     String // e.g. donor.delete, donor.export, media.consent_grant
+  entityType String
+  entityId   String?
+  townId     String?
+  reason     String? // delete / export / consent-grant each require a typed reason
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([townId, actorId, action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime // 1h expiry, single-use (§4)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("password_reset_tokens")
+}
+
+/// Account invitation — journey §8.3: a link that lets a new user set their own password.
+model Invitation {
+  id          String   @id @default(cuid())
+  email       String
+  tokenHash   String   @unique
+  roleId      String
+  townId      String?
+  createdBy   User?    @relation("InvitationCreatedBy", fields: [createdById], references: [id])
+  createdById String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@map("invitations")
+}
+
+/// Donor self-service OTP (phone + OTP sign-in — §4 /me/record).
+model DonorOtp {
+  id        String   @id @default(cuid())
+  donor     Donor    @relation(fields: [donorId], references: [id])
+  donorId   String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([donorId])
+  @@map("donor_otps")
+}
+
+// ─────────────────────────── Eligibility view ─────────────────────────────
+
+/// The single rule for donor callability (Harness §3 / INV-5). Defined as a database
+/// VIEW in migration 002 — never as application arithmetic. Every list, search, count
+/// and dashboard figure reads this. Prisma reads it as a typed view.
+view DonorEligibility {
+  id     String @unique
+  status String // REMOVED | DEFERRED | NEVER_SCREENED | REACTIVE | SCREENING_STALE | COOLDOWN | ELIGIBLE
+
+  @@map("donor_eligibility")
+}

@@ -1,0 +1,70 @@
+# Single-VPS deployment target. Not Kubernetes — the organisation must be able to run
+# this without hiring a platform engineer (Harness §2).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pbb
+      POSTGRES_PASSWORD: pbb_dev_password
+      POSTGRES_DB: pbb
+    ports:
+      # Published on 5433 to avoid clashing with a native Postgres commonly running on
+      # 5432 (verified on this machine). Container-internal port stays 5432.
+      - "5433:5432"
+    volumes:
+      - pbb_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pbb -d pbb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - pbb_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://pbb:pbb_dev_password@db:5432/pbb?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      API_PORT: "4000"
+    env_file:
+      - .env
+    ports:
+      - "4000:4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:4000/api/v1"
+    ports:
+      - "3000:3000"
+
+volumes:
+  pbb_db:
+  pbb_redis:
