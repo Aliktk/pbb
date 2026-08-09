@@ -72,6 +72,28 @@ Required in every environment: `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`
 `JWT_REFRESH_SECRET`. Required in prod additionally: `SUPABASE_URL`,
 `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL`, notification + storage credentials.
 
+## Audit-log role hardening (INV-12, defense in depth)
+
+Migration `002` installs triggers that make `audit_log` append-only for **every** role
+(UPDATE/DELETE/TRUNCATE are refused) — that is the enforced guarantee and it always applies.
+As a second layer, revoke mutating grants from the runtime app role so an injection path
+cannot even attempt them. This is an explicit one-time provisioning step (not in the
+migration, which would silently skip when the role is absent):
+
+```bash
+psql "$DIRECT_URL" -v app_role=<your-app-role> -f apps/api/prisma/sql/harden-audit-role.sql
+```
+
+On Supabase, run that SQL in the SQL editor with the role behind your `DATABASE_URL`. It
+fails loudly if the role does not exist, so it can never give a false sense of security.
+
+## CORS
+
+Set `CORS_ORIGINS` to the exact web origin(s), comma-separated (e.g.
+`https://pbb.vercel.app`). The API refuses to boot in production if it is unset, and rejects
+`*` (a wildcard origin with credentials is unsafe). Locally it defaults to
+`http://localhost:3000`.
+
 ## Vercel notes
 
 - Root is the monorepo; set Vercel **Root Directory** to `apps/web`, build command

@@ -26,6 +26,8 @@ JWT_REFRESH_TTL="30d"
 ARGON2_MEMORY_KiB=19456
 TOTP_ISSUER="Pashtoonkhwa Blood Bank"
 
+CORS_ORIGINS="http://localhost:3000"
+
 NOTIFICATIONS_DRIVER="console"
 WHATSAPP_ENABLED="false"
 

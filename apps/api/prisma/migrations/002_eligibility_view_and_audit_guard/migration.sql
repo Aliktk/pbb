@@ -61,14 +61,10 @@ CREATE TRIGGER audit_log_no_truncate
   BEFORE TRUNCATE ON audit_log
   FOR EACH STATEMENT EXECUTE FUNCTION audit_log_is_append_only();
 
--- Defense in depth: revoke the mutating grants from the runtime app role too, so even a
--- SQL-injection reaching the DB cannot UPDATE/DELETE/TRUNCATE the log. INSERT + SELECT only.
--- (The role is created out-of-band on Supabase / in provisioning; guarded so this migration
---  is safe to run before the role exists.)
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pbb_app') THEN
-    REVOKE UPDATE, DELETE, TRUNCATE ON audit_log FROM pbb_app;
-    GRANT INSERT, SELECT ON audit_log TO pbb_app;
-  END IF;
-END $$;
+-- The triggers above are the ENFORCED, always-applied INV-12 guarantee: they fire for
+-- every role on every INSERT-path attempt to UPDATE/DELETE/TRUNCATE. Role-level REVOKEs
+-- are an additional defense-in-depth layer, but they depend on the runtime role existing —
+-- so they are NOT done here (a conditional grant that silently skips when the role is
+-- absent would give a false sense of security). Run them explicitly, once, against the real
+-- app role as a provisioning step: apps/api/prisma/sql/harden-audit-role.sql
+-- (see docs/DEPLOYMENT.md → "Audit-log role hardening").
