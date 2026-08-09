@@ -1,0 +1,32 @@
+{
+  "name": "pbb-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pashtoonkhwa Blood Bank & Welfare Society — operational platform + public site",
+  "packageManager": "pnpm@11.8.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test:unit": "pnpm -r test:unit",
+    "test:api": "pnpm --filter @pbb/api test:api",
+    "test:e2e": "pnpm --filter @pbb/web test:e2e",
+    "test:rbac": "pnpm --filter @pbb/api test:rbac",
+    "test:invariants": "node scripts/invariants/run.mjs",
+    "verify": "node scripts/harness/verify.mjs",
+    "db:migrate": "pnpm --filter @pbb/api prisma migrate dev",
+    "db:reset": "pnpm --filter @pbb/api prisma migrate reset --force",
+    "db:seed": "pnpm --filter @pbb/api db:seed",
+    "db:studio": "pnpm --filter @pbb/api prisma studio",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3"
+  }
+}

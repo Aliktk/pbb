@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pbb
+          POSTGRES_PASSWORD: pbb_dev_password
+          POSTGRES_DB: pbb
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pbb -d pbb"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://pbb:pbb_dev_password@localhost:5432/pbb?schema=public
+      DIRECT_URL: postgresql://pbb:pbb_dev_password@localhost:5432/pbb?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-32-characters-minimum
+      JWT_REFRESH_SECRET: ci-refresh-secret-32-characters-minimum
+      NOTIFICATIONS_DRIVER: console
+      STORAGE_DRIVER: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm --filter @pbb/api prisma:generate
+      - run: pnpm --filter @pbb/api prisma migrate deploy
+      - run: pnpm db:seed
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test:invariants
+      - run: pnpm test:unit
+      - run: pnpm build
