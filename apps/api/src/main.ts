@@ -5,13 +5,19 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
-  // CORS is restricted to an explicit allowlist (never `cors: true`, which reflects any
-  // origin). The public site + admin are same-project Next.js on known hosts; anything
-  // else is rejected. Set CORS_ORIGINS to the deployed web origin(s), comma-separated.
-  const corsOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // CORS is an explicit allowlist (never `cors: true`). The localhost default applies ONLY
+  // in non-production; in production an unset CORS_ORIGINS fails CLOSED (refuse to boot)
+  // rather than falling back to a permissive value, and "*" is rejected outright because a
+  // wildcard origin with credentials is unsafe.
+  const isProd = process.env.NODE_ENV === 'production';
+  const rawOrigins = process.env.CORS_ORIGINS ?? (isProd ? '' : 'http://localhost:3000');
+  const corsOrigins = rawOrigins.split(',').map((s) => s.trim()).filter(Boolean);
+  if (isProd && corsOrigins.length === 0) {
+    throw new Error('CORS_ORIGINS must be set explicitly in production — refusing to start with no allowlist.');
+  }
+  if (corsOrigins.includes('*')) {
+    throw new Error('CORS_ORIGINS may not be "*" — a wildcard origin with credentials is unsafe.');
+  }
   const app = await NestFactory.create(AppModule, {
     cors: {
       origin: corsOrigins,

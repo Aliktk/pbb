@@ -5,11 +5,12 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      # Overridable — dev default only. Real credentials come from Supabase in prod; set
-      # POSTGRES_PASSWORD in the environment to override for any shared/staging instance.
-      POSTGRES_USER: ${POSTGRES_USER:-pbb}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pbb_dev_password}
-      POSTGRES_DB: ${POSTGRES_DB:-pbb}
+      # LOCAL DEV ONLY — this is not a secret. Production uses Supabase (this compose file is
+      # never deployed). Kept STATIC on purpose so it always matches the DATABASE_URL below;
+      # an env-overridable password here would silently drift from that URL and break auth.
+      POSTGRES_USER: pbb
+      POSTGRES_PASSWORD: pbb_dev_password
+      POSTGRES_DB: pbb
     ports:
       # Published on 5433 to avoid clashing with a native Postgres commonly running on
       # 5432 (verified on this machine). Container-internal port stays 5432.
