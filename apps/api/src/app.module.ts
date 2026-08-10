@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthController } from './health/health.controller';
@@ -23,8 +23,10 @@ import { PermissionsGuard } from './rbac/permissions.guard';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Rate limiting (layer 9): a generous per-IP default for authenticated browsing; sensitive
+    // public routes (login, refresh, request intake) tighten this with @Throttle at the route.
     ThrottlerModule.forRoot([
-      { ttl: 60_000, limit: Number(process.env.RATE_LIMIT_PUBLIC_PER_MIN ?? 20) },
+      { ttl: 60_000, limit: Number(process.env.RATE_LIMIT_DEFAULT_PER_MIN ?? 120) },
     ]),
     PrismaModule,
     AuthModule,
@@ -35,7 +37,9 @@ import { PermissionsGuard } from './rbac/permissions.guard';
   providers: [
     // Notification driver is selected by env; console is the safe default.
     { provide: NOTIFICATION_PORT, useClass: ConsoleNotifier },
-    // Order matters: authenticate first, then authorize.
+    // Guard order: throttle first (cheap, blocks floods before any DB work), then authenticate,
+    // then authorize.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],

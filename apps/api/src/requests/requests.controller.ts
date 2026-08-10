@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { RequestsService } from './requests.service';
 import { CreateRequestDto } from './dto/create-request.dto';
 import { ListRequestsQuery } from './dto/list-requests.query';
@@ -10,7 +11,8 @@ import type { AuthUser } from '../rbac/auth-user';
 export class RequestsController {
   constructor(private readonly requests: RequestsService) {}
 
-  // Public: the website "Request blood" form.
+  // Public: the website "Request blood" form. Throttled so the open intake cannot be flooded.
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
   @Public()
   @Post()
   create(@Body() dto: CreateRequestDto) {
