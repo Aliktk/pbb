@@ -20,3 +20,6 @@ _handoff/**/node_modules/
 
 # redundant with extracted _handoff/
 Modernist-handoff.zip
+
+# compiled seed artifact (source is seed.ts, run via tsx)
+apps/api/prisma/seed.js

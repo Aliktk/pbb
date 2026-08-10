@@ -143,7 +143,7 @@ export default function Home() {
             <Link href="/news" className="btn btn-o btn-s" style={css('margin-left:auto')}>All announcements</Link>
           </div>
           <div className="g3">
-            {HOME_NEWS.map(([k, d, t, b, c], i) => (
+            {HOME_NEWS.map(([k, d, t, b, c]) => (
               <div key={t} className="card" style={css('padding:0;overflow:hidden')}>
                 <ImageSlot ratio="16/9" style="border-radius:0" placeholder="Drop a cover photo" />
                 <div style={css('padding:22px')}>

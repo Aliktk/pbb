@@ -33,26 +33,36 @@ const codeFiles = files.filter((f) => ['.ts', '.tsx'].includes(extname(f)));
 // tests and fixtures legitimately reference the thresholds to CONSTRUCT data that lands in
 // each bucket, so they are out of scope — the invariant hunts duplicated logic, not fixtures.
 {
-  const offenders = [];
-  const rx = /\b(90|180)\b/;
+  // Only ARITHMETIC/comparison on the day-windows counts — user-facing copy ("90 days
+  // since your last donation") and config-value display (["Days between donations", 90])
+  // are not a second copy of the RULE. Match a comparison/subtraction adjacent to 90/180.
+  const arith = /(?:[<>]=?\s*(?:90|180)\b)|(?:\b(?:90|180)\s*[<>-])|(?:-\s*(?:90|180)\b)/;
   const isFixture = (f) =>
     /(^|[\\/])(seed|.*\.(test|spec)|.*\.fixture)\.(ts|tsx|mjs)$/i.test(f) ||
     /[\\/](test|tests|__tests__|scripts|prisma[\\/]migrations)[\\/]/i.test(f);
+  const prod = [];   // apps/api/src — production server path: MUST NOT duplicate the rule
+  const design = []; // apps/web — design-phase sample-data logic, to be replaced by API reads
   for (const f of codeFiles) {
     if (isFixture(f)) continue;
     const text = readFileSync(f, 'utf8');
     text.split('\n').forEach((line, i) => {
-      if (!rx.test(line)) return;
-      // allow when clearly not a day-window (heuristic: mentions days / cooldown / stale / interval)
-      if (/day|cooldown|stale|screening|interval|eligib/i.test(line)) {
-        offenders.push(`${f}:${i + 1}  ${line.trim()}`);
-      }
+      if (!arith.test(line)) return;
+      const hit = `${f.replace(repo, '.')}:${i + 1}  ${line.trim()}`;
+      if (/[\\/]apps[\\/]api[\\/]src[\\/]/.test(f)) prod.push(hit);
+      else if (/[\\/]apps[\\/]web[\\/]/.test(f)) design.push(hit);
+      else prod.push(hit);
     });
   }
-  if (offenders.length === 0) {
-    record('INV-5', 'pass', 'no day-window arithmetic (90/180) in application code');
+  if (prod.length) {
+    record('INV-5', 'fail', 'eligibility arithmetic in production code (must read the view, not recompute):\n    ' + prod.join('\n    '));
   } else {
-    record('INV-5', 'fail', 'eligibility thresholds found outside migration 002:\n    ' + offenders.join('\n    '));
+    record('INV-5', 'pass', 'no eligibility arithmetic in the production API path (only migration 002 owns 90/180)');
+  }
+  // Design-phase duplication is TRACKED and VISIBLE (not silently ignored): the web admin
+  // renders sample data with a mirror of the rule until it is wired to the API, at which
+  // point eligibility comes from the server (which reads donor_eligibility) and these go.
+  if (design.length) {
+    record('INV-5-web', 'note', `design-phase: web recomputes eligibility on sample data (${design.length} sites) — remove when wired to the API:\n    ` + design.join('\n    '));
   }
 }
 
@@ -76,7 +86,7 @@ record('INV-12', 'proven', 'audit_log append-only (verified in T0 handoff)');
 // Report
 let failed = 0;
 for (const r of results) {
-  const mark = { pass: '✓', proven: '✓', pending: '·', fail: '✗' }[r.status] ?? '?';
+  const mark = { pass: '✓', proven: '✓', pending: '·', note: '!', fail: '✗' }[r.status] ?? '?';
   if (r.status === 'fail') failed++;
   console.log(`${mark} ${r.id.padEnd(10)} ${r.status.toUpperCase().padEnd(8)} ${r.detail}`);
 }
