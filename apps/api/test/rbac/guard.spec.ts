@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 import { PermissionsGuard } from '../../src/rbac/permissions.guard';
-import { IS_PUBLIC_KEY, PERMISSIONS_KEY } from '../../src/rbac/decorators';
+import { IS_PUBLIC_KEY } from '../../src/rbac/decorators';
 import type { AuthUser } from '../../src/rbac/auth-user';
 
 // A reflector stub returning the public flag and the required-permissions list per metadata key.
