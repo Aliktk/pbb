@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
 import './globals.css';
+import { Preloader } from '../components/Preloader';
 
 export const metadata = {
-  title: 'Pashtoonkhwa Blood Bank — Quetta, Balochistan',
+  title: 'Pashtoonkhwa Blood Bank, Quetta, Balochistan',
   description:
-    'Pashtoonkhwa Blood Bank & Welfare Society — screened blood, on exchange; free for thalassemia children. Since 24 March 1999.',
+    'Pashtoonkhwa Blood Bank and Welfare Society. Screened blood on exchange, free for thalassemia children. Since 24 March 1999.',
+  icons: {
+    icon: '/assets/pbb-logo.png',
+    shortcut: '/assets/pbb-logo.png',
+    apple: '/assets/pbb-logo.png',
+  },
 };
 
 // Root layout. Fonts match the prototype exactly (Plus Jakarta Sans + Noto Nastaliq Urdu).
@@ -21,7 +27,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <Preloader />
+        {children}
+      </body>
     </html>
   );
 }

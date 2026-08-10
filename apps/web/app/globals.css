@@ -604,3 +604,13 @@ section.blk{padding:46px 0}
 .anav.on svg{opacity:1}
 .mobbar b{display:flex;align-items:center;justify-content:center}
 .mobbar b svg{width:20px;height:20px}
+
+/* page-opening preloader (components/Preloader.tsx) */
+.preloader{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity .5s ease,visibility .5s ease}
+.preloader.is-hiding{opacity:0;visibility:hidden}
+.preloader-mark{position:relative;display:flex;align-items:center;justify-content:center;width:110px;height:110px}
+.preloader-mark img{width:76px;height:76px;object-fit:contain;animation:preloader-pulse 1.4s ease-in-out infinite}
+.preloader-spin{position:absolute;inset:0;border:3px solid var(--line);border-top-color:var(--red);border-radius:50%;animation:preloader-spin .85s linear infinite}
+@keyframes preloader-spin{to{transform:rotate(360deg)}}
+@keyframes preloader-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.9);opacity:.72}}
+@media (prefers-reduced-motion:reduce){.preloader-spin,.preloader-mark img{animation:none}}
