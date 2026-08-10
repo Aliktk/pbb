@@ -12,7 +12,7 @@
     "test:unit": "vitest run",
     "test:api": "vitest run --dir test/api",
     "test:rbac": "vitest run --dir test/rbac",
-    "db:seed": "node --env-file=../../.env --import tsx prisma/seed.ts",
+    "db:seed": "node --env-file-if-exists=../../.env --import tsx prisma/seed.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate"
   },
