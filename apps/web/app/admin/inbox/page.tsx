@@ -45,7 +45,7 @@ export default function AdminInbox() {
                 <tr key={i} onClick={() => setOpen(s)}>
                   <td className="m2"><div className="nm">{s.name || s.org || 'No name given'}</div><div className="sm">{s.kind} · {s.phone || ''}</div></td>
                   <td className="m1">{s.kind}</td>
-                  <td>{s.city || '—'}</td>
+                  <td>{s.city || '-'}</td>
                   <td className="sm">{agoLabel(s.minsAgo)}</td>
                   <td className="m3"><span className="tag no">New</span></td>
                 </tr>
@@ -56,7 +56,7 @@ export default function AdminInbox() {
       ) : (
         <div className="acard aempty">
           <h3>Nothing waiting</h3>
-          <p style={css('margin-top:8px;max-width:46ch;margin-inline:auto')}>Every form on the public website lands here — volunteers, partner organisations, foundations, messages and donation receipts.</p>
+          <p style={css('margin-top:8px;max-width:46ch;margin-inline:auto')}>Every form on the public website lands here - volunteers, partner organisations, foundations, messages and donation receipts.</p>
           <p style={css('margin-top:14px')}><Link href="/join/volunteer"><b>Try it: fill in the volunteer form →</b></Link></p>
         </div>
       )}

@@ -5,7 +5,7 @@ import { IMG } from '../../lib/images';
 
 const NEWS_COVERS = [IMG.community, IMG.building, IMG.bloodBags];
 
-// Home — ported from the prototype (pbb-app.js PAGES['']). Data arrays mirror the source.
+// Home - ported from the prototype (pbb-app.js PAGES['']). Data arrays mirror the source.
 const STOCK: [string, string, string][] = [
   ['O−', 'cr', 'Critical'], ['AB−', 'lo', 'Low'], ['B−', 'lo', 'Low'], ['A−', 'ok', 'Available'],
   ['O+', 'ok', 'Available'], ['A+', 'ok', 'Available'], ['B+', 'ok', 'Available'], ['AB+', 'ok', 'Available'],
@@ -26,7 +26,7 @@ const CHART: [number, number, number][] = [
 
 const HOME_NEWS: [string, string, string, string, string][] = [
   ['Blood camp', '12 September', 'Free donation camp, Pishin', 'Band Road branch, 9am to 4pm. Walk in or register to attend.', 'no'],
-  ['Notice', '3 September', 'New building — final stage', 'Construction of the new Quetta premises has entered its last phase.', 'gy'],
+  ['Notice', '3 September', 'New building - final stage', 'Construction of the new Quetta premises has entered its last phase.', 'gy'],
   ['Appeal', 'Runs to 20 June', 'Eid ul Adha hide collection', 'Volunteers collect cattle hides across all branches.', 'ok'],
 ];
 
@@ -40,7 +40,7 @@ export default function Home() {
               <span className="eyebrow"><b />Serving Balochistan since 24 March 1999</span>
               <h1>Blood is life.<br />We keep the <em>record</em>.</h1>
               <p className="lead">
-                Screened, tested blood for anyone who needs it — irrespective of language, colour,
+                Screened, tested blood for anyone who needs it - irrespective of language, colour,
                 religion, race or ethnicity. Free and without exchange for thalassemia children,
                 mothers, emergencies and disasters.
               </p>
@@ -55,7 +55,7 @@ export default function Home() {
                 <div><div className="n">3</div><div className="c">ambulances, 24 hours</div></div>
               </div>
             </div>
-            <ImageSlot ratio="4/4.4" style="border-radius:var(--rl)" src={IMG.heroDonation} placeholder="Drop the hero photograph — a donor at the bench, or a PBB ambulance" />
+            <ImageSlot ratio="4/4.4" style="border-radius:var(--rl)" src={IMG.heroDonation} placeholder="Drop the hero photograph - a donor at the bench, or a PBB ambulance" />
           </div>
         </div>
       </header>
@@ -115,7 +115,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <div className="axis"><span>1999</span><span>2011 — peak year</span><span>June 2012</span></div>
+          <div className="axis"><span>1999</span><span>2011 - peak year</span><span>June 2012</span></div>
         </div>
       </section>
 
@@ -126,7 +126,7 @@ export default function Home() {
               <div className="qlab" style={css('margin-bottom:12px')}>Where we are</div>
               <h2 style={css('margin-bottom:16px')}>Six offices.<br />Fourteen towns.</h2>
               <p className="lead" style={css('margin-bottom:24px')}>
-                From the head office beside the Quetta Press Club out to Zhob, Chaman and Loralai —
+                From the head office beside the Quetta Press Club out to Zhob, Chaman and Loralai -
                 and to the towns in between that have no blood bank of their own.
               </p>
               <Link href="/branches" className="btn btn-o">See every branch</Link>
@@ -171,7 +171,7 @@ export default function Home() {
               <h2 style={css('margin-bottom:14px')}>Blood exists. It just<br />does not reach people in time.</h2>
               <p className="lead" style={css('max-width:54ch')}>
                 No national register, almost no voluntary donors, bags expiring in one town while a
-                patient waits in the next. Twelve gaps — and what we do about them.
+                patient waits in the next. Twelve gaps - and what we do about them.
               </p>
               <Link href="/problem" className="btn btn-d" style={css('margin-top:22px')}>Read the twelve gaps</Link>
             </div>

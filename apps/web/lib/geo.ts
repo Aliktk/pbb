@@ -46,7 +46,7 @@ export function haversineKm(a: LatLng, b: LatLng): number {
 
 /**
  * Resolve a free-text "city / area" to a search origin by matching it against the known
- * towns (case-insensitive, substring either way). Returns null when nothing matches — the
+ * towns (case-insensitive, substring either way). Returns null when nothing matches - the
  * caller then falls back to the browser's geolocation, or shows every match without distance.
  */
 export function resolveTownOrigin(cityText: string): { town: string; at: LatLng } | null {

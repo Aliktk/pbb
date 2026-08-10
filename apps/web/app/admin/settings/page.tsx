@@ -31,7 +31,7 @@ const LANGUAGES: [string, string, string][] = [
   ['پښتو Pashto', '62% translated', 'wt'],
 ];
 
-// Feature flags — each can be switched on or off. Grouped so the effect is obvious. `locked`
+// Feature flags - each can be switched on or off. Grouped so the effect is obvious. `locked`
 // features are built but wait on something external (kept off, and not switchable). Wires to
 // the API (a settings/feature-flags table) later; toggling now updates local state only.
 interface Feature {
@@ -101,7 +101,7 @@ export default function AdminSettings() {
               <div key={k} className="fgrp"><label className="lb">{k}</label><input className="fld" type={fieldType(k)} defaultValue={v} /></div>
             ))}
             <button type="button" className="btn btn-p" style={css('width:100%')} onClick={() => showToast('Saving settings wires to the API')}>Save</button>
-            <p className="ahint">Changed here, changed everywhere — the header, the footer, every contact block and every printed form.</p>
+            <p className="ahint">Changed here, changed everywhere - the header, the footer, every contact block and every printed form.</p>
           </div>
           <div>
             <div className="acard">
@@ -159,7 +159,7 @@ export default function AdminSettings() {
             </div>
           ))}
           <button type="button" className="btn btn-p" onClick={() => showToast('Saving feature switches wires to the API')}>Save features</button>
-          <p className="ahint">Turning a feature off hides it everywhere at once — the public page, the menu and the admin screen that feeds it. A locked feature is built and waiting on something external.</p>
+          <p className="ahint">Turning a feature off hides it everywhere at once - the public page, the menu and the admin screen that feeds it. A locked feature is built and waiting on something external.</p>
         </>
       )}
 
@@ -190,7 +190,7 @@ export default function AdminSettings() {
               <p className="sm">What each role can see and do, and which screens it may open. Change a role once and everyone in it moves together.</p>
             </Link>
           </div>
-          <p className="ahint">An administrator can only create accounts weaker than their own, and only within the towns they are responsible for. A password is set by its owner — a super admin can reset it but never see it.</p>
+          <p className="ahint">An administrator can only create accounts weaker than their own, and only within the towns they are responsible for. A password is set by its owner - a super admin can reset it but never see it.</p>
         </>
       )}
     </AdminShell>

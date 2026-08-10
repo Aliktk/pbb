@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { css } from '../lib/style';
 
-// 404 — ported from the prototype (pbb-pages2.js PAGES['404']). Plain page, no hero.
+// 404 - ported from the prototype (pbb-pages2.js PAGES['404']). Plain page, no hero.
 export default function NotFound() {
   return (
     <section className="blk" style={css('padding:90px 0')}>

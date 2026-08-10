@@ -1,6 +1,6 @@
 import { css } from '../../../lib/style';
 
-// Terms — ported from the prototype (pbb-pages2.js PAGES.terms → legal()).
+// Terms - ported from the prototype (pbb-pages2.js PAGES.terms → legal()).
 // legal() calls hero('', title) with an EMPTY eyebrow, so the eyebrow renders <b /> with no text.
 const ROWS: [string, string][] = [
   ['Blood is not sold', 'Pashtoonkhwa Blood Bank has never purchased or sold blood and will not. Blood is provided on exchange, and free without exchange in cases of thalassemia, pregnancy, emergency and natural disaster.'],

@@ -567,7 +567,7 @@ section.blk{padding:46px 0}
 .atbl{overflow-x:auto}
 .atbl table{min-width:640px}
 .acont{overflow-x:hidden}
-.roleswitch::before{content:"Demonstration — view as";font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mid);align-self:center;padding:0 8px 0 10px}
+.roleswitch::before{content:"Demonstration - view as";font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mid);align-self:center;padding:0 8px 0 10px}
 @media(max-width:1420px){.roleswitch::before{content:"View as"}}
 @media(max-width:1240px){.roleswitch::before{display:none}}
 .abar h1{margin-right:2px}
@@ -594,11 +594,11 @@ section.blk{padding:46px 0}
 @media(max-width:1000px){.roleswitch button{padding:8px 11px;font-size:12px}}
 @media(max-width:900px){.roleswitch{order:0;width:100%;margin:4px 0 0}.roleswitch button{flex:1;text-align:center;justify-content:center}}
 
-/* toast — design-phase action feedback (lib/toast.ts) */
+/* toast - design-phase action feedback (lib/toast.ts) */
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:13px 22px;border-radius:99px;font-size:14.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.24);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:200;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* admin nav icons (components/Icon.tsx) — inherit currentColor, never shrink so the
+/* admin nav icons (components/Icon.tsx) - inherit currentColor, never shrink so the
    .ct count badge keeps its margin-left:auto alignment */
 .anav svg{flex:none;opacity:.9}
 .anav.on svg{opacity:1}

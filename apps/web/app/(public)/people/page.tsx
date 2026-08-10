@@ -6,9 +6,9 @@ import { IMG } from '../../../lib/images';
 // Rotate portraits by call order; real, consented staff photos replace these later (constraint #5).
 const PORTRAITS = [IMG.portraitA, IMG.portraitB, IMG.portraitC] as const;
 
-// People — ported from the prototype (pbb-pages.js PAGES.people). Data mirrors the source.
+// People - ported from the prototype (pbb-pages.js PAGES.people). Data mirrors the source.
 
-// person(n,r,d,extra) helper — ports the .card portrait markup exactly.
+// person(n,r,d,extra) helper - ports the .card portrait markup exactly.
 function person(i: number, n: string, r: string, d: string, extra?: ReactNode) {
   return (
     <div className="card" style={css('padding:0;overflow:hidden')}>

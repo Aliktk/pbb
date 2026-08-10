@@ -8,7 +8,7 @@ import { showToast } from '../../../lib/toast';
 
 // Accounts & hierarchy, ported from pbb-admin4.js (PAGES['admin/accounts']). The register is
 // created top-down: every account is made by a named person above it, and can only be given a
-// role at or below the creator's own — that is what stops accounts nobody remembers making.
+// role at or below the creator's own - that is what stops accounts nobody remembers making.
 // Rendered as head office (ROLE='head', SCOPE=null); real RBAC is enforced server-side (T1).
 
 type AccountStatus = 'active' | 'invited' | 'suspended';
@@ -19,14 +19,14 @@ interface Account {
 }
 
 const ACCOUNTS: Account[] = [
-  { n: 'Olus Yar', r: 'Olus Yar', t: 'All towns', e: 'organizer@pbb.org', ph: '0300-3815590', st: 'active', by: '—', last: 'now', tfa: 1 },
-  { n: 'Dr. Hamid Khan Achakzai', r: 'Executive', t: 'All towns', e: 'committee@pbb.org', ph: '—', st: 'active', by: 'Olus Yar', last: '2 hours ago', tfa: 1 },
-  { n: 'Mr. Faqir Khushal Khan Kasi', r: 'Executive', t: 'All towns', e: 'faqir@pbb.org', ph: '—', st: 'active', by: 'Olus Yar', last: 'yesterday', tfa: 0 },
-  { n: 'Dr. Naseer Muhammad', r: 'Verifier', t: 'All towns', e: 'lab@pbb.org', ph: '—', st: 'active', by: 'Olus Yar', last: '3 hours ago', tfa: 1 },
+  { n: 'Olus Yar', r: 'Olus Yar', t: 'All towns', e: 'organizer@pbb.org', ph: '0300-3815590', st: 'active', by: '-', last: 'now', tfa: 1 },
+  { n: 'Dr. Hamid Khan Achakzai', r: 'Executive', t: 'All towns', e: 'committee@pbb.org', ph: '-', st: 'active', by: 'Olus Yar', last: '2 hours ago', tfa: 1 },
+  { n: 'Mr. Faqir Khushal Khan Kasi', r: 'Executive', t: 'All towns', e: 'faqir@pbb.org', ph: '-', st: 'active', by: 'Olus Yar', last: 'yesterday', tfa: 0 },
+  { n: 'Dr. Naseer Muhammad', r: 'Verifier', t: 'All towns', e: 'lab@pbb.org', ph: '-', st: 'active', by: 'Olus Yar', last: '3 hours ago', tfa: 1 },
   { n: 'Zhob coordinator', r: 'Branch manager', t: 'Zhob', e: 'zhob@pbb.org', ph: '0822-413902', st: 'active', by: 'Dr. Hamid Khan Achakzai', last: 'yesterday', tfa: 0 },
   { n: 'Pishin desk', r: 'Data entry', t: 'Pishin', e: 'pishin@pbb.org', ph: '0826-421288', st: 'active', by: 'Zhob coordinator', last: '3 days ago', tfa: 0 },
   { n: 'Loralai desk', r: 'Data entry', t: 'Loralai', e: 'loralai@pbb.org', ph: '0824-662066', st: 'suspended', by: 'Dr. Hamid Khan Achakzai', last: '41 days ago', tfa: 0 },
-  { n: 'Chaman volunteer lead', r: 'Volunteer lead', t: 'Chaman', e: 'chaman@pbb.org', ph: '—', st: 'invited', by: 'Dr. Hamid Khan Achakzai', last: '—', tfa: 0 },
+  { n: 'Chaman volunteer lead', r: 'Volunteer lead', t: 'Chaman', e: 'chaman@pbb.org', ph: '-', st: 'invited', by: 'Dr. Hamid Khan Achakzai', last: '-', tfa: 0 },
 ];
 
 // Who each role may create. Nobody can create at or above their own level. (CANMAKE, head shown.)
@@ -53,7 +53,7 @@ function statusTag(st: AccountStatus) {
 
 function statusSheetTag(st: AccountStatus) {
   if (st === 'active') return <span className="tag ok">Active</span>;
-  if (st === 'invited') return <span className="tag no">Invited — has not signed in yet</span>;
+  if (st === 'invited') return <span className="tag no">Invited - has not signed in yet</span>;
   return <span className="tag wt">Suspended</span>;
 }
 
@@ -134,7 +134,7 @@ export default function AdminAccounts() {
         </table>
       </div>
 
-      <p className="ahint">There is no way to sign up for an account. Every one on this list was created by a named person above it, and that name cannot be edited afterwards. If somebody asks for access, the person above them creates it — or nobody does.</p>
+      <p className="ahint">There is no way to sign up for an account. Every one on this list was created by a named person above it, and that name cannot be edited afterwards. If somebody asks for access, the person above them creates it - or nobody does.</p>
 
       <AccountSheet account={open} onClose={() => setOpen(null)} />
       <CreateAccountSheet
@@ -175,7 +175,7 @@ function AccountSheet({ account: a, onClose }: { account: Account | null; onClos
               <>
                 <div className="row" style={css('gap:9px')}>
                   <button type="button" className="btn btn-o" style={css('flex:1')} onClick={() => showToast('Changing role or town wires to the API')}>Change role or town</button>
-                  <button type="button" className="btn btn-o" onClick={() => showToast('Reset sends a one-time link — wires to the API')}>Reset password</button>
+                  <button type="button" className="btn btn-o" onClick={() => showToast('Reset sends a one-time link - wires to the API')}>Reset password</button>
                 </div>
                 <button type="button" className="btn btn-o" style={css('width:100%;margin-top:10px')} onClick={() => showToast('Requiring two-step sign in wires to the API')}>Require two-step sign in</button>
                 <button type="button" className="btn btn-d" style={css('width:100%;margin-top:10px')} onClick={() => showToast(a.st === 'suspended' ? 'Restoring this account wires to the API' : 'Suspending this account wires to the API')}>{a.st === 'suspended' ? 'Restore this account' : 'Suspend this account'}</button>
@@ -189,7 +189,7 @@ function AccountSheet({ account: a, onClose }: { account: Account | null; onClos
   );
 }
 
-// Create an account — no password is ever typed here. The person receives a one-time link and
+// Create an account - no password is ever typed here. The person receives a one-time link and
 // sets their own, so the creator never knows it and never needs to. Head office may grant any role.
 function CreateAccountSheet({
   open, sent, onClose, onCreated, onAnother,
@@ -268,7 +268,7 @@ function CreateAccountSheet({
                 <p className="sm" style={css('margin-top:8px')}>These sit on top of the role. Anything not switched on here is refused even if the role would normally allow it.</p>
               </div>
 
-              <div className="ahint" style={css('margin-bottom:16px')}>They receive a single link that works once and expires in seven days. They choose their own password — you will never see it, and if they forget it you can only reset it, never read it.</div>
+              <div className="ahint" style={css('margin-bottom:16px')}>They receive a single link that works once and expires in seven days. They choose their own password - you will never see it, and if they forget it you can only reset it, never read it.</div>
               <button className="btn btn-p" style={css('width:100%;padding:15px')}>Create and send the invitation</button>
               <button type="button" className="btn btn-o" style={css('width:100%;margin-top:10px')} onClick={onClose}>Cancel</button>
             </form>

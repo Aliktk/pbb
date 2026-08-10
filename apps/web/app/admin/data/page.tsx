@@ -4,17 +4,17 @@ import { ActionButton } from '../../../components/ActionButton';
 
 // Data import / export / backups, ported from pbb-admin5.js (PAGES['admin/data']). Twenty-seven
 // years of paper does not have to be typed twice: upload a spreadsheet and match the columns once.
-// Anything the importer cannot read with confidence is left blank rather than guessed — a wrong
+// Anything the importer cannot read with confidence is left blank rather than guessed - a wrong
 // last-donation date puts a donor at risk. Export is head-office only (rendered as head office).
 
 type MapState = 'ok' | 'warn' | 'off';
 
 const MAPPING: [string, string, MapState][] = [
-  ['Name', 'Column A — Name', 'ok'],
-  ['Blood group', 'Column C — Grp', 'ok'],
-  ['Phone', 'Column D — Contact', 'ok'],
-  ['Town', 'Column F — Area', 'ok'],
-  ['Last donated', 'Column H — Date', 'warn'],
+  ['Name', 'Column A - Name', 'ok'],
+  ['Blood group', 'Column C - Grp', 'ok'],
+  ['Phone', 'Column D - Contact', 'ok'],
+  ['Town', 'Column F - Area', 'ok'],
+  ['Last donated', 'Column H - Date', 'warn'],
   ['Address', 'not matched', 'off'],
 ];
 
@@ -56,7 +56,7 @@ export default function AdminData() {
             {MAPPING.map(([f, c, s]) => (
               <div className="maprow" key={f}><span className="mf">{f}</span><span className="mc">{c}</span>{mapTag(s)}</div>
             ))}
-            <div className="ahint" style={css('margin-top:16px')}>Dates in the old registers are written several ways. Anything the importer cannot read with confidence is left blank rather than guessed — a wrong last-donation date puts a donor at risk.</div>
+            <div className="ahint" style={css('margin-top:16px')}>Dates in the old registers are written several ways. Anything the importer cannot read with confidence is left blank rather than guessed - a wrong last-donation date puts a donor at risk.</div>
             <ActionButton className="btn btn-p" style={css('width:100%;margin-top:16px')} message="Import runs once the backend is wired">Check the file</ActionButton>
           </div>
 
@@ -89,7 +89,7 @@ export default function AdminData() {
             {EXPORTS.map(([n, f]) => (
               <div className="listrow" key={n}>
                 <div><b>{n}</b><span className="sm" style={css('display:block')}>{f}</span></div>
-                <ActionButton className="btn btn-o btn-s" message="Export needs a typed reason and writes to the audit log — wires to the API">Export</ActionButton>
+                <ActionButton className="btn btn-o btn-s" message="Export needs a typed reason and writes to the audit log - wires to the API">Export</ActionButton>
               </div>
             ))}
           </div>
@@ -109,7 +109,7 @@ export default function AdminData() {
           <div className="acard" style={css('margin-top:18px;border-color:#F0BDB6')}>
             <h3 style={css('margin-bottom:6px;color:var(--red-d)')}>Removing somebody</h3>
             <p className="sm">A donor who asks to be taken off is removed the same day, and we do not ask them why. Their donations stay in the yearly totals as a number, without their name.</p>
-            <ActionButton className="btn btn-o" style={css('width:100%;margin-top:14px')} message="Removing a person writes to the audit log — wires to the API">Remove a person</ActionButton>
+            <ActionButton className="btn btn-o" style={css('width:100%;margin-top:14px')} message="Removing a person writes to the audit log - wires to the API">Remove a person</ActionButton>
           </div>
         </div>
       </div>

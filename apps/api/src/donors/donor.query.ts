@@ -12,7 +12,7 @@ export interface DonorFilters {
 /**
  * Build the Prisma `where` for a donor list/search. Always excludes removed donors and applies
  * the caller's town scope (INV-2). A town-scoped user can never widen past their own town, even
- * by passing a different townId — the scope wins.
+ * by passing a different townId - the scope wins.
  */
 export function donorListWhere(f: DonorFilters, user: AuthUser): Prisma.DonorWhereInput {
   const scope = scopeWhere(user); // {} (global) or { townId }

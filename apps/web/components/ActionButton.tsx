@@ -6,7 +6,7 @@ import { showToast } from '../lib/toast';
 interface ActionButtonProps {
   className?: string;
   style?: CSSProperties;
-  /** Toast shown on click — describes what this action will do once the API is wired. */
+  /** Toast shown on click - describes what this action will do once the API is wired. */
   message?: string;
   children: ReactNode;
   ariaLabel?: string;

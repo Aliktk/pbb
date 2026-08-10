@@ -1,6 +1,6 @@
 import { css } from '../../../lib/style';
 
-// Privacy — ported from the prototype (pbb-pages2.js PAGES.privacy → legal()).
+// Privacy - ported from the prototype (pbb-pages2.js PAGES.privacy → legal()).
 // legal() calls hero('', title) with an EMPTY eyebrow, so the eyebrow renders <b /> with no text.
 const ROWS: [string, string][] = [
   ['What we hold', 'Your name, blood group, telephone number and town. If you tell us, your date of birth, weight and the date you last donated. Nothing else.'],

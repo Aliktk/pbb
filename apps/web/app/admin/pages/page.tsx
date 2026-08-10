@@ -25,7 +25,7 @@ const SITEPAGES: SitePage[] = [
   { name: 'Announcements', url: '/news', blocks: '1', menu: 'Media', langs: 'EN', status: 'live' },
   { name: 'Donate', url: '/donate', blocks: '6', menu: 'Get involved', langs: 'EN اردو', status: 'live' },
   { name: 'Contact', url: '/contact', blocks: '4', menu: 'Contact', langs: 'EN', status: 'live' },
-  { name: 'Annual report 2026', url: '/report-2026', blocks: '9', menu: '—', langs: 'EN', status: 'draft' },
+  { name: 'Annual report 2026', url: '/report-2026', blocks: '9', menu: '-', langs: 'EN', status: 'draft' },
 ];
 
 const BLOCKS = ['heading', 'rich text', 'text + image', 'cards', 'stat row', 'timeline', 'people grid', 'gallery', 'FAQ', 'table', 'quote', 'file download', 'video', 'map', 'form', 'call to action'];

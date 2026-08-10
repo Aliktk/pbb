@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { css } from '../../../lib/style';
 
-// FAQ — ported from PAGES.faq. Client component so the accordion actually opens (a static
-// version would leave every answer permanently hidden — a dead control).
+// FAQ - ported from PAGES.faq. Client component so the accordion actually opens (a static
+// version would leave every answer permanently hidden - a dead control).
 const FAQS: [string, string][] = [
-  ['Who can give blood?', 'Anyone between 18 and 60, weighing at least 50 kg, in good health, and at least 90 days since their last donation. If you are unsure, come to a branch — the screening takes a few minutes.'],
-  ['Does it cost anything?', 'No. Pashtoonkhwa Blood Bank has never sold blood and never purchased it. Blood is given on exchange — a relative or friend of the patient donates in return.'],
+  ['Who can give blood?', 'Anyone between 18 and 60, weighing at least 50 kg, in good health, and at least 90 days since their last donation. If you are unsure, come to a branch - the screening takes a few minutes.'],
+  ['Does it cost anything?', 'No. Pashtoonkhwa Blood Bank has never sold blood and never purchased it. Blood is given on exchange - a relative or friend of the patient donates in return.'],
   ['What if nobody can donate in exchange?', 'In four cases there is no exchange requirement at all: thalassemia, pregnancy, emergencies and natural disasters. That has been the rule since 1999.'],
   ['Is the blood tested?', 'Every bag is screened by the ELISA method for Hepatitis B, Hepatitis C, HIV/AIDS and malarial parasite before it reaches a patient.'],
   ['Does giving blood make me weak?', 'No. Your body replaces the volume within a day and the cells within weeks. The 90-day gap exists precisely so that it does you no harm.'],
@@ -15,7 +15,7 @@ const FAQS: [string, string][] = [
   ['How often will you call me?', 'Rarely, and never more than twice in one day. The register calls whoever has gone longest without giving, so the same few people are not asked over and over.'],
   ['Can I say no?', 'Always, and without explanation. You stay on the register.'],
   ['Where does the money go?', 'Screening kits, blood bags, ambulance fuel and branch running costs. Funding comes from members, charity, Zakat, and cattle hides collected at Eid ul Adha.'],
-  ['Do you serve my town?', 'Six towns have a permanent office and eight more are served from them. If yours is not listed, ask — or register your organisation and we will talk about a branch.'],
+  ['Do you serve my town?', 'Six towns have a permanent office and eight more are served from them. If yours is not listed, ask - or register your organisation and we will talk about a branch.'],
 ];
 
 export default function Faq() {

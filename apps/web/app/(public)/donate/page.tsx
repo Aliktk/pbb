@@ -10,7 +10,7 @@ const BANK_ACCOUNTS: [string, string][] = [
   ['Bank Islami, Zhob', '1048-0088676-0001'],
 ];
 
-// Donate — ported from PAGES.donate. Bank list + Eid hides are static; copy buttons and the
+// Donate - ported from PAGES.donate. Bank list + Eid hides are static; copy buttons and the
 // form are client components.
 export default function Donate() {
   return (
@@ -45,7 +45,7 @@ export default function Donate() {
                 <b>After transferring,</b> send us the receipt using the form so it can be matched and
                 receipted. Zakat-eligible donations are recorded separately.
               </div>
-              <h3 style={css('margin:38px 0 14px')}>Eid ul Adha — cattle hides</h3>
+              <h3 style={css('margin:38px 0 14px')}>Eid ul Adha - cattle hides</h3>
               <p className="muted">
                 Volunteers collect hides across every branch during the three days of Eid. A large
                 share of the year&apos;s running cost comes from this collection alone.

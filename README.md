@@ -1,4 +1,4 @@
-# Pashtoonkhwa Blood Bank — Platform
+# Pashtoonkhwa Blood Bank - Platform
 
 An operational blood-bank system that also publishes a website. A coordinator uses it at
 three in the morning to find someone who can give O− in Quetta. It replaces a paper Donor
@@ -13,15 +13,15 @@ Diary kept since 24 March 1999 across fourteen towns in Balochistan.
 
 ## Stack
 
-- **Web** — Next.js 15 (App Router, TypeScript) — public site + admin panel + donor self-service
-- **API** — NestJS (TypeScript)
-- **Database** — PostgreSQL via **Prisma** (Supabase in production, Docker locally)
-- **Monorepo** — pnpm workspaces: `apps/web`, `apps/api`, `packages/types`
+- **Web** - Next.js 15 (App Router, TypeScript) - public site + admin panel + donor self-service
+- **API** - NestJS (TypeScript)
+- **Database** - PostgreSQL via **Prisma** (Supabase in production, Docker locally)
+- **Monorepo** - pnpm workspaces: `apps/web`, `apps/api`, `packages/types`
 
 ## What's built
 
 - **Web (62 routes, design complete):** the full public website (25 pages), donor
-  self-service (`/me`), and the complete admin panel (30 screens) — pixel-ported from the
+  self-service (`/me`), and the complete admin panel (30 screens) - pixel-ported from the
   prototype. Interactive (nav, forms with success states, filters, detail sheets, role
   switcher). Currently renders sample data; wiring to the API is the next step.
 - **Database:** Prisma schema for every entity (frozen), migrations including the
@@ -36,7 +36,7 @@ Diary kept since 24 March 1999 across fourteen towns in Balochistan.
 
 - **Node.js ≥ 20** (tested on 24) and **pnpm ≥ 9** (`corepack enable` gives you pnpm)
 - **One database**, either:
-  - **Supabase** (recommended — used in production), or
+  - **Supabase** (recommended - used in production), or
   - **Docker Desktop** (for a local Postgres + Redis)
 
 ## Run it locally
@@ -64,7 +64,7 @@ CORS_ORIGINS="http://localhost:3000"
 NEXT_PUBLIC_API_URL="http://localhost:4000/api/v1"
 ```
 
-> Both URLs are required — Prisma uses the pooled one at runtime and the direct one for
+> Both URLs are required - Prisma uses the pooled one at runtime and the direct one for
 > migrations. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for why.
 
 **B) Local Docker Postgres.** Run `node scripts/setup-local-env.mjs` to write a ready `.env`,
@@ -84,7 +84,7 @@ pnpm db:seed                                     # 14 towns · 6 branches · 8 r
 ```
 
 > If Prisma can't find your `.env` (it loads it from the working directory), run these from
-> the repo root — the commands above already target the API's schema.
+> the repo root - the commands above already target the API's schema.
 
 ### 4. Start the apps
 
@@ -96,7 +96,7 @@ pnpm --filter @pbb/api dev
 ```
 
 - **Website:** http://localhost:3000
-- **Admin:** http://localhost:3000/admin/login — for the demo, tap any account to fill the
+- **Admin:** http://localhost:3000/admin/login - for the demo, tap any account to fill the
   form and sign in (real auth arrives with the API wiring)
 - **Donor self-service:** http://localhost:3000/me/signin
 - **API health:** http://localhost:4000/api/v1/health → `{"ok":true,"data":{"db":"up"}}`
@@ -106,8 +106,8 @@ pnpm --filter @pbb/api dev
 ## Verify it's error-free
 
 ```bash
-pnpm typecheck          # all workspaces — 0 errors
-pnpm lint               # ESLint (flat config) across the monorepo — clean
+pnpm typecheck          # all workspaces - 0 errors
+pnpm lint               # ESLint (flat config) across the monorepo - clean
 pnpm build              # builds api (NestJS) + web (Next.js)
 pnpm test:invariants    # the §7 invariant checks (INV-1 … INV-12)
 ```
@@ -118,8 +118,8 @@ All four are green on the current tree. `pnpm verify` runs the whole battery at 
 
 ```
 apps/
-  web/        Next.js — app/(public) marketing site, app/me self-service, app/admin panel
-  api/        NestJS — src/ modules, prisma/ (schema, migrations, seed)
+  web/        Next.js - app/(public) marketing site, app/me self-service, app/admin panel
+  api/        NestJS - src/ modules, prisma/ (schema, migrations, seed)
 packages/
   types/      shared Zod DTOs + the shared eligibility-state list
 docs/         harness spec, build plan, route inventory, deployment guide, track handoffs
@@ -136,15 +136,15 @@ step, are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Troubleshooting
 
-- **`P1000 authentication failed` locally** — a native Postgres is likely on port 5432.
+- **`P1000 authentication failed` locally** - a native Postgres is likely on port 5432.
   Docker Postgres here is published on **5433**; make sure your `.env` matches, or stop the
   native service.
-- **Prisma "environment variable not found: DATABASE_URL"** — Prisma loads `.env` from the
+- **Prisma "environment variable not found: DATABASE_URL"** - Prisma loads `.env` from the
   current directory. Run Prisma commands from the repo root (where `.env` lives).
-- **Prisma + Supabase prepared-statement errors** — ensure `DATABASE_URL` (the pooled URL)
+- **Prisma + Supabase prepared-statement errors** - ensure `DATABASE_URL` (the pooled URL)
   ends with `?pgbouncer=true&connection_limit=1`.
 
-## Ethical constraints (encoded, not conventions — Harness §1)
+## Ethical constraints (encoded, not conventions - Harness §1)
 
 Blood is never sold · thalassemia children are free & without exchange · a donor's phone is
 visible only to their branch + head office · removal is same-day, no reason asked · a child's

@@ -15,7 +15,7 @@ const YEARLY: [number, number | null][] = [
 
 const PEAK_BAGS = 9484;
 
-// Static display screen — the "Enter a year" form is a design placeholder (wires to API later),
+// Static display screen - the "Enter a year" form is a design placeholder (wires to API later),
 // so no client interactivity is needed here.
 export default function AdminLedger() {
   return (
@@ -36,7 +36,7 @@ export default function AdminLedger() {
 
         <div className="acard">
           <h3 style={css('margin-bottom:4px')}>Enter a year</h3>
-          <p className="sm" style={css('margin-bottom:16px')}>The gap between 2013 and today closes with four numbers a year — no migration needed.</p>
+          <p className="sm" style={css('margin-bottom:16px')}>The gap between 2013 and today closes with four numbers a year - no migration needed.</p>
           <div className="g2" style={css('gap:12px')}>
             <div className="fgrp"><label className="lb">Year</label><input className="fld" inputMode="numeric" placeholder="2013" /></div>
             <div className="fgrp"><label className="lb">Bags</label><input className="fld" inputMode="numeric" /></div>

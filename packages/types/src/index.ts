@@ -49,7 +49,7 @@ export const createRequestSchema = z.object({
 });
 export type CreateRequestInput = z.infer<typeof createRequestSchema>;
 
-// Emergency search query — the whole product (§8.1). p95 < 200ms at 50k donors.
+// Emergency search query - the whole product (§8.1). p95 < 200ms at 50k donors.
 export const eligibleSearchSchema = z.object({
   bloodGroup: z.enum(BLOOD_GROUPS),
   rhFactor: z.enum(RH_FACTORS),

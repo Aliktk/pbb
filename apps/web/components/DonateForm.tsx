@@ -7,7 +7,7 @@ import { css } from '../lib/style';
 const PURPOSES = ['Where most needed', 'Sponsor a thalassemia child', 'Screening kits', 'Ambulance fuel and upkeep', 'Zakat'];
 const ACCOUNTS = ['National Bank, Quetta', 'United Bank, Loralai', 'National Bank, Pishin', 'Bank Islami, Zhob'];
 
-/** Donation-details form — matches the prototype; submit shows an acknowledgement. */
+/** Donation-details form - matches the prototype; submit shows an acknowledgement. */
 export function DonateForm() {
   const [submitted, setSubmitted] = useState(false);
 
@@ -52,7 +52,7 @@ export function DonateForm() {
         <select className="fld" name="acct">{ACCOUNTS.map((a) => <option key={a}>{a}</option>)}</select>
       </div>
       <div className="fgrp">
-        <label className="lb">Receipt <span className="muted" style={css('font-weight:500')}>— photograph or screenshot</span></label>
+        <label className="lb">Receipt <span className="muted" style={css('font-weight:500')}>- photograph or screenshot</span></label>
         <div className="drop">Tap to attach the transfer receipt</div>
       </div>
       <button className="btn btn-p" style={css('width:100%;padding:15px')}>Send details</button>

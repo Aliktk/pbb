@@ -29,16 +29,16 @@ interface PermRow {
 }
 
 const PERMS: PermRow[] = [
-  { area: 'Donors', action: 'View', cells: ['All', 'All', 'Own town', 'Own town', 'Own town', '—', 'All', '—'] },
-  { area: 'Donors', action: 'Add and edit', cells: ['✓', '✓', '✓', '✓', '✓', '—', '—', '—'] },
-  { area: 'Donors', action: 'Delete or merge', cells: ['✓', '—', '—', '—', '—', '—', '—', '—'] },
-  { area: 'Requests', action: 'Answer and close', cells: ['✓', '✓', '✓', '✓', '—', '—', '—', '—'] },
-  { area: 'Inventory', action: 'Update stock', cells: ['✓', '—', '✓', '—', '✓', '—', '—', '—'] },
-  { area: 'Ledger', action: 'Record donations', cells: ['✓', '✓', '✓', '✓', '✓', '✓', '—', '—'] },
-  { area: 'Money', action: 'Verify receipts', cells: ['✓', '✓', '—', '—', '—', '✓', '✓', '—'] },
-  { area: 'Website', action: 'Edit and publish', cells: ['✓', '✓', '—', '—', '—', '—', '—', '✓'] },
-  { area: 'Settings', action: 'Change the rules', cells: ['✓', '—', '—', '—', '—', '—', '—', '—'] },
-  { area: 'Staff', action: 'Manage accounts', cells: ['✓', '—', '—', '—', '—', '—', '—', '—'] },
+  { area: 'Donors', action: 'View', cells: ['All', 'All', 'Own town', 'Own town', 'Own town', '-', 'All', '-'] },
+  { area: 'Donors', action: 'Add and edit', cells: ['✓', '✓', '✓', '✓', '✓', '-', '-', '-'] },
+  { area: 'Donors', action: 'Delete or merge', cells: ['✓', '-', '-', '-', '-', '-', '-', '-'] },
+  { area: 'Requests', action: 'Answer and close', cells: ['✓', '✓', '✓', '✓', '-', '-', '-', '-'] },
+  { area: 'Inventory', action: 'Update stock', cells: ['✓', '-', '✓', '-', '✓', '-', '-', '-'] },
+  { area: 'Ledger', action: 'Record donations', cells: ['✓', '✓', '✓', '✓', '✓', '✓', '-', '-'] },
+  { area: 'Money', action: 'Verify receipts', cells: ['✓', '✓', '-', '-', '-', '✓', '✓', '-'] },
+  { area: 'Website', action: 'Edit and publish', cells: ['✓', '✓', '-', '-', '-', '-', '-', '✓'] },
+  { area: 'Settings', action: 'Change the rules', cells: ['✓', '-', '-', '-', '-', '-', '-', '-'] },
+  { area: 'Staff', action: 'Manage accounts', cells: ['✓', '-', '-', '-', '-', '-', '-', '-'] },
 ];
 
 const STAFF: [string, string, string, string][] = [
@@ -50,7 +50,7 @@ const STAFF: [string, string, string, string][] = [
 
 function permCell(c: string) {
   if (c === '✓') return <span className="yes">✓</span>;
-  if (c === '—') return <span className="no2">—</span>;
+  if (c === '-') return <span className="no2">-</span>;
   return <span className="scopetag">{c}</span>;
 }
 
@@ -101,7 +101,7 @@ export default function AdminRoles() {
       <div className="g2" style={css('gap:18px;margin-top:18px')}>
         <div className="acard">
           <h3 style={css('margin-bottom:6px')}>&quot;Own town&quot; is a rule in the database</h3>
-          <p className="sm">Not a hidden menu. A Zhob employee asking for donors gets Zhob rows — there is no address they can type that returns Quetta&apos;s. Try it with the role switcher.</p>
+          <p className="sm">Not a hidden menu. A Zhob employee asking for donors gets Zhob rows - there is no address they can type that returns Quetta&apos;s. Try it with the role switcher.</p>
         </div>
         <div className="acard" style={css('border-color:#F0BDB6')}>
           <h3 style={css('margin-bottom:6px;color:var(--red-d)')}>Three things nobody has by default</h3>

@@ -7,7 +7,7 @@ import type { AuthUser } from '../rbac/auth-user';
 
 /**
  * Staff authentication (§4). login/refresh/logout are public (they establish the session);
- * /me requires a valid access token — the global JwtAuthGuard enforces that.
+ * /me requires a valid access token - the global JwtAuthGuard enforces that.
  */
 @Controller('auth')
 export class AuthController {

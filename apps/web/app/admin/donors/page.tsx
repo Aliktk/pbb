@@ -66,7 +66,7 @@ export default function AdminDonors() {
                 const n = daysSince(d.last);
                 return (
                   <tr key={d.id} onClick={() => setOpen(d)}>
-                    <td className="mono2 m1">{d.mr || '—'}</td>
+                    <td className="mono2 m1">{d.mr || '-'}</td>
                     <td className="m2"><div className="nm">{d.n}</div><div className="sm">{d.mr || d.c} · {d.p}</div></td>
                     <td>{bgTag(d.g)}</td>
                     <td className="mono2 m1">{d.p}</td>
@@ -85,7 +85,7 @@ export default function AdminDonors() {
       </div>
 
       <p className="ahint">
-        Every column of the branch Donor Diary is here — MR number, group and RH, age, contact, emergency
+        Every column of the branch Donor Diary is here - MR number, group and RH, age, contact, emergency
         contact and relationship, address, quantity, frequency, mode of issue, and the five screening
         results. What the book could not do is work out for itself whether somebody can give <b>today</b>,
         or that a screening result has gone stale. That is the whole difference.

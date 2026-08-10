@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 /**
  * Single Prisma client for the whole API. Prisma is the schema authority and the only
- * path to the database — no raw pg pools elsewhere. Reads of the eligibility view go
+ * path to the database - no raw pg pools elsewhere. Reads of the eligibility view go
  * through `donorEligibility` (a typed Prisma view), never through hand-written arithmetic.
  */
 @Injectable()

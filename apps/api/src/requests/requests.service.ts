@@ -48,7 +48,7 @@ export class RequestsService {
     return { reference: created.reference, status: created.status };
   }
 
-  /** The public "who needs blood now" board — open requests, no names or phones (INV-11). */
+  /** The public "who needs blood now" board - open requests, no names or phones (INV-11). */
   async listPublic() {
     const rows = await this.prisma.bloodRequest.findMany({
       where: { status: { in: [RequestStatus.OPEN, RequestStatus.ARRANGING] } },
@@ -59,7 +59,7 @@ export class RequestsService {
     return { data: rows.map(toPublicRequest) };
   }
 
-  /** Admin list — full records, town-scoped. */
+  /** Admin list - full records, town-scoped. */
   async listAdmin(user: AuthUser, q: ListRequestsQuery) {
     const scope = scopeWhere(user);
     const where: Prisma.BloodRequestWhereInput = { ...scope };
@@ -111,6 +111,6 @@ export class RequestsService {
       const clash = await this.prisma.bloodRequest.findUnique({ where: { reference: ref } });
       if (!clash) return ref;
     }
-    throw new ConflictException('Could not allocate a request reference — please try again');
+    throw new ConflictException('Could not allocate a request reference - please try again');
   }
 }

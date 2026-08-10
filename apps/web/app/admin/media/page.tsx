@@ -36,7 +36,7 @@ export default function AdminMedia() {
         </div>
         <div className="acard" style={css('border-color:#F0BDB6')}>
           <h3 style={css('margin-bottom:6px;color:var(--red-d)')}>Consent flag</h3>
-          <p className="sm">Photographs of patients or children carry a consent flag. Without it, the picker refuses to place the image on a public page — it is enforced, not a policy on paper.</p>
+          <p className="sm">Photographs of patients or children carry a consent flag. Without it, the picker refuses to place the image on a public page - it is enforced, not a policy on paper.</p>
         </div>
       </div>
     </AdminShell>

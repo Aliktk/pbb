@@ -46,7 +46,7 @@ export default function AdminLogin() {
       <div className="demobox">
         <div className="qlab" style={css('margin-bottom:8px')}>For this demonstration</div>
         <p className="sm" style={css('margin-bottom:12px')}>
-          Real accounts are created by the head office. Tap one to fill the form — each lands in a different
+          Real accounts are created by the head office. Tap one to fill the form - each lands in a different
           part of the panel, because the account decides that, not the person signing in.
         </p>
         {DEMO.map(([e, desc]) => (

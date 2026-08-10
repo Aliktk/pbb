@@ -8,7 +8,7 @@ import { TOWNS } from '../lib/nav';
 const MODES = ['General', 'Volunteer', 'Hospital or partner', 'Press'];
 const SKILLS = ['Camps', 'Outreach', 'Driving', 'Office work', 'Design'];
 
-/** Contact form — mode pills reveal volunteer fields; submit shows a success panel. */
+/** Contact form - mode pills reveal volunteer fields; submit shows a success panel. */
 export function ContactForm() {
   const [mode, setMode] = useState('General');
   const [skills, setSkills] = useState<string[]>([]);
@@ -56,7 +56,7 @@ export function ContactForm() {
       <div className="fgrp"><label className="lb">Name *</label><input className="fld" name="name" required /></div>
       <div className="fgrp"><label className="lb">Phone *</label><input className="fld" name="phone" type="tel" required /></div>
       <div className="fgrp">
-        <label className="lb">Email <span className="muted" style={css('font-weight:500')}>— optional</span></label>
+        <label className="lb">Email <span className="muted" style={css('font-weight:500')}>- optional</span></label>
         <input className="fld" name="email" type="email" />
       </div>
       {mode === 'Volunteer' && (

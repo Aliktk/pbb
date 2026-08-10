@@ -13,7 +13,7 @@ interface JoinFormProps {
 
 /**
  * The one-form-five-kinds join form. Client component: manages the blood-group picker and,
- * on submit, shows the prototype's success panel. No backend yet (design phase) — submission
+ * on submit, shows the prototype's success panel. No backend yet (design phase) - submission
  * is intercepted and acknowledged locally; wiring to POST /requests etc. comes with T3/T2.
  */
 export function JoinForm({ kind }: JoinFormProps) {

@@ -2,14 +2,14 @@ import Link from 'next/link';
 import { ActionButton } from '../../../components/ActionButton';
 import { css } from '../../../lib/style';
 
-// The donor's own record — ported from PAGES['me']. Design phase: fields/toggles are present
+// The donor's own record - ported from PAGES['me']. Design phase: fields/toggles are present
 // and editable; Save/Record wire to PATCH /me/record + POST /me/donations later.
 const CALL_PREFS: [string, boolean][] = [
   ['Any hour, for an emergency', true],
   ['Only between 8am and 9pm', false],
   ['By SMS as well as a telephone call', true],
   ['About camps and events near me', true],
-  ['Never — take me off the calling list', false],
+  ['Never - take me off the calling list', false],
 ];
 
 const MY_DONATIONS: [string, string, string][] = [
@@ -72,7 +72,7 @@ export default function MeRecord() {
                   Only a branch can change this, and only after a fresh test. Telephone 081-2836820 if it is wrong.
                 </div>
               </div>
-              <ActionButton className="btn btn-p" style={css('width:100%')} message="Saved — writes to the register when the backend is wired">Save</ActionButton>
+              <ActionButton className="btn btn-p" style={css('width:100%')} message="Saved - writes to the register when the backend is wired">Save</ActionButton>
             </div>
 
             <div className="card" style={css('margin-top:20px')}>
@@ -101,7 +101,7 @@ export default function MeRecord() {
               ))}
               <p className="sm" style={css('margin-top:14px')}>
                 O negative can be given to anybody, so you are called more than most. Turning the first one
-                off is understood — say so rather than letting the phone ring.
+                off is understood - say so rather than letting the phone ring.
               </p>
             </div>
 

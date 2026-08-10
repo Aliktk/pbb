@@ -5,7 +5,7 @@ import { IS_PUBLIC_KEY } from './decorators';
 
 /**
  * Global authentication guard. Validates the bearer access token via the 'jwt' strategy and
- * attaches the AuthUser to the request — unless the route is marked @Public(). Fail-closed:
+ * attaches the AuthUser to the request - unless the route is marked @Public(). Fail-closed:
  * anything not public and not carrying a valid token is rejected.
  */
 @Injectable()

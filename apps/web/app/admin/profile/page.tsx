@@ -7,10 +7,10 @@ import { ALLOW, ROLES } from '../../../lib/admin';
 import { showToast } from '../../../lib/toast';
 
 // Your account, ported from pbb-admin5.js (PAGES['admin/profile']). Rendered as head office
-// (ROLE='head', SCOPE=null). A password is set only by its owner — nobody else can see it,
+// (ROLE='head', SCOPE=null). A password is set only by its owner - nobody else can see it,
 // including the super admin; they can only reset it. Office is set by whoever created the account.
 
-// Head-office contact detail (ROLES.head in the prototype — office/phone/email are not on the
+// Head-office contact detail (ROLES.head in the prototype - office/phone/email are not on the
 // shared lib/admin ROLES, so the extra fields are held here alongside who/sub from the shared list).
 const ME = {
   who: ROLES[0].who,
@@ -54,12 +54,12 @@ export default function AdminProfile() {
               <div className="fgrp"><label className="lb">Email</label><input className="fld" type="email" defaultValue={ME.email} /></div>
             </div>
             <div className="fgrp"><label className="lb">Language you prefer</label><select className="fld"><option>English</option><option>اردو Urdu</option><option>پښتو Pashto</option></select></div>
-            <button type="button" className="btn btn-p" style={css('width:100%')} onClick={() => showToast('Saved — wires to the API')}>Save</button>
+            <button type="button" className="btn btn-p" style={css('width:100%')} onClick={() => showToast('Saved - wires to the API')}>Save</button>
           </div>
 
           <div className="acard" style={css('margin-top:18px')}>
             <h3 style={css('margin-bottom:6px')}>Password</h3>
-            <p className="sm" style={css('margin-bottom:16px')}>Change it here. Nobody else can see it, including the super admin — they can only reset it.</p>
+            <p className="sm" style={css('margin-bottom:16px')}>Change it here. Nobody else can see it, including the super admin - they can only reset it.</p>
             <div className="fgrp"><label className="lb">Current password</label><input className="fld" type="password" /></div>
             <div className="g2" style={css('gap:14px')}>
               <div className="fgrp"><label className="lb">New password</label><input className="fld" type="password" /></div>

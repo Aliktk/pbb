@@ -31,7 +31,7 @@ export default function MeSignin() {
           </p>
         </div>
         <div className="ahint" style={css('max-width:520px;margin-top:18px')}>
-          Number changed, or never given one? Telephone any branch — the list is on{' '}
+          Number changed, or never given one? Telephone any branch - the list is on{' '}
           <Link href="/branches">Our branches</Link>.
         </div>
       </div>

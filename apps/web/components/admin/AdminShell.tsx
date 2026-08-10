@@ -16,7 +16,7 @@ interface AdminShellProps {
 
 /**
  * The admin chrome (aside sidebar + topbar + mobile bar), ported from the prototype's
- * adminShell(). The role switcher is a demonstration control — it changes which sidebar
+ * adminShell(). The role switcher is a demonstration control - it changes which sidebar
  * items are visible and the branch scope label. Real RBAC is enforced server-side (T1);
  * hiding a control here is presentation only.
  */

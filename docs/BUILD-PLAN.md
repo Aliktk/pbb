@@ -1,4 +1,4 @@
-# PBB — Master Build Plan
+# PBB - Master Build Plan
 
 Adapts the 8-track / 4-wave structure of `PBB Build Harness.md` §5 to this repository,
 with concrete file ownership (so parallel agents never collide) and the gate each track
@@ -9,15 +9,15 @@ must pass. This is the plan the orchestrator and every track agent read.
 ```
 pbb/
   apps/
-    api/                 NestJS (TypeScript) — the operational system
-    web/                 Next.js App Router — public site + admin + /me
+    api/                 NestJS (TypeScript) - the operational system
+    web/                 Next.js App Router - public site + admin + /me
   packages/
     types/               shared DTOs + Zod schemas, generated from Prisma
     ui/                  shared React components ported from the prototype
     config/              eslint / tsconfig / prettier shared config
   docs/                  this plan, the harness prompt, route inventory, track handoffs
   scripts/               harness runner, invariant checks, seed helpers
-  _handoff/              the Modernist prototype (reference only — never imported)
+  _handoff/              the Modernist prototype (reference only - never imported)
   docker-compose.yml     postgres + redis + api + web (single VPS target)
 ```
 
@@ -25,7 +25,7 @@ pbb/
 
 | Track | Owns (write) | Reads (no write) |
 |-------|--------------|------------------|
-| T0 | root config, `packages/*`, `apps/api/prisma`, `apps/api/src/main.ts`, seed, docker, CI | — |
+| T0 | root config, `packages/*`, `apps/api/prisma`, `apps/api/src/main.ts`, seed, docker, CI | - |
 | T1 | `apps/api/src/auth`, `apps/api/src/accounts`, `apps/api/src/rbac`, `apps/web/app/(admin)/login` | prisma, types |
 | T2 | `apps/api/src/donors`, `apps/api/src/screenings`, `apps/api/src/donations`, `apps/api/src/import` | prisma, types |
 | T3 | `apps/api/src/requests`, `apps/api/src/inventory` | prisma, types |
@@ -35,7 +35,7 @@ pbb/
 | T7 | `apps/web/app/(admin)/{homepage,pages,announcements,events,media,partners,volunteers}`, `apps/api/src/content` | api, ui |
 | T8 | `apps/api/src/notifications`, `apps/api/src/jobs`, `apps/web/app/(admin)/whatsapp`, ops | all |
 
-## Wave 0 — T0 Foundation (blocks everything)
+## Wave 0 - T0 Foundation (blocks everything)
 
 **Scope.** Monorepo + tooling; Prisma schema for every §3 entity; migrations including the
 `donor_eligibility` view; seed (14 towns, 6 branches, 8 roles, ~200 donors covering all 7
@@ -50,7 +50,7 @@ eligibility cases); Docker Compose; CI (lint + typecheck + test); the shared `ty
 - [ ] `pnpm typecheck && pnpm lint && pnpm build` green.
 - [ ] `pnpm test:invariants` runs (may be mostly skipped until later tracks, but wired).
 
-## Wave 1 — parallel (needs T0)
+## Wave 1 - parallel (needs T0)
 
 **T1 Auth & RBAC.** Sign-in, refresh, forgot/reset, TOTP, guards, permission matrix,
 account creation constrained by creator's role+town. No self-registration.
@@ -69,7 +69,7 @@ months-of-cover (one source), shortage strip + 48h staleness.
 *Gate:* Lighthouse ≥ 90 mobile on Home/Request/Needs; all 3 languages no layout break;
 a throwing page shows a visible error, never the previous page.
 
-## Wave 2 — parallel (needs T1 + T2)
+## Wave 2 - parallel (needs T1 + T2)
 
 **T5 Admin operations.** Overview, requests, find, donors, inventory, inbox, registry, ledger.
 *Gate:* every dashboard figure traces to one API field; nothing computed client-side.
@@ -94,7 +94,7 @@ nightly backups, rate limiting, pen checks, load testing, deployment runbook.
 - **Can:** install, generate, typecheck, lint, build, unit/api tests, run Postgres+Redis via
   Docker, `migrate reset`, seed, eligibility-view fixture, RBAC matrix, most invariants.
 - **Needs the client / their machine:** live SMS/WhatsApp (real Twilio + approved WA number),
-  the §10 open decisions, real photos/logos, real 2013–2026 donation figures, Lighthouse on a
+  the §10 open decisions, real photos/logos, real 2013-2026 donation figures, Lighthouse on a
   real 3G device, production load test at 50k donors on the target VPS.
 
 These are tracked in each track's `BLOCKED` / `ASSUMED` sections, never silently skipped.

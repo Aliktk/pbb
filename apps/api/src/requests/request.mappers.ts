@@ -5,7 +5,7 @@ type RequestWithTown = BloodRequest & { town: Pick<Town, 'name'> };
 
 /**
  * PUBLIC projection of a request (INV-11). NEVER includes the patient name, the requester name,
- * any phone number, or case notes — only what the public "who needs blood now" board may show.
+ * any phone number, or case notes - only what the public "who needs blood now" board may show.
  */
 export function toPublicRequest(r: RequestWithTown) {
   return {
@@ -21,7 +21,7 @@ export function toPublicRequest(r: RequestWithTown) {
   };
 }
 
-/** ADMIN projection — the full record staff need to act on the request. */
+/** ADMIN projection - the full record staff need to act on the request. */
 export function toAdminRequest(r: RequestWithTown) {
   return {
     id: r.id,

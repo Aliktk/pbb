@@ -3,7 +3,7 @@ import { ActionButton } from '../../../components/ActionButton';
 import { css } from '../../../lib/style';
 import { IMG_ROTATION } from '../../../lib/images';
 
-// Gallery — ported from the prototype (pbb-pages.js PAGES.gallery). Data mirrors the source.
+// Gallery - ported from the prototype (pbb-pages.js PAGES.gallery). Data mirrors the source.
 
 const FILTERS: string[] = ['All', 'Blood camps', 'Awareness', 'Ambulance', 'New building', 'Eid ul Adha', 'Videos'];
 

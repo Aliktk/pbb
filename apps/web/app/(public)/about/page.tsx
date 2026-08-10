@@ -3,7 +3,7 @@ import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
 import { IMG } from '../../../lib/images';
 
-// About / story — ported from the prototype (pbb-pages.js PAGES.about).
+// About / story - ported from the prototype (pbb-pages.js PAGES.about).
 // The prototype's era() and quiet() helpers are ported as local components below.
 
 interface EraProps {
@@ -70,7 +70,7 @@ export default function About() {
         y="1999"
         kick="The beginning"
         title="Inaugurated beside the Quetta Press Club"
-        body="Three members of an organising committee — Olus Yar, Mr. Faqir Khushal Khan Kasi and Dr. Hamid Khan Achakzai — began collecting and screening blood on an exchange basis. They have supervised it ever since."
+        body="Three members of an organising committee - Olus Yar, Mr. Faqir Khushal Khan Kasi and Dr. Hamid Khan Achakzai - began collecting and screening blood on an exchange basis. They have supervised it ever since."
         figs={<><div className="v">360</div><div className="k">bags in the first year</div><div className="v2">180,000 CCs</div></>}
       />
       <Quiet lab="Steady growth" rows={[['2000', '720 bags'], ['2001', '1,080'], ['2002', '1,440'], ['2003', '2,160'], ['2004', '2,747']]} />
@@ -85,7 +85,7 @@ export default function About() {
       <Era
         y="2008"
         kick="Disaster response"
-        title="Ziarat earthquake — ambulances, doctors, volunteers"
+        title="Ziarat earthquake - ambulances, doctors, volunteers"
         body="PBB’s ambulance service, doctors and volunteers provided emergency services to the people of Ziarat. The same teams have since responded to terror attacks, bomb blasts and target killings across Balochistan."
         figs={<><div className="v">5,905</div><div className="k">bags that year</div></>}
       />

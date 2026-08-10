@@ -9,7 +9,7 @@ function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
 }
 
-// Record a donation — one form, three fields. Saving (server-side, T2) writes the donation,
+// Record a donation - one form, three fields. Saving (server-side, T2) writes the donation,
 // sets the donor's next eligible date ninety days out, and adds to the year's total.
 export default function AdminRecord() {
   const [saved, setSaved] = useState(false);
@@ -35,7 +35,7 @@ export default function AdminRecord() {
             <div className="fgrp"><label className="lb">Bags</label><input className="fld" name="bags" defaultValue="1" inputMode="numeric" /></div>
           </div>
           <div className="fgrp">
-            <label className="lb">Against a request? <span className="sm">— optional</span></label>
+            <label className="lb">Against a request? <span className="sm">- optional</span></label>
             <select className="fld" name="req">
               <option value="">Not linked</option>
               {REQUESTS.filter((r) => r.st === 'open').map((r) => <option key={r.id} value={r.id}>{r.id} · {r.g} · {r.hosp}</option>)}

@@ -17,7 +17,7 @@ export class RequestsController {
     return this.requests.createPublic(dto);
   }
 
-  // Public: the "who needs blood now" board — privacy-stripped. Declared before ':id'.
+  // Public: the "who needs blood now" board - privacy-stripped. Declared before ':id'.
   @Public()
   @Get('public')
   listPublic() {

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-// Site footer, ported from the prototype. Static content — a Server Component.
+// Site footer, ported from the prototype. Static content - a Server Component.
 export function SiteFooter() {
   return (
     <footer>
@@ -52,7 +52,7 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="fbot">
-          <span>© 1999–2026 Pashtoonkhwa Blood Bank &amp; Welfare Society</span>
+          <span>© 1999-2026 Pashtoonkhwa Blood Bank &amp; Welfare Society</span>
           <Link href="/privacy" style={{ display: 'inline' }}>Privacy</Link>
           <Link href="/terms" style={{ display: 'inline' }}>Terms</Link>
           <Link href="/me/signin" style={{ display: 'inline' }}>Your donor record</Link>

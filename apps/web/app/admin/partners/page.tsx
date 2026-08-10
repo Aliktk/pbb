@@ -18,11 +18,11 @@ const PARTNERS: Partner[] = [
   { n: 'Civil Hospital, Quetta', k: 'Hospital', c: 'Quetta', st: 'active', since: '2004', note: 'Highest referrer. Named coordinator assigned.' },
   { n: 'Bolan Medical Complex', k: 'Hospital', c: 'Quetta', st: 'active', since: '2007', note: '' },
   { n: 'DHQ Hospital, Zhob', k: 'Hospital', c: 'Zhob', st: 'active', since: '2011', note: '' },
-  { n: 'Quetta Diagnostic Laboratory', k: 'Laboratory', c: 'Quetta', st: 'pending', since: '—', note: 'Offering overflow screening capacity. Awaiting committee.' },
+  { n: 'Quetta Diagnostic Laboratory', k: 'Laboratory', c: 'Quetta', st: 'pending', since: '-', note: 'Offering overflow screening capacity. Awaiting committee.' },
   { n: 'Al-Khidmat Welfare Society', k: 'Welfare society', c: 'Loralai', st: 'active', since: '2015', note: 'Runs the Eid hide collection in Loralai.' },
   { n: 'Balochistan University', k: 'University', c: 'Quetta', st: 'active', since: '2019', note: 'Two campus drives a year.' },
-  { n: 'Sherani Welfare Trust', k: 'Welfare society', c: 'Sherani', st: 'pending', since: '—', note: 'Asking for a branch in a town we serve without an office.' },
-  { n: 'Rahmat Foundation', k: 'Foundation', c: '—', st: 'pending', since: '—', note: 'Offering to fund screening kits for one year.' },
+  { n: 'Sherani Welfare Trust', k: 'Welfare society', c: 'Sherani', st: 'pending', since: '-', note: 'Asking for a branch in a town we serve without an office.' },
+  { n: 'Rahmat Foundation', k: 'Foundation', c: '-', st: 'pending', since: '-', note: 'Offering to fund screening kits for one year.' },
 ];
 
 export default function AdminPartners() {

@@ -9,11 +9,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const target = join(root, '.env');
 
 if (existsSync(target)) {
-  console.log('.env already exists — leaving it untouched.');
+  console.log('.env already exists - leaving it untouched.');
   process.exit(0);
 }
 
-const template = `# Local dev — Docker Postgres + Redis. Swap DB urls for Supabase in prod (see docs/DEPLOYMENT.md).
+const template = `# Local dev - Docker Postgres + Redis. Swap DB urls for Supabase in prod (see docs/DEPLOYMENT.md).
 # Docker Postgres is published on 5433 (5432 is often taken by a native Postgres).
 DATABASE_URL="postgresql://pbb:pbb_dev_password@localhost:5433/pbb?schema=public"
 DIRECT_URL="postgresql://pbb:pbb_dev_password@localhost:5433/pbb?schema=public"

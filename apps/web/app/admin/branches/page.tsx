@@ -19,8 +19,8 @@ const BRANCHES: Branch[] = [
   { n: 'Loralai', a: 'Sayed Abdul Qadir Road', p: '0824-662066', u: '2 days ago', head: 0 },
   { n: 'Pishin', a: 'Band Road', p: '0826-421288', u: 'today', head: 0 },
   { n: 'Zhob', a: 'Sharbat Khan Road', p: '0822-413902', u: '9 days ago', head: 0 },
-  { n: 'Chaman', a: 'Taj Road', p: '—', u: 'never', head: 0 },
-  { n: 'Muslim Bagh', a: 'Aryan Market', p: '—', u: '4 days ago', head: 0 },
+  { n: 'Chaman', a: 'Taj Road', p: '-', u: 'never', head: 0 },
+  { n: 'Muslim Bagh', a: 'Aryan Market', p: '-', u: '4 days ago', head: 0 },
 ];
 
 // The six towns that have a branch office (mirrors OFFICES in the prototype).

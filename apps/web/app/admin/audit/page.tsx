@@ -2,7 +2,7 @@ import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 
 // Append-only audit log. Read-only: the entries below are reproduced verbatim with no edit or
-// delete controls — the log cannot be changed, by branch staff or head office. The admin panel
+// delete controls - the log cannot be changed, by branch staff or head office. The admin panel
 // renders the head-office (all-towns) view. Ported from the prototype's LOG.
 const LOG: [string, string, string, string][] = [
   ['2 minutes ago', 'Pishin desk', 'Added a donor', 'Pishin'],
@@ -10,7 +10,7 @@ const LOG: [string, string, string, string][] = [
   ['1 hour ago', 'Zhob coordinator', 'Marked a request arranged', 'Zhob'],
   ['2 hours ago', 'Dr. Naseer Muhammad', 'Verified 4 donor records', 'All'],
   ['Yesterday', 'Olus Yar', 'Granted photo consent for T-027', 'Pishin'],
-  ['Yesterday', 'Head office', 'Exported the donor list — reason: annual audit', 'All'],
+  ['Yesterday', 'Head office', 'Exported the donor list - reason: annual audit', 'All'],
   ['Yesterday', 'Zhob coordinator', 'Added 2 donors', 'Zhob'],
   ['2 days ago', 'Zhob coordinator', 'Updated stock', 'Zhob'],
 ];

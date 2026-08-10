@@ -13,10 +13,10 @@ async function bootstrap(): Promise<void> {
   const rawOrigins = process.env.CORS_ORIGINS ?? (isProd ? '' : 'http://localhost:3000');
   const corsOrigins = rawOrigins.split(',').map((s) => s.trim()).filter(Boolean);
   if (isProd && corsOrigins.length === 0) {
-    throw new Error('CORS_ORIGINS must be set explicitly in production — refusing to start with no allowlist.');
+    throw new Error('CORS_ORIGINS must be set explicitly in production - refusing to start with no allowlist.');
   }
   if (corsOrigins.includes('*')) {
-    throw new Error('CORS_ORIGINS may not be "*" — a wildcard origin with credentials is unsafe.');
+    throw new Error('CORS_ORIGINS may not be "*" - a wildcard origin with credentials is unsafe.');
   }
   const app = await NestFactory.create(AppModule, {
     cors: {

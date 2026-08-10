@@ -15,8 +15,8 @@ interface EventRow {
 
 const EVENTS: EventRow[] = [
   { n: 'Free donation camp', k: 'Camp', d: '12 Sep', c: 'Pishin', a: '48', s: 'live' },
-  { n: 'University awareness drive', k: 'Awareness', d: '28 Sep', c: 'Quetta', a: '—', s: 'draft' },
-  { n: 'Eid ul Adha hide collection', k: 'Campaign', d: 'seasonal', c: 'All', a: '—', s: 'live' },
+  { n: 'University awareness drive', k: 'Awareness', d: '28 Sep', c: 'Quetta', a: '-', s: 'draft' },
+  { n: 'Eid ul Adha hide collection', k: 'Campaign', d: 'seasonal', c: 'All', a: '-', s: 'live' },
 ];
 
 const ATTENDEES: [string, string, string][] = [
@@ -67,7 +67,7 @@ export default function AdminEvents() {
       </div>
 
       <div className="acard" style={css('margin-top:18px')}>
-        <h3 style={css('margin-bottom:6px')}>Who is coming — Pishin camp</h3>
+        <h3 style={css('margin-bottom:6px')}>Who is coming - Pishin camp</h3>
         <p className="sm" style={css('margin-bottom:14px')}>People who registered on the website.</p>
         {ATTENDEES.map(([n, g, c]) => (
           <div key={n} className="row" style={css('padding:11px 0;border-bottom:1px solid var(--line)')}>
