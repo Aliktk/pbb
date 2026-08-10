@@ -1,25 +1,9 @@
 'use client';
 
-import type { DetailedHTMLProps, HTMLAttributes } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { ALLOW, ROLES } from '../../../lib/admin';
-
-// The prototype's circular avatar uses a bare <image-slot> custom element (styled in globals.css:
-// `image-slot{display:block;width:100%;height:100%}` and `.avatar`), not the .ph box wrapper. Declare
-// the intrinsic element locally so the port stays strict-typed without touching shared files.
-type ImageSlotAttrs = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
-  shape?: string;
-  placeholder?: string;
-};
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      'image-slot': ImageSlotAttrs;
-    }
-  }
-}
 
 // Your account, ported from pbb-admin5.js (PAGES['admin/profile']). Rendered as head office
 // (ROLE='head', SCOPE=null). A password is set only by its owner — nobody else can see it,
@@ -52,7 +36,7 @@ export default function AdminProfile() {
           <div className="acard">
             <h3 style={css('margin-bottom:18px')}>Your details</h3>
             <div className="row" style={css('gap:16px;margin-bottom:20px')}>
-              <div className="avatar"><image-slot id="me-photo" shape="circle" placeholder="Photo" /></div>
+              <div className="avatar" aria-hidden style={css('display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--mid);font-weight:600')}>Photo</div>
               <div style={css('flex:1')}>
                 <b style={css('font-size:17px')}>{ME.who}</b>
                 <div className="sm">{ME.sub}</div>

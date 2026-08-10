@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
 import { TOWNS } from '../../../lib/nav';

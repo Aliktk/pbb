@@ -64,7 +64,12 @@ export function allNegative(tests: Screening | null): boolean | null {
 
 export interface Eligibility { ok: 0 | 1; tag: 'ok' | 'no' | 'gy' | 'wt'; lab: string; why: string }
 
-/** The single eligibility rule (INV-5). Register/search/record sheet all read THIS. */
+/**
+ * DESIGN-PHASE ONLY. Mirrors the DB `donor_eligibility` view so the admin can render the
+ * sample data offline. Once the web is wired to the API, eligibility comes from the server
+ * (which reads the view) and this function — the only place 90/180 appear in the web — is
+ * deleted. Tracked by INV-5-web in scripts/invariants/run.mjs until then.
+ */
 export function elig(d: Donor): Eligibility {
   if (d.defer) return { ok: 0, tag: 'no', lab: 'Deferred', why: 'Deferred — ' + d.defer };
   if (!d.tests) return { ok: 0, tag: 'gy', lab: 'Not screened', why: 'Not screened — the five tests must be done first' };

@@ -12,7 +12,7 @@
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
+    "lint": "eslint .",
     "test:unit": "pnpm -r test:unit",
     "test:api": "pnpm --filter @pbb/api test:api",
     "test:e2e": "pnpm --filter @pbb/web test:e2e",
@@ -26,7 +26,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md}\""
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^15.15.0",
     "prettier": "^3.4.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.66.0"
   }
 }
