@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 // Volunteer stage in the sign-up-to-active pipeline.
 type VolStage = 'new' | 'contacted' | 'active';
@@ -33,7 +34,7 @@ export default function AdminVolunteers() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('Add volunteer — wires to API later.')}>+ Add volunteer</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Adding a volunteer wires to the API')}>+ Add volunteer</button>
     </>
   );
 

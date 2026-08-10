@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -55,7 +56,7 @@ export default function AdminInventory() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('Save stock — wires to API later.')}>Save stock</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Updating stock wires to PUT /inventory')}>Save stock</button>
     </>
   );
 

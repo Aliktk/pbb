@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 interface Section {
   name: string;
@@ -35,7 +36,7 @@ export default function AdminHomepage() {
     <>
       <span style={css('margin-left:auto')} />
       <a className="btn btn-o btn-s" href="/">View the site</a>
-      <button className="btn btn-p btn-s" onClick={() => alert('Publish — wires to API later.')}>Publish</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Publishing the homepage wires to the API')}>Publish</button>
     </>
   );
 
@@ -52,7 +53,7 @@ export default function AdminHomepage() {
                 <span className="sm" style={css('display:block')}>{s.desc}</span>
               </div>
               <button className={`tag ${live[i] ? 'ok' : 'gy'}`} onClick={() => toggle(i)}>{live[i] ? 'Live' : 'Hidden'}</button>
-              <button className="btn btn-o btn-s">Edit</button>
+              <button type="button" className="btn btn-o btn-s" onClick={() => showToast('Editing a section wires to the API')}>Edit</button>
             </div>
           ))}
           <div className="addrow">+ Add a section</div>
@@ -81,7 +82,7 @@ export default function AdminHomepage() {
             <span className="tag ok">اردو ✓</span>
             <span className="tag no">پښتو missing</span>
           </div>
-          <button className="btn btn-p" style={css('width:100%;margin-top:18px')}>Save and publish</button>
+          <button type="button" className="btn btn-p" style={css('width:100%;margin-top:18px')} onClick={() => showToast('Saving and publishing the homepage wires to the API')}>Save and publish</button>
         </div>
       </div>
     </AdminShell>

@@ -593,3 +593,7 @@ section.blk{padding:46px 0}
 @media(max-width:1180px){.akpi{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:1000px){.roleswitch button{padding:8px 11px;font-size:12px}}
 @media(max-width:900px){.roleswitch{order:0;width:100%;margin:4px 0 0}.roleswitch button{flex:1;text-align:center;justify-content:center}}
+
+/* toast — design-phase action feedback (lib/toast.ts) */
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:13px 22px;border-radius:99px;font-size:14.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.24);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:200;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}

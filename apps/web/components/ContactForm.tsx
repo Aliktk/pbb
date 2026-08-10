@@ -54,7 +54,7 @@ export function ContactForm() {
         </div>
       </div>
       <div className="fgrp"><label className="lb">Name *</label><input className="fld" name="name" required /></div>
-      <div className="fgrp"><label className="lb">Phone *</label><input className="fld" name="phone" required /></div>
+      <div className="fgrp"><label className="lb">Phone *</label><input className="fld" name="phone" type="tel" required /></div>
       <div className="fgrp">
         <label className="lb">Email <span className="muted" style={css('font-weight:500')}>— optional</span></label>
         <input className="fld" name="email" type="email" />

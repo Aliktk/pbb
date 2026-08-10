@@ -59,6 +59,20 @@ works without a rewrite. Default assumption until answered: **path 1**.
 Consent rules are enforced above the port: a `MediaAsset` without `hasConsent` cannot be
 attached to a public page regardless of backend (T7 gate, constraint #5).
 
+**Decision (current): Supabase Storage now, Cloudinary later.** Supabase Storage covers media
+on the free tier and sits next to the database, so there is no second account to manage while
+image volume is low. Because everything goes through `StoragePort`, moving to **Cloudinary**
+later (for heavy image loads or on-the-fly transforms) is a one-line change —
+`STORAGE_DRIVER=cloudinary` plus `CLOUDINARY_URL` — with no code refactor. Adding it now would
+be premature.
+
+## Domain
+
+**None yet.** Until a domain is bought, the app runs on the default **`*.vercel.app`** URL
+(web) and the API host's URL. Only two values are domain-coupled — `NEXT_PUBLIC_API_URL` and
+`CORS_ORIGINS` — plus Vercel's own domain setting. Nothing in the code hard-codes a domain, so
+adding one later is a config change, not a code change.
+
 ## Environment variables
 
 The full annotated list lives in `.env.example` (git-ignored real values go in `.env`).

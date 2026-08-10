@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { DonorSheet } from '../../../components/admin/DonorSheet';
+import { showToast } from '../../../lib/toast';
 import { GROUPS, elig, allNegative, daysSince, type Donor } from '../../../lib/admin';
 import { TOWNS } from '../../../lib/nav';
 import { DONORS } from '../../../lib/adminData';
@@ -36,7 +37,7 @@ export default function AdminDonors() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('Add donor — form wires to POST /donors (T2).')}>+ Add donor</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Add donor wires to POST /donors')}>+ Add donor</button>
     </>
   );
 

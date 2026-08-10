@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 interface SitePage {
   name: string;
@@ -39,7 +40,7 @@ export default function AdminPages() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('New page — wires to API later.')}>+ New page</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Adding a page wires to the API')}>+ New page</button>
     </>
   );
 

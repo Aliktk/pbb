@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 interface Announcement {
   m: string; // message
@@ -29,7 +30,7 @@ export default function AdminAnnouncements() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('New announcement — wires to POST /announcements (T7).')}>+ New</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('New announcement wires to the API')}>+ New</button>
     </>
   );
 
@@ -70,7 +71,7 @@ export default function AdminAnnouncements() {
             {WHERE.map(([t, on]) => (
               <label key={t} className="chk"><input type="checkbox" defaultChecked={!!on} disabled={!on} /><span>{t}</span></label>
             ))}
-            <button className="btn btn-p" style={css('width:100%;margin-top:16px')} onClick={() => alert('Publish — wires to POST /announcements (T7).')}>Publish</button>
+            <button type="button" className="btn btn-p" style={css('width:100%;margin-top:16px')} onClick={() => showToast('Publishing wires to the API')}>Publish</button>
           </div>
         </div>
         <p className="ahint">

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ActionButton } from '../../../components/ActionButton';
 import { css } from '../../../lib/style';
 
 // The donor's own record — ported from PAGES['me']. Design phase: fields/toggles are present
@@ -71,7 +72,7 @@ export default function MeRecord() {
                   Only a branch can change this, and only after a fresh test. Telephone 081-2836820 if it is wrong.
                 </div>
               </div>
-              <button className="btn btn-p" style={css('width:100%')}>Save</button>
+              <ActionButton className="btn btn-p" style={css('width:100%')} message="Saved — writes to the register when the backend is wired">Save</ActionButton>
             </div>
 
             <div className="card" style={css('margin-top:20px')}>
@@ -84,7 +85,7 @@ export default function MeRecord() {
                 <div className="fgrp"><label className="lb">When</label><input className="fld" type="date" /></div>
                 <div className="fgrp"><label className="lb">Where</label><input className="fld" placeholder="Hospital or blood bank" /></div>
               </div>
-              <button className="btn btn-o" style={css('width:100%')}>Record it</button>
+              <ActionButton className="btn btn-o" style={css('width:100%')} message="Recording a donation wires to the API">Record it</ActionButton>
             </div>
           </div>
 
@@ -112,7 +113,7 @@ export default function MeRecord() {
                   <span className="tag ok">Recorded</span>
                 </div>
               ))}
-              <button className="btn btn-o btn-s" style={css('width:100%;margin-top:16px')}>All fourteen</button>
+              <ActionButton className="btn btn-o btn-s" style={css('width:100%;margin-top:16px')} message="Your full donation history arrives with the API">All fourteen</ActionButton>
             </div>
 
             <div className="card" style={css('margin-top:20px;border-color:#F0BDB6')}>

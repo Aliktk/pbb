@@ -1,4 +1,5 @@
 import { ImageSlot } from '../../../components/ImageSlot';
+import { ActionButton } from '../../../components/ActionButton';
 import { css } from '../../../lib/style';
 
 // Publications — ported from the prototype (pbb-pages2.js PAGES.publications). Data mirrors PUBS.
@@ -28,7 +29,7 @@ export default function Publications() {
         <div className="wrap">
           <div className="row" style={css('gap:8px;margin-bottom:26px')}>
             {FILTERS.map((f, i) => (
-              <button key={f} className={`pill${i ? '' : ' on'}`}>{f}</button>
+              <ActionButton key={f} className={`pill${i ? '' : ' on'}`} message="Filtering arrives with the media library">{f}</ActionButton>
             ))}
           </div>
           <div className="g3">
@@ -40,8 +41,8 @@ export default function Publications() {
                   <h3 style={css('margin:12px 0 6px')}>{p[0]}</h3>
                   <p className="sm">{p[1]}</p>
                   <div className="row" style={css('gap:8px;margin-top:16px')}>
-                    <button className="btn btn-o btn-s">Download</button>
-                    <button className="btn btn-o btn-s">Print</button>
+                    <ActionButton className="btn btn-o btn-s" message="Download arrives with the media library">Download</ActionButton>
+                    <ActionButton className="btn btn-o btn-s" message="Print arrives with the media library">Print</ActionButton>
                   </div>
                 </div>
               </div>

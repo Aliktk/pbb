@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { css } from '../lib/style';
 import { TOWNS, BLOOD_GROUPS } from '../lib/nav';
 import { FORM_FIELDS, NEED_GROUP, SUCCESS, type JoinKind } from '../lib/join';
+import { showToast } from '../lib/toast';
 
 interface JoinFormProps {
   kind: JoinKind;
@@ -26,7 +27,7 @@ export function JoinForm({ kind }: JoinFormProps) {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (groupLabel && !group) {
-      alert(`Please choose ${groupLabel.toLowerCase()}.`);
+      showToast(`Please choose ${groupLabel.toLowerCase()}.`);
       return;
     }
     const n = Math.floor(1000 + Math.random() * 9000);
@@ -109,7 +110,13 @@ export function JoinForm({ kind }: JoinFormProps) {
         ) : (
           <div className="fgrp" key={row.name}>
             <label className="lb">{row.label}{row.required ? ' *' : ''}</label>
-            <input className="fld" name={row.name} type={row.type} required={row.required} />
+            <input
+              className="fld"
+              name={row.name}
+              type={row.type}
+              required={row.required}
+              inputMode={row.type === 'number' ? 'numeric' : undefined}
+            />
           </div>
         ),
       )}

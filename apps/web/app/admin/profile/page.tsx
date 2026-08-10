@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { ALLOW, ROLES } from '../../../lib/admin';
+import { showToast } from '../../../lib/toast';
 
 // Your account, ported from pbb-admin5.js (PAGES['admin/profile']). Rendered as head office
 // (ROLE='head', SCOPE=null). A password is set only by its owner — nobody else can see it,
@@ -41,19 +42,19 @@ export default function AdminProfile() {
                 <b style={css('font-size:17px')}>{ME.who}</b>
                 <div className="sm">{ME.sub}</div>
                 <div className="row" style={css('gap:8px;margin-top:10px')}>
-                  <button className="btn btn-o btn-s">Change photo</button>
-                  <button className="btn btn-o btn-s">Remove</button>
+                  <button type="button" className="btn btn-o btn-s" onClick={() => showToast('Changing your photo wires to the API')}>Change photo</button>
+                  <button type="button" className="btn btn-o btn-s" onClick={() => showToast('Removing your photo wires to the API')}>Remove</button>
                 </div>
               </div>
             </div>
             <div className="fgrp"><label className="lb">Full name</label><input className="fld" defaultValue={ME.who} /></div>
             <div className="fgrp"><label className="lb">Office</label><input className="fld" defaultValue={ME.office} disabled style={css('opacity:.65')} /><div className="sm" style={css('margin-top:6px')}>Set by whoever created your account. Ask them to move you.</div></div>
             <div className="g2" style={css('gap:14px')}>
-              <div className="fgrp"><label className="lb">Telephone</label><input className="fld" defaultValue={ME.phone} /></div>
-              <div className="fgrp"><label className="lb">Email</label><input className="fld" defaultValue={ME.email} /></div>
+              <div className="fgrp"><label className="lb">Telephone</label><input className="fld" type="tel" defaultValue={ME.phone} /></div>
+              <div className="fgrp"><label className="lb">Email</label><input className="fld" type="email" defaultValue={ME.email} /></div>
             </div>
             <div className="fgrp"><label className="lb">Language you prefer</label><select className="fld"><option>English</option><option>اردو Urdu</option><option>پښتو Pashto</option></select></div>
-            <button className="btn btn-p" style={css('width:100%')}>Save</button>
+            <button type="button" className="btn btn-p" style={css('width:100%')} onClick={() => showToast('Saved — wires to the API')}>Save</button>
           </div>
 
           <div className="acard" style={css('margin-top:18px')}>
@@ -64,7 +65,7 @@ export default function AdminProfile() {
               <div className="fgrp"><label className="lb">New password</label><input className="fld" type="password" /></div>
               <div className="fgrp"><label className="lb">Type it again</label><input className="fld" type="password" /></div>
             </div>
-            <button className="btn btn-o" style={css('width:100%')}>Change password</button>
+            <button type="button" className="btn btn-o" style={css('width:100%')} onClick={() => showToast('Changing your password wires to the API')}>Change password</button>
           </div>
         </div>
 
@@ -76,7 +77,7 @@ export default function AdminProfile() {
               <div><b>Currently</b><div className="sm">On, by SMS to {ME.phone}</div></div>
               <span className="tag ok">On</span>
             </div>
-            <button className="btn btn-o" style={css('width:100%;margin-top:14px')}>Turn off</button>
+            <button type="button" className="btn btn-o" style={css('width:100%;margin-top:14px')} onClick={() => showToast('Two-step setup wires to the API')}>Turn off</button>
           </div>
 
           <div className="acard" style={css('margin-top:18px')}>
@@ -93,10 +94,10 @@ export default function AdminProfile() {
             {SESSIONS.map(([d, w, cur]) => (
               <div className="listrow" key={d}>
                 <div><b>{d}</b><div className="sm">{w}</div></div>
-                {cur ? <span className="tag ok">This one</span> : <button className="btn btn-o btn-s">Sign out</button>}
+                {cur ? <span className="tag ok">This one</span> : <button type="button" className="btn btn-o btn-s" onClick={() => showToast('Signing out this session wires to the API')}>Sign out</button>}
               </div>
             ))}
-            <button className="btn btn-d" style={css('width:100%;margin-top:14px')}>Sign out everywhere else</button>
+            <button type="button" className="btn btn-d" style={css('width:100%;margin-top:14px')} onClick={() => showToast('Signing out everywhere else wires to the API')}>Sign out everywhere else</button>
           </div>
         </div>
       </div>

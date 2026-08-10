@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 interface Partner {
   n: string;
@@ -33,7 +34,7 @@ export default function AdminPartners() {
     <>
       <span style={css('margin-left:auto')} />
       {/* head-office-only in production */}
-      <button className="btn btn-p btn-s" onClick={() => alert('Add organisation — form wires to POST /partners.')}>+ Add organisation</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Adding an organisation wires to the API')}>+ Add organisation</button>
     </>
   );
 
@@ -110,13 +111,13 @@ function PartnerSheet({ partner: p, onClose }: { partner: Partner | null; onClos
             {p.note ? <div className="ahint" style={css('margin:0 0 18px')}>{p.note}</div> : null}
             {p.st === 'pending' ? (
               <div className="row" style={css('gap:9px')}>
-                <button className="btn btn-p" style={css('flex:1')}>Approve</button>
-                <button className="btn btn-o">Decline</button>
+                <button type="button" className="btn btn-p" style={css('flex:1')} onClick={() => showToast('Approving an organisation wires to the API')}>Approve</button>
+                <button type="button" className="btn btn-o" onClick={() => showToast('Declining an organisation wires to the API')}>Decline</button>
               </div>
             ) : (
               <div className="row" style={css('gap:9px')}>
-                <button className="btn btn-o" style={css('flex:1')}>Edit details</button>
-                <button className="btn btn-o">End partnership</button>
+                <button type="button" className="btn btn-o" style={css('flex:1')} onClick={() => showToast('Editing an organisation wires to the API')}>Edit details</button>
+                <button type="button" className="btn btn-o" onClick={() => showToast('Ending a partnership wires to the API')}>End partnership</button>
               </div>
             )}
           </>
