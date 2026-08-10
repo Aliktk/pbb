@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pbb/types": "workspace:*",
+    "@supabase/supabase-js": "^2.112.2",
     "next": "^15.1.4",
     "next-intl": "^3.26.3",
     "react": "^19.0.0",
