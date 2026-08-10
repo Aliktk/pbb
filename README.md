@@ -20,15 +20,21 @@ Diary kept since 24 March 1999 across fourteen towns in Balochistan.
 
 ## What's built
 
-- **Web (62 routes, design complete):** the full public website (25 pages), donor
-  self-service (`/me`), and the complete admin panel (30 screens) - pixel-ported from the
-  prototype. Interactive (nav, forms with success states, filters, detail sheets, role
-  switcher). Currently renders sample data; wiring to the API is the next step.
-- **Database:** Prisma schema for every entity (frozen), migrations including the
+- **Web (61 routes, design complete):** the full public website (25 pages), donor
+  self-service (`/me`), and the admin panel (30 screens), ported from the prototype.
+  Everything is interactive: nav, forms with success states and validation, filters, detail
+  sheets, the role switcher, a donor search modelled on the Blood Chain flow, a page-opening
+  loader, and a browser-tab logo. It still renders sample data; wiring it to the API is the
+  next step.
+- **Database:** a Prisma schema for every entity (frozen), migrations including the
   `donor_eligibility` view and the append-only `audit_log` guard, and a 200-donor seed
   covering all seven eligibility states.
-- **API:** NestJS scaffold with a Prisma module, `/health` (DB round-trip), and the
-  `NotificationPort` / `StoragePort` interfaces. Feature modules land per the build plan.
+- **API (NestJS):** staff auth (`/auth` login, refresh, logout, me) with rotating refresh
+  tokens, and global role-based access control that locks every route by default. Donor
+  endpoints (`/donors` list, search, detail, create) and blood-request endpoints (`/requests`
+  public intake and board, admin list, detail, status), both town-scoped, with eligibility
+  read from the `donor_eligibility` view. Health check, plus the `NotificationPort` /
+  `StoragePort` interfaces. Unit tests cover the access rules and the request privacy split.
 
 ---
 
@@ -106,13 +112,15 @@ pnpm --filter @pbb/api dev
 ## Verify it's error-free
 
 ```bash
-pnpm typecheck          # all workspaces - 0 errors
-pnpm lint               # ESLint (flat config) across the monorepo - clean
-pnpm build              # builds api (NestJS) + web (Next.js)
-pnpm test:invariants    # the §7 invariant checks (INV-1 … INV-12)
+pnpm typecheck                      # all workspaces, 0 errors
+pnpm lint                           # ESLint (flat config) across the monorepo, clean
+pnpm build                          # builds api (NestJS) + web (Next.js)
+pnpm test:invariants                # the §7 invariant checks (INV-1 to INV-12)
+pnpm --filter @pbb/api test:rbac    # access-control unit tests
+pnpm --filter @pbb/api test:api     # donor-query + request-privacy unit tests
 ```
 
-All four are green on the current tree. `pnpm verify` runs the whole battery at once.
+All of these are green on the current tree. `pnpm verify` runs the core battery at once.
 
 ## Project structure
 
