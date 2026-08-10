@@ -39,7 +39,7 @@ jobs:
       # + reproducibility). Commit pnpm-lock.yaml from your first local `pnpm install`.
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @pbb/api prisma:generate
-      - run: pnpm --filter @pbb/api prisma migrate deploy
+      - run: pnpm --filter @pbb/api exec prisma migrate deploy
       - run: pnpm db:seed
       - run: pnpm typecheck
       - run: pnpm lint
