@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import './globals.css';
 
 export const metadata = {
   title: 'Pashtoonkhwa Blood Bank — Quetta, Balochistan',
@@ -6,21 +7,21 @@ export const metadata = {
     'Pashtoonkhwa Blood Bank & Welfare Society — screened blood, on exchange; free for thalassemia children. Since 24 March 1999.',
 };
 
-// Root layout. Locale + RTL (Urdu/Pashto) are applied per-locale segment by T4 via
-// next-intl; this shell keeps the app buildable from Wave 0.
+// Root layout. Fonts match the prototype exactly (Plus Jakarta Sans + Noto Nastaliq Urdu).
+// Locale + RTL for Urdu/Pashto is layered on by T4 (next-intl); the `en` default keeps the
+// site fully rendered now.
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          fontFamily: 'system-ui, sans-serif',
-          background: '#FBF9F8',
-          color: '#16171B',
-          margin: 0,
-        }}
-      >
-        {children}
-      </body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

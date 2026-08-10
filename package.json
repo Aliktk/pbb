@@ -2,7 +2,7 @@
   "name": "pbb-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "Pashtoonkhwa Blood Bank & Welfare Society — operational platform + public site",
+  "description": "Pashtoonkhwa Blood Bank & Welfare Society - operational platform + public site",
   "packageManager": "pnpm@11.8.0",
   "engines": {
     "node": ">=20.0.0",
