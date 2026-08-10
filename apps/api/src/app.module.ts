@@ -7,13 +7,14 @@ import { HealthController } from './health/health.controller';
 import { NOTIFICATION_PORT } from './notifications/notification.port';
 import { ConsoleNotifier } from './notifications/console.notifier';
 import { AuthModule } from './auth/auth.module';
+import { DonorsModule } from './donors/donors.module';
+import { RequestsModule } from './requests/requests.module';
 import { JwtAuthGuard } from './rbac/jwt-auth.guard';
 import { PermissionsGuard } from './rbac/permissions.guard';
 
 /**
- * Root module. Wave 1+ feature modules (DonorsModule, RequestsModule, InventoryModule,
- * ContentModule, NotificationsModule) register here as they land — each owned by exactly one
- * track (see docs/BUILD-PLAN.md file-ownership map).
+ * Root module. Feature modules (InventoryModule, ContentModule, NotificationsModule) register
+ * here as they land — each owned by exactly one track (see docs/BUILD-PLAN.md file-ownership).
  *
  * Security is global and fail-closed: JwtAuthGuard authenticates every route (except @Public),
  * then PermissionsGuard enforces @Permissions(...). A new endpoint is therefore locked by
@@ -27,6 +28,8 @@ import { PermissionsGuard } from './rbac/permissions.guard';
     ]),
     PrismaModule,
     AuthModule,
+    DonorsModule,
+    RequestsModule,
   ],
   controllers: [HealthController],
   providers: [
