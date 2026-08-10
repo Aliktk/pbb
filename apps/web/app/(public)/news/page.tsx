@@ -3,7 +3,7 @@ import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
 import { IMG, IMG_ROTATION } from '../../../lib/images';
 
-// News — ported from the prototype (pbb-pages.js PAGES.news). Data mirrors the source NEWS array.
+// News - ported from the prototype (pbb-pages.js PAGES.news). Data mirrors the source NEWS array.
 
 interface NewsItem {
   t: string;
@@ -14,7 +14,7 @@ interface NewsItem {
 
 const NEWS: NewsItem[] = [
   { t: 'Free donation camp, Pishin', k: 'Blood camp', d: '12 September', b: 'Band Road branch, 9am to 4pm. Walk in, or register to attend so we know how many to expect.' },
-  { t: 'New building — final stage', k: 'Notice', d: '3 September', b: 'Construction of the new Quetta premises has entered its last phase.' },
+  { t: 'New building - final stage', k: 'Notice', d: '3 September', b: 'Construction of the new Quetta premises has entered its last phase.' },
   { t: 'Eid ul Adha hide collection', k: 'Appeal', d: 'Runs to 20 June', b: 'Volunteers collect cattle hides across all branches. Request a collection from your area.' },
   { t: 'Thalassemia transfusion schedule, September', k: 'Notice', d: '28 August', b: 'Guardians of registered children can collect the month’s schedule from their branch.' },
   { t: 'Awareness drive, Quetta university', k: 'Awareness', d: '14 August', b: 'Students registered as first-time donors over two days on campus.' },

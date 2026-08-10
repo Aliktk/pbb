@@ -11,7 +11,7 @@ export function isGlobalScope(user: Pick<AuthUser, 'permissions' | 'townId'>): b
 }
 
 /**
- * A Prisma `where` fragment that confines a query to the user's town — or `{}` for a
+ * A Prisma `where` fragment that confines a query to the user's town - or `{}` for a
  * global-scope user. `field` is the town foreign key on the model being queried (townId).
  */
 export function scopeWhere(

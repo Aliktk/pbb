@@ -67,7 +67,7 @@ export default function AdminHomepage() {
           </div>
           <div className="fgrp">
             <label className="lb">Sub-headline</label>
-            <textarea className="fld" rows={3} defaultValue="Screened, tested blood for anyone who needs it — irrespective of language, colour, religion, race or ethnicity." />
+            <textarea className="fld" rows={3} defaultValue="Screened, tested blood for anyone who needs it - irrespective of language, colour, religion, race or ethnicity." />
           </div>
           <div className="fgrp">
             <label className="lb">Buttons</label>

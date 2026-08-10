@@ -1,11 +1,11 @@
-# Single-VPS deployment target. Not Kubernetes — the organisation must be able to run
+# Single-VPS deployment target. Not Kubernetes - the organisation must be able to run
 # this without hiring a platform engineer (Harness §2).
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      # LOCAL DEV ONLY — this is not a secret. Production uses Supabase (this compose file is
+      # LOCAL DEV ONLY - this is not a secret. Production uses Supabase (this compose file is
       # never deployed). Kept STATIC on purpose so it always matches the DATABASE_URL below;
       # an env-overridable password here would silently drift from that URL and break auth.
       POSTGRES_USER: pbb

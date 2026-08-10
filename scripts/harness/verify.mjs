@@ -24,12 +24,12 @@ for (const [name, cmd] of steps) {
   if (r.status === 0) continue;
   // A missing workspace script exits non-zero; treat "no script found" as skip.
   if (r.status === 1 && name.startsWith('test:')) {
-    console.log(`  (skipped — ${name} has no target yet in any workspace)`);
+    console.log(`  (skipped - ${name} has no target yet in any workspace)`);
     continue;
   }
   console.error(`✗ ${name} failed (exit ${r.status}). Fix root cause before continuing.`);
   failed++;
-  break; // stop on first hard failure — the loop fixes one thing at a time
+  break; // stop on first hard failure - the loop fixes one thing at a time
 }
 
 if (failed === 0) console.log('\n✓ battery green (landed steps).');

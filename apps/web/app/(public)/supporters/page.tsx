@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
 
-// Supporters — ported from the prototype (pbb-pages.js PAGES.supporters). Data mirrors the source.
+// Supporters - ported from the prototype (pbb-pages.js PAGES.supporters). Data mirrors the source.
 
 const SUPPORTERS: [string, string][] = [
   ['Pashtoonkhwa Milli Awami Party', 'Founding support since 1999'],
@@ -22,7 +22,7 @@ export default function Supporters() {
         <div className="wrap">
           <span className="eyebrow"><b />Who stands with us</span>
           <h1>The organisations who<br />keep this running</h1>
-          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>Pashtoonkhwa Blood Bank has no government funding. It runs on members’ contributions, charity, Zakat, and cattle hides collected by volunteers each Eid ul Adha — and on the institutions below.</p>
+          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>Pashtoonkhwa Blood Bank has no government funding. It runs on members’ contributions, charity, Zakat, and cattle hides collected by volunteers each Eid ul Adha - and on the institutions below.</p>
         </div>
       </header>
 

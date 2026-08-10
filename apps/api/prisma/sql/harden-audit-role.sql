@@ -3,7 +3,7 @@
 -- The append-only triggers in migration 002 are the primary, always-applied guarantee.
 -- This script adds a SECOND layer: revoke mutating grants from the runtime application role
 -- so even a SQL-injection path that reaches the database cannot UPDATE/DELETE/TRUNCATE the
--- log — it may only INSERT and SELECT.
+-- log - it may only INSERT and SELECT.
 --
 -- Run this EXPLICITLY as a one-time provisioning step, as a privileged user, substituting
 -- your actual runtime role for :app_role. It is intentionally NOT part of the migration:
@@ -23,7 +23,7 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_role') THEN
-    RAISE EXCEPTION 'role % does not exist — refusing to pretend the log is hardened', :'app_role';
+    RAISE EXCEPTION 'role % does not exist - refusing to pretend the log is hardened', :'app_role';
   END IF;
 END $$;
 

@@ -65,7 +65,7 @@ export default function AdminThalassemia() {
 
       <p className="ahint">
         Photo consent is <b>off by default</b> and needs a signed form from the family. A child without
-        consent is still counted and still transfused — but never appears on the public website.
+        consent is still counted and still transfused - but never appears on the public website.
       </p>
     </AdminShell>
   );

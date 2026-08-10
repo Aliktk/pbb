@@ -2,14 +2,14 @@ import { ImageSlot } from '../../../components/ImageSlot';
 import { ActionButton } from '../../../components/ActionButton';
 import { css } from '../../../lib/style';
 
-// Publications — ported from the prototype (pbb-pages2.js PAGES.publications). Data mirrors PUBS.
+// Publications - ported from the prototype (pbb-pages2.js PAGES.publications). Data mirrors PUBS.
 const PUBS: [string, string, string][] = [
   ['Eid ul Adha hide collection', 'Poster · Urdu', 'Appeal'],
   ['Who can donate blood', 'Poster · Urdu, Pashto', 'Awareness'],
-  ['Thalassemia — what parents should know', 'Booklet · Urdu', 'Awareness'],
+  ['Thalassemia - what parents should know', 'Booklet · Urdu', 'Awareness'],
   ['Annual report 2012', 'Report · English', 'Report'],
   ['Hepatitis B vaccination drive', 'Poster · Urdu', 'Awareness'],
-  ['Blood camp — how to organise one', 'Guide · Urdu', 'Guide'],
+  ['Blood camp - how to organise one', 'Guide · Urdu', 'Guide'],
 ];
 
 const FILTERS: string[] = ['All', 'Appeals', 'Awareness', 'Reports', 'Guides'];
@@ -48,7 +48,7 @@ export default function Publications() {
               </div>
             ))}
           </div>
-          <div className="notice" style={css('margin-top:26px')}>Posters are shown at their real proportions, never cropped square — the Urdu and Pashto lettering <b>is</b> the artwork.</div>
+          <div className="notice" style={css('margin-top:26px')}>Posters are shown at their real proportions, never cropped square - the Urdu and Pashto lettering <b>is</b> the artwork.</div>
         </div>
       </section>
     </>

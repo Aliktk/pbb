@@ -16,7 +16,7 @@ function Row({ k, v }: { k: string; v: string | number }) {
   return <div className="drow"><span>{k}</span><b>{v}</b></div>;
 }
 
-/** Donor detail slide-over — ported from openDonor(). Shows the diary fields, the donation
+/** Donor detail slide-over - ported from openDonor(). Shows the diary fields, the donation
  * summary, and the five screening results, with the single eligibility verdict. */
 export function DonorSheet({ donor: d, onClose }: DonorSheetProps) {
   const open = d !== null;
@@ -45,22 +45,22 @@ function DonorSheetBody({ d, onClose }: { d: Donor; onClose: () => void }) {
       <div className="sm">{d.c}{age ? ` · ${age} years` : ''}</div>
 
       {d.defer && (
-        <div className="alert" style={css('margin:18px 0')}><div><b>Deferred — do not call.</b> {d.defer}</div></div>
+        <div className="alert" style={css('margin:18px 0')}><div><b>Deferred - do not call.</b> {d.defer}</div></div>
       )}
 
       <div className="qlab" style={css('margin:22px 0 10px')}>Donor</div>
       <Row k="Blood group and RH" v={d.g.includes('−') ? `${d.g} (negative)` : `${d.g} (positive)`} />
-      <Row k="Age" v={age ? `${age} years` : '—'} />
-      <Row k="Date of birth" v={d.dob || '—'} />
+      <Row k="Age" v={age ? `${age} years` : '-'} />
+      <Row k="Date of birth" v={d.dob || '-'} />
       <Row k="Contact" v={d.p} />
-      <Row k="Emergency contact" v={d.emg || '—'} />
-      <Row k="Relationship" v={d.emgr || '—'} />
-      <Row k="Address" v={d.addr || '—'} />
+      <Row k="Emergency contact" v={d.emg || '-'} />
+      <Row k="Relationship" v={d.emgr || '-'} />
+      <Row k="Address" v={d.addr || '-'} />
 
       <div className="qlab" style={css('margin:22px 0 10px')}>Donation</div>
       <Row k="Quantity given" v={`${d.ml} ml`} />
       <Row k="Willing to give" v={d.freq} />
-      <Row k="Mode of issue" v={`${d.issue} — ${ISSUE[d.issue] ?? ''}`} />
+      <Row k="Mode of issue" v={`${d.issue} - ${ISSUE[d.issue] ?? ''}`} />
       <Row k="Times donated" v={d.times} />
       <Row k="Last donated" v={d.last ? `${n} days ago` : 'Never'} />
       <Row k="Can give again" v={elig(d).why} />
@@ -74,7 +74,7 @@ function DonorSheetBody({ d, onClose }: { d: Donor; onClose: () => void }) {
               return <div key={k} className={`testbox ${val === '-ve' ? 'ok' : 'no'}`}><b>{l}</b><span>{val}</span></div>;
             })}
           </div>
-          <div className="drow" style={css('margin-top:12px')}><span>Tested</span><b>{d.tested || '—'}{sd !== null ? ` · ${sd} days ago` : ''}</b></div>
+          <div className="drow" style={css('margin-top:12px')}><span>Tested</span><b>{d.tested || '-'}{sd !== null ? ` · ${sd} days ago` : ''}</b></div>
           {stale && <div className="ahint" style={css('margin-top:10px;border-color:#F0DFB4;background:var(--amb-t)')}>These results are more than six months old. Screen again before issuing.</div>}
         </>
       ) : (

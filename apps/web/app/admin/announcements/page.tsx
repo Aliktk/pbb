@@ -15,7 +15,7 @@ interface Announcement {
 
 const ANNOUNCEMENTS: Announcement[] = [
   { m: 'Free blood donation camp, Pishin branch, 12 September', k: 'Camp', s: 'now', e: '20 Sep', w: 'strip · home · news', st: 'live' },
-  { m: 'New building — final stage', k: 'Notice', s: '3 Sep', e: '—', w: 'news', st: 'live' },
+  { m: 'New building - final stage', k: 'Notice', s: '3 Sep', e: '-', w: 'news', st: 'live' },
   { m: 'Eid ul Adha hide collection', k: 'Appeal', s: '1 Jun', e: '20 Jun', w: 'strip · home', st: 'expired' },
 ];
 

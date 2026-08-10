@@ -4,9 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 
-// Who needs blood now — ported from the prototype's needs board (pbb-me.js NEEDS). Client
+// Who needs blood now - ported from the prototype's needs board (pbb-me.js NEEDS). Client
 // component so the group filter works. Privacy is CRITICAL: NO patient names, NO phone
-// numbers — a blood group, a hospital and an hour is all a donor needs (INV-11).
+// numbers - a blood group, a hospital and an hour is all a donor needs (INV-11).
 interface Need {
   g: string;
   u: number;
@@ -17,10 +17,10 @@ interface Need {
 }
 
 const NEEDS: Need[] = [
-  { g: 'O−', u: 3, h: 'Civil Hospital, Quetta', c: 'Quetta', urg: 'Critical — today', ago: '22 minutes ago' },
-  { g: 'B−', u: 2, h: 'Bolan Medical Complex, Quetta', c: 'Quetta', urg: 'Urgent — within 2 days', ago: '1 hour ago' },
-  { g: 'A+', u: 1, h: 'DHQ Hospital, Zhob', c: 'Zhob', urg: 'Planned — a date is set', ago: '3 hours ago' },
-  { g: 'O+', u: 2, h: 'Sandeman Hospital, Quetta', c: 'Quetta', urg: 'Urgent — within 2 days', ago: '4 hours ago' },
+  { g: 'O−', u: 3, h: 'Civil Hospital, Quetta', c: 'Quetta', urg: 'Critical - today', ago: '22 minutes ago' },
+  { g: 'B−', u: 2, h: 'Bolan Medical Complex, Quetta', c: 'Quetta', urg: 'Urgent - within 2 days', ago: '1 hour ago' },
+  { g: 'A+', u: 1, h: 'DHQ Hospital, Zhob', c: 'Zhob', urg: 'Planned - a date is set', ago: '3 hours ago' },
+  { g: 'O+', u: 2, h: 'Sandeman Hospital, Quetta', c: 'Quetta', urg: 'Urgent - within 2 days', ago: '4 hours ago' },
 ];
 
 const FILTERS: [string, string][] = [
@@ -45,7 +45,7 @@ export default function Needs() {
           <span className="eyebrow"><b />Right now</span>
           <h1>Who needs blood today</h1>
           <p className="lead" style={css('margin-top:18px;max-width:62ch')}>
-            Every open request across the fourteen towns. No names — a blood group, a hospital and an
+            Every open request across the fourteen towns. No names - a blood group, a hospital and an
             hour is all a donor needs to decide.
           </p>
         </div>
@@ -85,7 +85,7 @@ export default function Needs() {
               <div className="needg" style={css('color:var(--grn)')}>{group}</div>
               <h3 style={css('margin:14px 0 6px')}>No open requests for {group} right now</h3>
               <p className="sm" style={css('max-width:44ch;margin:0 auto')}>
-                Other groups are still being asked for — check <b>All groups</b> above. This board changes
+                Other groups are still being asked for - check <b>All groups</b> above. This board changes
                 through the day, so it is worth looking again.
               </p>
               <button className="btn btn-o btn-s" style={css('margin-top:18px')} onClick={() => setGroup('All')}>Show every group</button>
@@ -94,7 +94,7 @@ export default function Needs() {
 
           <div className="notice" style={css('margin-top:26px')}>
             A request leaves this board the moment a branch marks it arranged, so nobody travels to a
-            hospital that no longer needs them. When every group is clear, this board is empty — and that
+            hospital that no longer needs them. When every group is clear, this board is empty - and that
             is good news.
           </div>
           <div className="closer" style={css('margin-top:34px')}>

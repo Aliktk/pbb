@@ -1,5 +1,5 @@
 // Admin panel model: sidebar groups, roles, and the ONE eligibility rule shared by the
-// register, the record sheet and the search (so they cannot disagree — INV-5). Ported from
+// register, the record sheet and the search (so they cannot disagree - INV-5). Ported from
 // pbb-admin.js. Design phase: data is in-memory sample data; wires to the API later.
 
 export type RoleKey = 'head' | 'mgr' | 'emp';
@@ -68,12 +68,12 @@ export interface Eligibility { ok: 0 | 1; tag: 'ok' | 'no' | 'gy' | 'wt'; lab: s
 /**
  * DESIGN-PHASE ONLY. Mirrors the DB `donor_eligibility` view so the admin can render the
  * sample data offline. Once the web is wired to the API, eligibility comes from the server
- * (which reads the view) and this function — the only place 90/180 appear in the web — is
+ * (which reads the view) and this function - the only place 90/180 appear in the web - is
  * deleted. Tracked by INV-5-web in scripts/invariants/run.mjs until then.
  */
 export function elig(d: Donor): Eligibility {
-  if (d.defer) return { ok: 0, tag: 'no', lab: 'Deferred', why: 'Deferred — ' + d.defer };
-  if (!d.tests) return { ok: 0, tag: 'gy', lab: 'Not screened', why: 'Not screened — the five tests must be done first' };
+  if (d.defer) return { ok: 0, tag: 'no', lab: 'Deferred', why: 'Deferred - ' + d.defer };
+  if (!d.tests) return { ok: 0, tag: 'gy', lab: 'Not screened', why: 'Not screened - the five tests must be done first' };
   if (!allNegative(d.tests)) return { ok: 0, tag: 'no', lab: 'Reactive', why: 'A screening result was reactive. Do not call.' };
   const sd = daysSince(d.tested);
   if (sd !== null && sd > 180) return { ok: 0, tag: 'wt', lab: 'Screen again', why: 'Screened ' + sd + ' days ago. Repeat before issuing.' };

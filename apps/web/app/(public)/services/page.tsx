@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 
-// Services — ported from the prototype (pbb-pages.js PAGES.services). Data arrays mirror the source.
+// Services - ported from the prototype (pbb-pages.js PAGES.services). Data arrays mirror the source.
 const SCREEN_CHIPS: string[] = ['Hepatitis B', 'Hepatitis C', 'HIV/AIDS', 'MP', 'ELISA method'];
 
 const CARDS: [string, string][] = [
@@ -11,7 +11,7 @@ const CARDS: [string, string][] = [
 ];
 
 const DONOR_CRITERIA: [string, string][] = [
-  ['18–60', 'years of age'],
+  ['18-60', 'years of age'],
   ['50 kg', 'minimum weight'],
   ['90 days', 'since your last donation'],
   ['Good health', 'no fever, no recent surgery'],

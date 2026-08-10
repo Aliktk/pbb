@@ -3,11 +3,11 @@ import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
 import { IMG } from '../../../lib/images';
 
-// Thalassemia — ported from the prototype (pbb-pages.js PAGES.thalassemia). Data array mirrors the source.
+// Thalassemia - ported from the prototype (pbb-pages.js PAGES.thalassemia). Data array mirrors the source.
 const COST_CARDS: [string, string][] = [
   ['12', 'transfusions a year'],
-  ['—', 'cost per screened bag'],
-  ['—', 'a year, per child'],
+  ['-', 'cost per screened bag'],
+  ['-', 'a year, per child'],
 ];
 
 export default function Thalassemia() {
@@ -17,7 +17,7 @@ export default function Thalassemia() {
         <div className="wrap">
           <span className="eyebrow"><b />Thalassemia</span>
           <h1>Two hundred children,<br />every month.</h1>
-          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>Registered children are transfused free of cost and without exchange. For a child with thalassemia a monthly transfusion is not optional — it is the difference between a normal month and a hospital one.</p>
+          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>Registered children are transfused free of cost and without exchange. For a child with thalassemia a monthly transfusion is not optional - it is the difference between a normal month and a hospital one.</p>
         </div>
       </header>
       <section className="blk" style={css('padding-top:0')}>

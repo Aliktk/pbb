@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { can, canAssignRole, type PermissionMatrix } from '../../src/rbac/permissions';
 
-// The seeded matrices (prisma/seed.ts) — kept in sync so the tests exercise real shapes.
+// The seeded matrices (prisma/seed.ts) - kept in sync so the tests exercise real shapes.
 const HEAD_ADMIN: PermissionMatrix = { '*': ['*'] };
 const BRANCH_MANAGER: PermissionMatrix = {
   donors: ['read', 'write'],

@@ -28,7 +28,7 @@ const req = {
   town: { name: 'Quetta' },
 } as const;
 
-describe('toPublicRequest() — INV-11 privacy', () => {
+describe('toPublicRequest() - INV-11 privacy', () => {
   const pub = toPublicRequest(req) as Record<string, unknown>;
 
   it('exposes only non-identifying fields', () => {

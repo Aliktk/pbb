@@ -50,7 +50,7 @@ export default function AdminRequests() {
       </div>
 
       <p className="ahint">
-        A list, not a board. Requests sent from the public website land here the moment they are submitted —
+        A list, not a board. Requests sent from the public website land here the moment they are submitted -
         <b> try it: submit one on the site and come back.</b>
       </p>
 

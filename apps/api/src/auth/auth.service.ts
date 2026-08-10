@@ -21,7 +21,7 @@ function parseDurationMs(value: string | undefined): number | null {
   return n * unit;
 }
 
-/** The safe, public-facing shape of a user — never the password hash or 2FA secret. */
+/** The safe, public-facing shape of a user - never the password hash or 2FA secret. */
 export interface PublicUser {
   id: string;
   name: string;
@@ -48,7 +48,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     config: ConfigService,
   ) {
-    // Fail loud if the refresh secret is absent — a missing pepper must never silently
+    // Fail loud if the refresh secret is absent - a missing pepper must never silently
     // degrade to unpeppered hashes.
     this.refreshSecret = config.getOrThrow<string>('JWT_REFRESH_SECRET');
     this.refreshTtlMs = parseDurationMs(config.get<string>('JWT_REFRESH_TTL')) ?? DEFAULT_REFRESH_TTL_MS;
@@ -93,7 +93,7 @@ export class AuthService {
     return this.issue(record.userId, this.toPublicUser(record.user));
   }
 
-  /** Revoke a refresh token. Idempotent — an unknown token is a no-op, never an error. */
+  /** Revoke a refresh token. Idempotent - an unknown token is a no-op, never an error. */
   async logout(rawToken: string): Promise<void> {
     const tokenHash = this.hashToken(rawToken);
     await this.prisma.refreshToken.updateMany({

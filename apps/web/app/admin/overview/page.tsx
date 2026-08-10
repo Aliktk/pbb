@@ -4,7 +4,7 @@ import { AdminShell } from '../../../components/admin/AdminShell';
 import { elig, daysSince } from '../../../lib/admin';
 import { DONORS, REQUESTS, agoLabel } from '../../../lib/adminData';
 
-// Overview dashboard — ported from PAGES['admin/overview']. Every figure is derived here in
+// Overview dashboard - ported from PAGES['admin/overview']. Every figure is derived here in
 // ONE place (INV-1). Charts use the prototype's twelve-month series.
 const HELD: Record<string, number> = { 'O−': 2, 'AB−': 3, 'B−': 6, 'A−': 11, 'O+': 41, 'A+': 34, 'B+': 28, 'AB+': 9 };
 const DEMAND: Record<string, number> = { 'O−': 38, 'AB−': 14, 'B−': 44, 'A−': 36, 'O+': 210, 'A+': 150, 'B+': 165, 'AB+': 22 };
@@ -117,7 +117,7 @@ export default function AdminOverview() {
             {([[`${unscreened} never screened`, 'Cannot be called until the five tests are done', '/admin/donors', unscreened ? 'no' : 'ok'],
               [`${stale} screened over six months ago`, 'Results should be repeated before issuing', '/admin/donors', stale ? 'wt' : 'ok'],
               [`${never} have never given`, 'Registered, but never once called in', '/admin/find', 'gy']] as [string, string, string, string][]).map(([t, s, u, c]) => (
-              <Link key={t} href={u} className="todo2"><div><b>{t}</b><span>{s}</span></div><span className={`tag ${c}`}>{c === 'no' ? 'Blocked' : c === 'wt' ? 'Stale' : '—'}</span></Link>
+              <Link key={t} href={u} className="todo2"><div><b>{t}</b><span>{s}</span></div><span className={`tag ${c}`}>{c === 'no' ? 'Blocked' : c === 'wt' ? 'Stale' : '-'}</span></Link>
             ))}
           </div>
         </div>

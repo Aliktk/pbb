@@ -13,7 +13,7 @@ export function AnnouncementBar() {
     <div className="ann" id="ann">
       <div className="wrap">
         <span className="tg">Camp</span>
-        <span>Free blood donation camp — Pishin branch, 12 September, 9am to 4pm.</span>
+        <span>Free blood donation camp - Pishin branch, 12 September, 9am to 4pm.</span>
         <button className="x" onClick={() => setOpen(false)} aria-label="Dismiss" type="button">✕</button>
       </div>
     </div>

@@ -39,7 +39,7 @@ export function ImageSlot({ placeholder = '', ratio = '16/9', style = '', src, a
     );
   }
 
-  // Split on <br> (author copy) and render as real line breaks — no innerHTML.
+  // Split on <br> (author copy) and render as real line breaks - no innerHTML.
   const lines = placeholder.split(/<br\s*\/?>/i);
   return (
     <div className="ph" style={boxStyle}>

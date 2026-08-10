@@ -2,7 +2,7 @@ import { ImageSlot } from '../../../../components/ImageSlot';
 import { css } from '../../../../lib/style';
 import { IMG } from '../../../../lib/images';
 
-// Branch detail — ported from the prototype (pbb-pages2.js PAGES['branch']). Renders the
+// Branch detail - ported from the prototype (pbb-pages2.js PAGES['branch']). Renders the
 // Quetta head-office detail (BRANCHES[0]). Data arrays mirror the source.
 // Each stock group is a "group,class,label" string, split on render.
 const STOCK: string[] = ['O−,cr,Critical', 'AB−,lo,Low', 'B−,lo,Low', 'A−,ok,Available', 'O+,ok,Available', 'A+,ok,Available', 'B+,ok,Available', 'AB+,ok,Available'];
@@ -15,7 +15,7 @@ export default function BranchPage() {
       <header className="ph-hero">
         <div className="wrap">
           <span className="eyebrow"><b />Branch</span>
-          <h1>Quetta — head office</h1>
+          <h1>Quetta - head office</h1>
           <p className="lead" style={css('margin-top:18px;max-width:62ch')}>Zainab Chamber, Shara-e-Adalat, beside the Quetta Press Club. Open every day; blood requests answered at any hour.</p>
         </div>
       </header>

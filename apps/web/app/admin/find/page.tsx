@@ -8,7 +8,7 @@ import { showToast } from '../../../lib/toast';
 import { DONORS } from '../../../lib/adminData';
 import { TOWN_COORDS, haversineKm, resolveTownOrigin, type LatLng } from '../../../lib/geo';
 
-// Find donors — the Blood Chain-style emergency search: pick a group, a place and a radius,
+// Find donors - the Blood Chain-style emergency search: pick a group, a place and a radius,
 // and get the nearest eligible donors to call. Eligibility comes from the ONE shared rule
 // (elig → INV-5). Distance uses each town's coordinates now; real per-donor coordinates
 // arrive with the API. Ordered nearest-first, or by longest-since-donation when there is no
@@ -151,7 +151,7 @@ export default function AdminFind() {
           <div className="row" style={css('margin:20px 0 12px')}>
             <h3>
               {result.rows.length
-                ? `${result.rows.length} ${result.rows.length === 1 ? 'donor' : 'donors'} — ${result.group}${result.originLabel ? ` within ${result.radius} km of ${result.originLabel}` : ''}`
+                ? `${result.rows.length} ${result.rows.length === 1 ? 'donor' : 'donors'} - ${result.group}${result.originLabel ? ` within ${result.radius} km of ${result.originLabel}` : ''}`
                 : `No ${result.group} donor found${result.originLabel ? ` within ${result.radius} km of ${result.originLabel}` : ''}`}
             </h3>
           </div>
@@ -174,7 +174,7 @@ export default function AdminFind() {
                         <td>{bgTag(d.g)}</td>
                         <td className="m1">{d.c}</td>
                         <td className="m1">{d.gx}</td>
-                        <td>{km !== null ? `${Math.round(km)} km` : <span className="sm">—</span>}</td>
+                        <td>{km !== null ? `${Math.round(km)} km` : <span className="sm">-</span>}</td>
                         <td>{n !== null ? `${n} days ago` : <span className="sm">Never</span>}</td>
                         <td>
                           <div className="row" style={css('gap:6px')}>
@@ -203,7 +203,7 @@ export default function AdminFind() {
           <p className="ahint">
             {result.originLabel
               ? <>Ordered <b>nearest first</b>. Distance is measured to each donor&apos;s town for now; precise per-donor coordinates arrive with the register API.</>
-              : <>No place matched, so this is ordered by <b>longest since last donation</b> — the calls spread around instead of exhausting the same three people. Type a town or use your location to sort by distance and apply the radius.</>}
+              : <>No place matched, so this is ordered by <b>longest since last donation</b> - the calls spread around instead of exhausting the same three people. Type a town or use your location to sort by distance and apply the radius.</>}
           </p>
         </>
       )}
@@ -211,7 +211,7 @@ export default function AdminFind() {
       {!result && (
         <p className="ahint" style={css('margin-top:18px')}>
           Pick a group and a place, then <b>Search Eligible Donors</b>. Only those who can give today are shown
-          unless you include cooldown — the eligibility rule is the same one the register and the record sheet use.
+          unless you include cooldown - the eligibility rule is the same one the register and the record sheet use.
         </p>
       )}
     </AdminShell>

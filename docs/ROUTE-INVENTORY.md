@@ -1,10 +1,10 @@
-# PBB — Route & Screen Inventory
+# PBB - Route & Screen Inventory
 
 Extracted from the Modernist prototype (`_handoff/modernist/project/*.js`). This is the
 bound list INV-9 and the E2E suite iterate over. Every row must render in EN/UR/PS at
 data sizes 0/1/many, and every control on it must change state or not render.
 
-## Public site (`apps/web` — Server Components, `next-intl`)
+## Public site (`apps/web` - Server Components, `next-intl`)
 
 | Route | Screen | Source | Notes |
 |-------|--------|--------|-------|
@@ -34,16 +34,16 @@ data sizes 0/1/many, and every control on it must change state or not render.
 | `/terms` | Terms | pbb-pages2.js | |
 | `/branch/:id` | Public branch board | pbb-app.js | open requests for one town |
 
-## Donor self-service (`/me` — phone + OTP)
+## Donor self-service (`/me` - phone + OTP)
 
 | Route | Screen | Source |
 |-------|--------|--------|
 | `/me/signin` | Sign in with phone | pbb-me.js |
 | `/me/code` | Enter OTP | pbb-me.js |
 | `/me` | My record | pbb-me.js |
-| `/me/remove` | Remove me (same day) | pbb-me.js — constraint #4 |
+| `/me/remove` | Remove me (same day) | pbb-me.js - constraint #4 |
 
-## Admin (`apps/web` — Client Components, JWT, RBAC)
+## Admin (`apps/web` - Client Components, JWT, RBAC)
 
 | Route | Screen | Source | Owning track |
 |-------|--------|--------|--------------|
@@ -82,14 +82,14 @@ data sizes 0/1/many, and every control on it must change state or not render.
 
 ## Gaps found in the design phase (to be ADDED, per your authority)
 
-1. **Password-reset landing** (`/admin/reset?token=`) — prototype has "forgot" + "sent"
+1. **Password-reset landing** (`/admin/reset?token=`) - prototype has "forgot" + "sent"
    but no reset-with-token screen. §4 defines `POST /auth/reset-password`. **Add it.**
-2. **Two-factor verify screen** — §4 has `POST /auth/two-factor/verify`; no UI. **Add it.**
-3. **Account invitation acceptance** (`/admin/accept?token=`) — §8 journey 3 ("receives a
+2. **Two-factor verify screen** - §4 has `POST /auth/two-factor/verify`; no UI. **Add it.**
+3. **Account invitation acceptance** (`/admin/accept?token=`) - §8 journey 3 ("receives a
    link, sets their own password") has no screen. **Add it.**
-4. **403 / forbidden screen** distinct from 404 — INV-10 implies it. **Add it.**
-5. **Global error boundary screen** — INV-7 requires a visible error state per page. **Add it.**
-6. **Offline / connectivity banner** — stack §2 assumes patchy connectivity. **Add it.**
-7. **`/me` OTP resend + rate-limit state** — implied by phone+OTP, not drawn. **Add it.**
-8. **Consent-form upload screen for thalassemia photos** (constraint #5) — referenced,
+4. **403 / forbidden screen** distinct from 404 - INV-10 implies it. **Add it.**
+5. **Global error boundary screen** - INV-7 requires a visible error state per page. **Add it.**
+6. **Offline / connectivity banner** - stack §2 assumes patchy connectivity. **Add it.**
+7. **`/me` OTP resend + rate-limit state** - implied by phone+OTP, not drawn. **Add it.**
+8. **Consent-form upload screen for thalassemia photos** (constraint #5) - referenced,
    not drawn. **Add it.**

@@ -3,7 +3,7 @@ import { css } from '../../../lib/style';
 import { TOWNS } from '../../../lib/nav';
 import { IMG } from '../../../lib/images';
 
-// Our branches — ported from the prototype (pbb-pages.js PAGES.branches). Data arrays mirror the source.
+// Our branches - ported from the prototype (pbb-pages.js PAGES.branches). Data arrays mirror the source.
 interface Branch {
   n: string;
   head?: number;
@@ -29,7 +29,7 @@ export default function Branches() {
         <div className="wrap">
           <span className="eyebrow"><b />Our branches</span>
           <h1>Six offices.<br />Fourteen towns.</h1>
-          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>From the head office beside the Quetta Press Club out to Zhob, Chaman and Loralai — and to the towns in between that have no blood bank of their own.</p>
+          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>From the head office beside the Quetta Press Club out to Zhob, Chaman and Loralai - and to the towns in between that have no blood bank of their own.</p>
         </div>
       </header>
       <section className="blk" style={css('padding-top:0')}>
@@ -53,7 +53,7 @@ export default function Branches() {
                 </div>
               ))}
             </div>
-            <ImageSlot ratio="3/4" src={IMG.landscape} style="min-height:520px" placeholder="map slot<br>Balochistan — six branch pins, eight more towns served<br>click a pin to jump to its card" />
+            <ImageSlot ratio="3/4" src={IMG.landscape} style="min-height:520px" placeholder="map slot<br>Balochistan - six branch pins, eight more towns served<br>click a pin to jump to its card" />
           </div>
           <div style={css('margin-top:32px')}>
             <div className="qlab" style={css('margin-bottom:12px')}>Also serving, without a permanent office</div>

@@ -1,7 +1,7 @@
 import { SetMetadata, createParamDecorator, type ExecutionContext } from '@nestjs/common';
 import type { AuthUser } from './auth-user';
 
-/** Marks a route as public — the JWT and permission guards skip it. */
+/** Marks a route as public - the JWT and permission guards skip it. */
 export const IS_PUBLIC_KEY = 'rbac:public';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 

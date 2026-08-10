@@ -1,6 +1,6 @@
-// Pashtoonkhwa Blood Bank — data model.
+// Pashtoonkhwa Blood Bank - data model.
 // Source of truth: PBB Build Harness §3. The migration history IS the audit trail of the
-// schema; this data outlives any of us. The schema freezes at the end of Wave 0 — every
+// schema; this data outlives any of us. The schema freezes at the end of Wave 0 - every
 // entity any track needs is defined here so no track needs a post-freeze schema change.
 
 generator client {
@@ -91,7 +91,7 @@ enum WillingFrequency {
 
 enum ModeOfIssue {
   EXCHANGE
-  FREE // thalassemia children — free, without exchange donor (ethical constraint #2)
+  FREE // thalassemia children - free, without exchange donor (ethical constraint #2)
   REPLACEMENT
 }
 
@@ -183,7 +183,7 @@ model Donor {
   name                  String
   bloodGroup            BloodGroup
   rhFactor              RhFactor
-  dateOfBirth           DateTime // not age — an age written down is wrong a year later
+  dateOfBirth           DateTime // not age - an age written down is wrong a year later
   phone                 String?
   emergencyContact      String?
   emergencyRelationship String?
@@ -199,7 +199,7 @@ model Donor {
   timesDonated          Int               @default(0)
   deferredReason        String?
   deferredUntil         DateTime?
-  // consent — a donor who asks to be removed is removed the same day (constraint #4)
+  // consent - a donor who asks to be removed is removed the same day (constraint #4)
   consentToCall         Boolean           @default(true)
   consentHours          String            @default("ANY") // ANY | DAYTIME | NONE
   consentSms            Boolean           @default(true)
@@ -220,7 +220,7 @@ model Donor {
   @@map("donors")
 }
 
-/// Separate table, never a column on Donor — so a result can never be changed while
+/// Separate table, never a column on Donor - so a result can never be changed while
 /// somebody edits a phone number, and so history is kept (Harness §3).
 model Screening {
   id           String          @id @default(cuid())
@@ -322,7 +322,7 @@ model StockLevel {
   @@map("stock_levels")
 }
 
-/// Thalassemia children — transfused free and without an exchange donor (constraint #2).
+/// Thalassemia children - transfused free and without an exchange donor (constraint #2).
 model ThalassemiaPatient {
   id                      String    @id @default(cuid())
   name                    String
@@ -404,7 +404,7 @@ model Event {
   @@map("events")
 }
 
-/// A media asset without consent cannot be attached to a public page — enforced by the
+/// A media asset without consent cannot be attached to a public page - enforced by the
 /// API, not the form (§8, T7 gate).
 model MediaAsset {
   id           String   @id @default(cuid())
@@ -452,7 +452,7 @@ model PageVersion {
   @@map("page_versions")
 }
 
-/// Inbox / sent — messages to and from the office.
+/// Inbox / sent - messages to and from the office.
 model Message {
   id          String           @id @default(cuid())
   direction   MessageDirection
@@ -473,7 +473,7 @@ model Message {
   @@map("messages")
 }
 
-/// Outbound notification attempts (SMS/WhatsApp) — audit of what the port sent.
+/// Outbound notification attempts (SMS/WhatsApp) - audit of what the port sent.
 model NotificationLog {
   id        String        @id @default(cuid())
   channel   MessageChannel
@@ -494,7 +494,7 @@ model User {
   id             String     @id @default(cuid())
   name           String
   email          String     @unique
-  passwordHash   String? // null while INVITED — an account is created without a password (§8.3)
+  passwordHash   String? // null while INVITED - an account is created without a password (§8.3)
   phone          String?
   role           Role       @relation(fields: [roleId], references: [id])
   roleId         String
@@ -532,7 +532,7 @@ model Role {
   id          String  @id @default(cuid())
   name        String  @unique
   level       Int // hierarchy depth: lower = more senior. A creator cannot grant a role above their own.
-  permissions Json // { resource: [actions...] } — the permission matrix (T1)
+  permissions Json // { resource: [actions...] } - the permission matrix (T1)
   isSystem    Boolean @default(false)
 
   users User[]
@@ -586,7 +586,7 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
-/// Account invitation — journey §8.3: a link that lets a new user set their own password.
+/// Account invitation - journey §8.3: a link that lets a new user set their own password.
 model Invitation {
   id          String   @id @default(cuid())
   email       String
@@ -602,7 +602,7 @@ model Invitation {
   @@map("invitations")
 }
 
-/// Donor self-service OTP (phone + OTP sign-in — §4 /me/record).
+/// Donor self-service OTP (phone + OTP sign-in - §4 /me/record).
 model DonorOtp {
   id        String   @id @default(cuid())
   donor     Donor    @relation(fields: [donorId], references: [id])
@@ -620,7 +620,7 @@ model DonorOtp {
 // ─────────────────────────── Eligibility view ─────────────────────────────
 
 /// The single rule for donor callability (Harness §3 / INV-5). Defined as a database
-/// VIEW in migration 002 — never as application arithmetic. Every list, search, count
+/// VIEW in migration 002 - never as application arithmetic. Every list, search, count
 /// and dashboard figure reads this. Prisma reads it as a typed view.
 view DonorEligibility {
   id     String @unique

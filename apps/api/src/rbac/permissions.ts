@@ -17,7 +17,7 @@ export function can(perms: PermissionMatrix | null | undefined, resource: string
 
 /**
  * Role hierarchy: `level` is depth, lower = more senior (0 = head office admin). A creator
- * can only grant a role strictly weaker than their own — never at or above it (§8.3, T1). This
+ * can only grant a role strictly weaker than their own - never at or above it (§8.3, T1). This
  * is the rule the account-creation flow (Wave 2) enforces; kept here so it is unit-tested and
  * shared, not re-derived per call site.
  */

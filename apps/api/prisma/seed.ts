@@ -1,9 +1,9 @@
 /**
- * Seed — the fourteen towns, six branch offices, eight roles, and ~200 donors spread
+ * Seed - the fourteen towns, six branch offices, eight roles, and ~200 donors spread
  * across ALL SEVEN eligibility states so the donor_eligibility view can be proven against
  * a fixture that exercises every case (T0 gate). IDs are explicit and data is deterministic
  * so `prisma migrate reset` reproduces the seed exactly. Screening/donation dates are
- * relative to now() because the view compares against now() — this keeps each donor in its
+ * relative to now() because the view compares against now() - this keeps each donor in its
  * intended bucket whenever the reset runs.
  */
 import { PrismaClient, BloodGroup, RhFactor, ScreeningResult, UserStatus } from '@prisma/client';
@@ -154,7 +154,7 @@ async function main(): Promise<void> {
     },
   });
 
-  // Donors — deterministic, ~200, spread across all seven eligibility buckets.
+  // Donors - deterministic, ~200, spread across all seven eligibility buckets.
   const counts: Record<Bucket, number> = {
     ELIGIBLE: 0, COOLDOWN: 0, SCREENING_STALE: 0, REACTIVE: 0,
     NEVER_SCREENED: 0, DEFERRED: 0, REMOVED: 0,

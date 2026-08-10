@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { LoginShell } from '../../../components/admin/LoginShell';
 
-// Forgotten password — always proceeds to "check your email" (never reveals whether the
+// Forgotten password - always proceeds to "check your email" (never reveals whether the
 // address exists), matching the API's 202 behaviour (§4).
 export default function AdminForgot() {
   const router = useRouter();

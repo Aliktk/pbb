@@ -59,7 +59,7 @@ export const NAV: NavGroup[] = [
   { label: 'Contact', href: '/contact' },
 ];
 
-// Towns PBB serves — the ONE list every form/filter/dropdown reads (mirrors PBBTOWNS).
+// Towns PBB serves - the ONE list every form/filter/dropdown reads (mirrors PBBTOWNS).
 export const TOWNS = [
   'Quetta', 'Pishin', 'Zhob', 'Loralai', 'Chaman', 'Muslim Bagh', 'Killa Saifullah',
   'Dukki', 'Musakhel', 'Sherani', 'Harnai', 'Ziarat', 'Qila Abdullah', 'Sibi',

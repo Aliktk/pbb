@@ -1,4 +1,4 @@
-# PBB Platform — Architecture & Design
+# PBB Platform - Architecture & Design
 
 This is the single reference for how the Pashtoonkhwa Blood Bank platform is put together:
 the topology, the data model (ERD), the request flows, how the head office and branches
@@ -16,7 +16,7 @@ most Markdown viewers).
 
 ```mermaid
 flowchart TB
-    subgraph Client["User devices — 3G phones in Zhob, desktops in Quetta"]
+    subgraph Client["User devices - 3G phones in Zhob, desktops in Quetta"]
         PUB["Public visitor"]
         DONOR["Donor (self-service)"]
         STAFF["Branch / head-office staff"]
@@ -27,7 +27,7 @@ flowchart TB
     end
 
     subgraph Host["Always-on Node host (Railway / Render / Fly)"]
-        API["NestJS API — apps/api<br/>/api/v1<br/>• auth + RBAC<br/>• donors / requests / inventory<br/>• content · notifications<br/>• BullMQ workers"]
+        API["NestJS API - apps/api<br/>/api/v1<br/>• auth + RBAC<br/>• donors / requests / inventory<br/>• content · notifications<br/>• BullMQ workers"]
     end
 
     subgraph Supabase["Supabase"]
@@ -79,7 +79,7 @@ flowchart TB
 | SMS / WhatsApp | `console` driver (logs) | Twilio + WhatsApp Cloud API (flagged) |
 
 **Domain:** none yet. Until one is bought, the app runs on the default **`*.vercel.app`** URL
-for the web and the host's URL for the API — set `NEXT_PUBLIC_API_URL` and `CORS_ORIGINS`
+for the web and the host's URL for the API - set `NEXT_PUBLIC_API_URL` and `CORS_ORIGINS`
 accordingly. When a domain is added, only those two env values (plus Vercel's domain setting)
 change; nothing in the code is domain-coupled.
 
@@ -227,7 +227,7 @@ erDiagram
 
 ### The rule that lives in the database
 
-Callability is decided by **one** database view, `donor_eligibility` — never by application
+Callability is decided by **one** database view, `donor_eligibility` - never by application
 arithmetic in more than one place (INV-5). It returns exactly one of seven states:
 
 ```
@@ -246,7 +246,7 @@ without an office of their own).
 
 ```mermaid
 flowchart TD
-    HO["HEAD OFFICE — Quetta<br/>role level 0<br/>sees all 14 towns"]
+    HO["HEAD OFFICE - Quetta<br/>role level 0<br/>sees all 14 towns"]
 
     subgraph Offices["Six branch offices (role level 2)"]
         Q["Quetta branch"]
@@ -282,7 +282,7 @@ flowchart TD
   (Zhob). Its donors are counted from the register itself, so a donor can never sit in a town
   no filter can reach (INV-3).
 - **Account creation is constrained:** a creator can never grant a role at or above their own
-  `level`, nor place a user outside their own town. There is no self-registration — an account
+  `level`, nor place a user outside their own town. There is no self-registration - an account
   is created by somebody above it, receives an invitation link, and sets its own password
   (the head office never sees it).
 
@@ -294,7 +294,7 @@ head office's network screen.
 
 ## 5. Request flows
 
-### 5.1 The emergency — the whole product
+### 5.1 The emergency - the whole product
 
 An attendant needs O− in Quetta at 02:00.
 
@@ -344,7 +344,7 @@ sequenceDiagram
         U->>API: POST /auth/two-factor/verify (TOTP)
     end
     API-->>W: access JWT (role + townId) + refresh token
-    Note over W,API: every later request carries the JWT;<br/>the server derives scope from it — never the client
+    Note over W,API: every later request carries the JWT;<br/>the server derives scope from it - never the client
     U->>API: GET /donors (JWT)
     API->>API: guard: role permits? scope = own town
     API->>DB: SELECT donors WHERE town = caller's town
@@ -383,16 +383,16 @@ sequenceDiagram
 flowchart LR
     subgraph web["apps/web (Next.js App Router)"]
         RL["app/layout.tsx<br/>fonts + globals.css (prototype CSS verbatim)"]
-        subgraph pub["(public) — Server Components"]
+        subgraph pub["(public) - Server Components"]
             PL["layout: header · footer · announcement · WhatsApp"]
             HOME["25 marketing pages"]
             ME["/me self-service"]
         end
-        subgraph adm["/admin — Client Components"]
+        subgraph adm["/admin - Client Components"]
             SH["AdminShell: sidebar · role switcher · mobile bar"]
             SCR["30 admin screens"]
         end
-        LIB["lib/ — style(css), nav, admin(elig), adminData<br/>components/ — ImageSlot, forms, sheets"]
+        LIB["lib/ - style(css), nav, admin(elig), adminData<br/>components/ - ImageSlot, forms, sheets"]
     end
     RL --> pub & adm
     pub --> LIB
@@ -400,11 +400,11 @@ flowchart LR
     SCR --> LIB
 ```
 
-- **Public site** = Server Components — fast on 3G, indexable.
+- **Public site** = Server Components - fast on 3G, indexable.
 - **Admin** = Client Components behind `AdminShell`; every figure is meant to come from one
   API field, never derived on the client (INV-1).
 - **Shared vocabulary:** `lib/style.ts` (`css()` ports the prototype's inline styles),
-  `lib/nav.ts` (the one town list), `lib/admin.ts` (the eligibility mirror — deleted once
+  `lib/nav.ts` (the one town list), `lib/admin.ts` (the eligibility mirror - deleted once
   wired to the API).
 
 ---
@@ -415,15 +415,15 @@ The §7 invariants are enforced by `scripts/invariants/run.mjs` and the test sui
 
 | Rule | Guarantee |
 |---|---|
-| INV-1 | One source per number — no figure computed in two places |
+| INV-1 | One source per number - no figure computed in two places |
 | INV-2 | Scoped header ⇒ scoped body |
-| INV-3 | No orphan records — every FK resolves |
-| INV-5 | One eligibility rule — only `donor_eligibility` decides callability |
-| INV-7 | Failures are visible — no catch leaves stale UI |
+| INV-3 | No orphan records - every FK resolves |
+| INV-5 | One eligibility rule - only `donor_eligibility` decides callability |
+| INV-7 | Failures are visible - no catch leaves stale UI |
 | INV-8 | Plurals + empty states at 0 / 1 / many |
-| INV-9 | No dead controls — every button does something or is not rendered |
+| INV-9 | No dead controls - every button does something or is not rendered |
 | INV-10 | Permissions are server-side |
-| INV-11 | Privacy holds — phones/patient names never leak |
+| INV-11 | Privacy holds - phones/patient names never leak |
 | INV-12 | The audit log is complete and immutable (append-only, DB-enforced) |
 
 ---

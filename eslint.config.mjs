@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 // Single flat config for the whole monorepo. TypeScript-focused (syntactic, no type-aware
-// rules — those are covered by `pnpm typecheck`). Next.js React specifics are covered by
+// rules - those are covered by `pnpm typecheck`). Next.js React specifics are covered by
 // `next build`. Run with `pnpm lint`.
 export default tseslint.config(
   {

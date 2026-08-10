@@ -3,7 +3,7 @@ import { ImageSlot } from '../../../components/ImageSlot';
 import { ContactForm } from '../../../components/ContactForm';
 import { IMG } from '../../../lib/images';
 
-// Contact — ported from PAGES.contact. Left column static; the form is a client component.
+// Contact - ported from PAGES.contact. Left column static; the form is a client component.
 export default function Contact() {
   return (
     <>
@@ -39,7 +39,7 @@ export default function Contact() {
                   <div className="mono" style={css('font-size:12px;margin-top:4px')}>wakeeltareen@pashtoonkhwabloodbank.org</div>
                 </div>
               </div>
-              <ImageSlot ratio="16/10" src={IMG.landscape} style="margin-top:14px" placeholder="map — head office" />
+              <ImageSlot ratio="16/10" src={IMG.landscape} style="margin-top:14px" placeholder="map - head office" />
             </div>
             <ContactForm />
           </div>

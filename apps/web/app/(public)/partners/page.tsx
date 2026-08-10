@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 
-// Partners — ported from the prototype (pbb-pages2.js PAGES.partners). Data mirrors PARTNERKINDS.
+// Partners - ported from the prototype (pbb-pages2.js PAGES.partners). Data mirrors PARTNERKINDS.
 const PARTNERKINDS: [string, string, string][] = [
   ['Hospitals', 'Refer patients, get a named coordinator at the nearest branch, and a direct line for emergencies. Your requests go straight onto the branch board instead of through a switchboard.', 'M12 4v16m8-8H4'],
   ['Laboratories', 'Share screening capacity, or take our overflow. Results are recorded against the bag, so a unit can be traced from donor to patient.', 'M9 2v7L4 19a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3L15 9V2M9 2h6M8 15h8'],

@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 
-// The problem — ported from the prototype (pbb-pages.js PAGES.problem). Data arrays mirror the source.
+// The problem - ported from the prototype (pbb-pages.js PAGES.problem). Data arrays mirror the source.
 // Each gap is [title, body, svgPath].
 const GAPS: [string, string, string][] = [
   ['Poor research and data', 'Almost nothing is measured. Without records of who gives, who needs and where the shortages fall, every decision is a guess.', 'M3 3v18h18M7 15l4-4 3 3 5-6'],
   ['No national blood group database', 'There is no register a hospital can search. Finding an O− donor at two in the morning still means phoning down a list somebody wrote by hand.', 'M4 7h16M4 12h16M4 17h10'],
-  ['Very little voluntary donation', 'Most blood is given by a relative under pressure on the day. Regular, voluntary donors — the people a blood bank can rely on — are rare.', 'M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z'],
+  ['Very little voluntary donation', 'Most blood is given by a relative under pressure on the day. Regular, voluntary donors - the people a blood bank can rely on - are rare.', 'M12 2s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z'],
   ['Blood-consumptive disorders', 'Thalassemia, haemophilia and the rest need transfusion every few weeks for life. Two hundred children depend on PBB alone.', 'M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l8.8 8.8 8.8-8.8a5.5 5.5 0 0 0 0-7.8Z'],
   ['Prescribing habits', 'Whole blood is often ordered where a single component would do, and transfusion is sometimes prescribed where it is not needed at all.', 'M9 2h6v4h4v6h-4v10H9V12H5V6h4V2Z'],
   ['Blood bank capacity', 'Screening equipment, cold storage and trained staff are concentrated in a few cities. Smaller towns work with far less.', 'M6 3h12v6l-3 3 3 3v6H6v-6l3-3-3-3V3Z'],
@@ -41,7 +41,7 @@ export default function Problem() {
           </div>
           <div className="answer">
             <div><div className="qlab" style={css('color:#FFD9D5')}>Our answer</div><h2 style={css('color:#fff;margin:12px 0 14px')}>A register anyone can search,<br />kept in fourteen towns.</h2>
-              <p style={css('color:#FFD9D5;font-size:17px;line-height:1.65;max-width:60ch')}>Not a national programme — a working one. Every donor recorded, every request logged, every branch able to see who in their own town can give today. It has run since 1999 on exchange, charity and Zakat, and has never purchased a single bag.</p>
+              <p style={css('color:#FFD9D5;font-size:17px;line-height:1.65;max-width:60ch')}>Not a national programme - a working one. Every donor recorded, every request logged, every branch able to see who in their own town can give today. It has run since 1999 on exchange, charity and Zakat, and has never purchased a single bag.</p>
               <div className="row" style={css('margin-top:26px;gap:12px')}><Link href="/join/donor" className="btn btn-w">Join the register</Link><Link href="/about" className="btn" style={css('border-color:rgba(255,255,255,.4);color:#fff')}>How it started</Link></div></div>
           </div>
         </div>

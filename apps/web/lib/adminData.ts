@@ -1,4 +1,4 @@
-// Sample admin data, ported from the prototype seed (pbb-admin.js SEED). Design phase only —
+// Sample admin data, ported from the prototype seed (pbb-admin.js SEED). Design phase only -
 // replaced by API reads (donors, requests) once T2/T3 land. Negatives written as '-ve'.
 import type { Donor } from './admin';
 
@@ -27,10 +27,10 @@ export interface AdminRequest {
 }
 
 export const REQUESTS: AdminRequest[] = [
-  { id: 'PBB-1006', pt: 'Bibi Zarina', hosp: 'Civil Hospital, Quetta', g: 'O−', u: 3, c: 'Quetta', urg: 'Critical — today', by: 'Brother', ph: '0300 4412201', minsAgo: 22, st: 'open', src: 'web' },
-  { id: 'PBB-1005', pt: 'Abdul Wahid', hosp: 'BMC, Quetta', g: 'B−', u: 2, c: 'Quetta', urg: 'Urgent — within 2 days', by: 'Father', ph: '0333 5590128', minsAgo: 60, st: 'open', src: 'phone' },
-  { id: 'PBB-1004', pt: 'Gul Bibi', hosp: 'DHQ Hospital, Zhob', g: 'A+', u: 1, c: 'Zhob', urg: 'Planned — a date is set', by: 'Son', ph: '0345 2201933', minsAgo: 180, st: 'open', src: 'phone' },
-  { id: 'PBB-0998', pt: 'Sultan Ahmed', hosp: 'Sandeman Hospital', g: 'A−', u: 1, c: 'Quetta', urg: 'Urgent — within 2 days', by: 'Friend', ph: '0311 8811274', minsAgo: 1440, st: 'done', src: 'web' },
+  { id: 'PBB-1006', pt: 'Bibi Zarina', hosp: 'Civil Hospital, Quetta', g: 'O−', u: 3, c: 'Quetta', urg: 'Critical - today', by: 'Brother', ph: '0300 4412201', minsAgo: 22, st: 'open', src: 'web' },
+  { id: 'PBB-1005', pt: 'Abdul Wahid', hosp: 'BMC, Quetta', g: 'B−', u: 2, c: 'Quetta', urg: 'Urgent - within 2 days', by: 'Father', ph: '0333 5590128', minsAgo: 60, st: 'open', src: 'phone' },
+  { id: 'PBB-1004', pt: 'Gul Bibi', hosp: 'DHQ Hospital, Zhob', g: 'A+', u: 1, c: 'Zhob', urg: 'Planned - a date is set', by: 'Son', ph: '0345 2201933', minsAgo: 180, st: 'open', src: 'phone' },
+  { id: 'PBB-0998', pt: 'Sultan Ahmed', hosp: 'Sandeman Hospital', g: 'A−', u: 1, c: 'Quetta', urg: 'Urgent - within 2 days', by: 'Friend', ph: '0311 8811274', minsAgo: 1440, st: 'done', src: 'web' },
 ];
 
 export const DONATIONS_TODAY: [string, string, string, number, string][] = [
