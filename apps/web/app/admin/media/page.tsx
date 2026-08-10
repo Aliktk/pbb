@@ -3,6 +3,7 @@
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { ImageSlot } from '../../../components/ImageSlot';
+import { showToast } from '../../../lib/toast';
 
 const MEDIA_LABELS = ['Camp', 'Ambulance', 'Building', 'Thalassemia', 'Eid', 'Staff', 'Camp', 'Awareness', 'Building', 'Camp'];
 
@@ -10,7 +11,7 @@ export default function AdminMedia() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('Upload — wires to the media library / Supabase Storage (T7).')}>+ Upload</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Upload wires to Supabase Storage')}>+ Upload</button>
     </>
   );
 

@@ -39,7 +39,7 @@ export function DonateForm() {
       <h3 style={css('margin-bottom:6px')}>Tell us about your donation</h3>
       <p className="muted" style={css('font-size:13.5px;margin-bottom:22px')}>So we can match it and send a receipt.</p>
       <div className="fgrp"><label className="lb">Your name *</label><input className="fld" name="name" required /></div>
-      <div className="fgrp"><label className="lb">Phone *</label><input className="fld" name="phone" required placeholder="0300 0000000" /></div>
+      <div className="fgrp"><label className="lb">Phone *</label><input className="fld" name="phone" type="tel" required placeholder="0300 0000000" /></div>
       <div className="g2" style={css('gap:14px')}>
         <div className="fgrp"><label className="lb">Amount (PKR) *</label><input className="fld" name="amount" required inputMode="numeric" /></div>
         <div className="fgrp">

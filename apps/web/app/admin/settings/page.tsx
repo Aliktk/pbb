@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 const ORG_FIELDS: [string, string][] = [
   ['Name', 'Pashtoonkhwa Blood Bank & Welfare Society'],
@@ -19,6 +20,14 @@ const DONATE_RULES: [string, number][] = [
   ['Days between donations', 90],
   ['Most calls to one donor per day', 2],
 ];
+
+// Pick the right input type for a settings field so the browser offers the correct keyboard
+// and validation (email→email, any phone field→tel, everything else→text).
+function fieldType(label: string): 'email' | 'tel' | 'text' {
+  if (label === 'Email') return 'email';
+  if (label.toLowerCase().includes('phone')) return 'tel';
+  return 'text';
+}
 
 const LANGUAGES: [string, string, string][] = [
   ['English', 'default', 'ok'],
@@ -40,9 +49,9 @@ export default function AdminSettings() {
         <div className="acard">
           <h3 style={css('margin-bottom:16px')}>The organisation</h3>
           {ORG_FIELDS.map(([k, v]) => (
-            <div key={k} className="fgrp"><label className="lb">{k}</label><input className="fld" defaultValue={v} /></div>
+            <div key={k} className="fgrp"><label className="lb">{k}</label><input className="fld" type={fieldType(k)} defaultValue={v} /></div>
           ))}
-          <button className="btn btn-p" style={css('width:100%')} onClick={() => alert('Save — wires to PATCH /settings (T9).')}>Save</button>
+          <button type="button" className="btn btn-p" style={css('width:100%')} onClick={() => showToast('Saving settings wires to the API')}>Save</button>
           <p className="ahint">
             Changed here, changed everywhere — the header, the footer, every contact block and every printed form.
           </p>
@@ -54,7 +63,7 @@ export default function AdminSettings() {
             {DONATE_RULES.map(([k, v]) => (
               <div key={k} className="row" style={css('padding:10px 0;border-bottom:1px solid var(--line)')}>
                 <span style={css('flex:1;font-weight:600')}>{k}</span>
-                <input className="fld" style={css('width:88px;text-align:center')} defaultValue={v} />
+                <input className="fld" inputMode="numeric" style={css('width:88px;text-align:center')} defaultValue={v} />
               </div>
             ))}
           </div>

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { TOWNS } from '../../../lib/nav';
+import { showToast } from '../../../lib/toast';
 
 // Accounts & hierarchy, ported from pbb-admin4.js (PAGES['admin/accounts']). The register is
 // created top-down: every account is made by a named person above it, and can only be given a
@@ -81,7 +82,7 @@ export default function AdminAccounts() {
       {pend.length ? (
         <div className="alert">
           <div><b>{pend.length} {pend.length === 1 ? 'invitation has' : 'invitations have'} not been accepted yet.</b> The link expires after seven days, then the account is deleted on its own.</div>
-          <button className="btn btn-w btn-s">Send it again</button>
+          <button type="button" className="btn btn-w btn-s" onClick={() => showToast('Resending the invitation wires to the API')}>Send it again</button>
         </div>
       ) : null}
 
@@ -167,17 +168,17 @@ function AccountSheet({ account: a, onClose }: { account: Account | null; onClos
             </div>
             {a.st === 'invited' ? (
               <div className="row" style={css('gap:9px')}>
-                <button className="btn btn-p" style={css('flex:1')}>Send the invitation again</button>
-                <button className="btn btn-o">Cancel it</button>
+                <button type="button" className="btn btn-p" style={css('flex:1')} onClick={() => showToast('Resending the invitation wires to the API')}>Send the invitation again</button>
+                <button type="button" className="btn btn-o" onClick={() => showToast('Cancelling the invitation wires to the API')}>Cancel it</button>
               </div>
             ) : (
               <>
                 <div className="row" style={css('gap:9px')}>
-                  <button className="btn btn-o" style={css('flex:1')}>Change role or town</button>
-                  <button className="btn btn-o">Reset password</button>
+                  <button type="button" className="btn btn-o" style={css('flex:1')} onClick={() => showToast('Changing role or town wires to the API')}>Change role or town</button>
+                  <button type="button" className="btn btn-o" onClick={() => showToast('Reset sends a one-time link — wires to the API')}>Reset password</button>
                 </div>
-                <button className="btn btn-o" style={css('width:100%;margin-top:10px')}>Require two-step sign in</button>
-                <button className="btn btn-d" style={css('width:100%;margin-top:10px')}>{a.st === 'suspended' ? 'Restore this account' : 'Suspend this account'}</button>
+                <button type="button" className="btn btn-o" style={css('width:100%;margin-top:10px')} onClick={() => showToast('Requiring two-step sign in wires to the API')}>Require two-step sign in</button>
+                <button type="button" className="btn btn-d" style={css('width:100%;margin-top:10px')} onClick={() => showToast(a.st === 'suspended' ? 'Restoring this account wires to the API' : 'Suspending this account wires to the API')}>{a.st === 'suspended' ? 'Restore this account' : 'Suspend this account'}</button>
               </>
             )}
             <p className="ahint" style={css('margin-top:18px')}>Every change here is written to the log with the name of whoever made it.</p>

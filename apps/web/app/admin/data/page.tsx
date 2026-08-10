@@ -1,5 +1,6 @@
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { ActionButton } from '../../../components/ActionButton';
 
 // Data import / export / backups, ported from pbb-admin5.js (PAGES['admin/data']). Twenty-seven
 // years of paper does not have to be typed twice: upload a spreadsheet and match the columns once.
@@ -56,7 +57,7 @@ export default function AdminData() {
               <div className="maprow" key={f}><span className="mf">{f}</span><span className="mc">{c}</span>{mapTag(s)}</div>
             ))}
             <div className="ahint" style={css('margin-top:16px')}>Dates in the old registers are written several ways. Anything the importer cannot read with confidence is left blank rather than guessed — a wrong last-donation date puts a donor at risk.</div>
-            <button className="btn btn-p" style={css('width:100%;margin-top:16px')}>Check the file</button>
+            <ActionButton className="btn btn-p" style={css('width:100%;margin-top:16px')} message="Import runs once the backend is wired">Check the file</ActionButton>
           </div>
 
           <div className="acard" style={css('margin-top:18px')}>
@@ -72,11 +73,11 @@ export default function AdminData() {
             {DUPES.map(([n, p, w]) => (
               <div className="duprow" key={n}>
                 <div><b>{n}</b><div className="sm">{p} · {w}</div></div>
-                <div className="row" style={css('gap:6px')}><button className="btn btn-o btn-s">Merge</button><button className="btn btn-o btn-s">Keep both</button></div>
+                <div className="row" style={css('gap:6px')}><ActionButton className="btn btn-o btn-s" message="Merging duplicates runs once the backend is wired">Merge</ActionButton><ActionButton className="btn btn-o btn-s" message="Keeping both runs once the backend is wired">Keep both</ActionButton></div>
               </div>
             ))}
-            <button className="btn btn-p" style={css('width:100%;margin-top:18px')}>Import 1,842 donors</button>
-            <button className="btn btn-o" style={css('width:100%;margin-top:9px')}>Cancel and start again</button>
+            <ActionButton className="btn btn-p" style={css('width:100%;margin-top:18px')} message="Import runs once the backend is wired">Import 1,842 donors</ActionButton>
+            <ActionButton className="btn btn-o" style={css('width:100%;margin-top:9px')} message="Cancelling the import runs once the backend is wired">Cancel and start again</ActionButton>
           </div>
         </div>
 
@@ -88,7 +89,7 @@ export default function AdminData() {
             {EXPORTS.map(([n, f]) => (
               <div className="listrow" key={n}>
                 <div><b>{n}</b><span className="sm" style={css('display:block')}>{f}</span></div>
-                <button className="btn btn-o btn-s">Export</button>
+                <ActionButton className="btn btn-o btn-s" message="Export needs a typed reason and writes to the audit log — wires to the API">Export</ActionButton>
               </div>
             ))}
           </div>
@@ -102,13 +103,13 @@ export default function AdminData() {
                 <span className="tag ok">Complete</span>
               </div>
             ))}
-            <button className="btn btn-o" style={css('width:100%;margin-top:14px')}>Restore from a backup</button>
+            <ActionButton className="btn btn-o" style={css('width:100%;margin-top:14px')} message="Restore runs once the backend is wired">Restore from a backup</ActionButton>
           </div>
 
           <div className="acard" style={css('margin-top:18px;border-color:#F0BDB6')}>
             <h3 style={css('margin-bottom:6px;color:var(--red-d)')}>Removing somebody</h3>
             <p className="sm">A donor who asks to be taken off is removed the same day, and we do not ask them why. Their donations stay in the yearly totals as a number, without their name.</p>
-            <button className="btn btn-o" style={css('width:100%;margin-top:14px')}>Remove a person</button>
+            <ActionButton className="btn btn-o" style={css('width:100%;margin-top:14px')} message="Removing a person writes to the audit log — wires to the API">Remove a person</ActionButton>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV, type NavGroup } from '../lib/nav';
+import { showToast } from '../lib/toast';
 
 /** Is this nav group the active section for the current path? */
 function isActive(group: NavGroup, pathname: string): boolean {
@@ -65,7 +66,7 @@ export function SiteHeader() {
             ))}
           </ul>
           <div className="navcta">
-            <button className="lang" type="button">EN ▾</button>
+            <button className="lang" type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>EN ▾</button>
             <Link href="/join" className="btn btn-p btn-s">Get involved</Link>
             <button className="btn btn-o btn-s burger" onClick={() => setMobOpen(true)} aria-label="Menu" type="button">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
@@ -101,9 +102,9 @@ export function SiteHeader() {
         <div className="ft">
           <Link href="/join/requester" className="btn btn-p" style={{ color: '#fff' }} onClick={() => setMobOpen(false)}>Request Blood</Link>
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn btn-o" style={{ flex: 1 }} type="button">English</button>
-            <button className="btn btn-o" style={{ flex: 1 }} type="button">اردو</button>
-            <button className="btn btn-o" style={{ flex: 1 }} type="button">پښتو</button>
+            <button className="btn btn-o" style={{ flex: 1 }} type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>English</button>
+            <button className="btn btn-o" style={{ flex: 1 }} type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>اردو</button>
+            <button className="btn btn-o" style={{ flex: 1 }} type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>پښتو</button>
           </div>
           <div style={{ fontSize: 13, color: 'var(--mid)', paddingTop: 4 }}>
             Emergency · <b style={{ color: 'var(--ink)' }}>081-2836820</b>

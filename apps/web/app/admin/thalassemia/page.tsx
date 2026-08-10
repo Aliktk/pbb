@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -31,7 +32,7 @@ export default function AdminThalassemia() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('Register a child — wires to API later.')}>+ Register a child</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Adding a patient wires to the API')}>+ Register a child</button>
     </>
   );
 

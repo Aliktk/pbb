@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { ActionButton } from '../../../components/ActionButton';
 import { DONORS } from '../../../lib/adminData';
 
 // Requests, answer rate and response time per town. The donor count is counted, never stored.
@@ -40,8 +41,8 @@ export default function AdminReports() {
     <>
       <span style={css('margin-left:auto')} />
       {/* head-office-only in production */}
-      <button className="btn btn-o btn-s">Export</button>
-      <button className="btn btn-p btn-s">Print for the committee</button>
+      <ActionButton className="btn btn-o btn-s" message="Export wires to the API">Export</ActionButton>
+      <ActionButton className="btn btn-p btn-s" message="Print wires to the API">Print for the committee</ActionButton>
     </>
   );
 

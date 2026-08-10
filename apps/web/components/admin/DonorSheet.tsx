@@ -2,6 +2,7 @@
 
 import { css } from '../../lib/style';
 import { TESTS, ISSUE, elig, daysSince, type Donor } from '../../lib/admin';
+import { showToast } from '../../lib/toast';
 
 interface DonorSheetProps {
   donor: Donor | null;
@@ -85,10 +86,10 @@ function DonorSheetBody({ d, onClose }: { d: Donor; onClose: () => void }) {
         <a className="btn btn-o" href={`https://wa.me/${waNumber}`} target="_blank" rel="noopener">WhatsApp</a>
       </div>
       <div className="row" style={css('gap:9px;margin-top:9px')}>
-        <button className="btn btn-o" style={css('flex:1')}>Edit details</button>
-        <button className="btn btn-o" style={css('flex:1')}>Record a screening</button>
+        <button type="button" className="btn btn-o" style={css('flex:1')} onClick={() => showToast('Editing wires to the API')}>Edit details</button>
+        <button type="button" className="btn btn-o" style={css('flex:1')} onClick={() => showToast('Recording a screening wires to the API')}>Record a screening</button>
       </div>
-      <button className="btn btn-d" style={css('width:100%;margin-top:9px')}>{d.defer ? 'Lift the deferral' : 'Defer this donor'}</button>
+      <button type="button" className="btn btn-d" style={css('width:100%;margin-top:9px')} onClick={() => showToast(d.defer ? 'Lifting the deferral wires to the API' : 'Deferring this donor wires to the API')}>{d.defer ? 'Lift the deferral' : 'Defer this donor'}</button>
     </>
   );
 }

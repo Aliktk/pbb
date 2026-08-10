@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 import { REQUESTS, DONORS, DONATIONS_TODAY, agoLabel, type AdminRequest } from '../../../lib/adminData';
 
 function bgTag(g: string) {
@@ -17,7 +18,7 @@ export default function AdminRequests() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('New request — wires to POST /requests (T3).')}>+ New request</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('New request wires to POST /requests')}>+ New request</button>
     </>
   );
 
@@ -83,7 +84,7 @@ function RequestSheet({ request: r, onClose }: { request: AdminRequest | null; o
               <a className="btn btn-p" style={css('flex:1')} href={`tel:${r.ph.replace(/ /g, '')}`}>Call {r.by || 'requester'}</a>
               <a className="btn btn-o" href="/admin/find">Find a donor</a>
             </div>
-            {r.st === 'open' && <button className="btn btn-d" style={css('width:100%;margin-top:12px')}>Mark arranged</button>}
+            {r.st === 'open' && <button type="button" className="btn btn-d" style={css('width:100%;margin-top:12px')} onClick={() => showToast('Marking arranged wires to the API')}>Mark arranged</button>}
           </>
         )}
       </div>

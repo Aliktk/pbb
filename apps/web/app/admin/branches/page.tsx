@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 import { TOWNS } from '../../../lib/nav';
 import { DONORS } from '../../../lib/adminData';
 
@@ -33,7 +34,7 @@ export default function AdminBranches() {
     <>
       <span style={css('margin-left:auto')} />
       {/* head-office-only in production */}
-      <button className="btn btn-p btn-s" onClick={() => alert('Add branch — wires to POST /branches (T9).')}>+ Add branch</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Adding a branch wires to the API')}>+ Add branch</button>
     </>
   );
 

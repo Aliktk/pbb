@@ -2,6 +2,7 @@
 
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 interface EventRow {
   n: string; // event
@@ -32,7 +33,7 @@ export default function AdminEvents() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('New event — wires to POST /events (T7).')}>+ New event</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('New event wires to the API')}>+ New event</button>
     </>
   );
 
@@ -73,7 +74,7 @@ export default function AdminEvents() {
             {bgTag(g)}
             <span style={css('flex:1;font-weight:600')}>{n}</span>
             <span className="sm">{c}</span>
-            <button className="btn btn-o btn-s" onClick={() => alert('Add to the register — wires to POST /donors (T2).')}>Add to the register</button>
+            <button type="button" className="btn btn-o btn-s" onClick={() => showToast('Adding to the register wires to the API')}>Add to the register</button>
           </div>
         ))}
         <p className="ahint">

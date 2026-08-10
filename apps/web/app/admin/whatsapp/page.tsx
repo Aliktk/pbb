@@ -1,5 +1,6 @@
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { ActionButton } from '../../../components/ActionButton';
 
 // WhatsApp assistant, ported from pbb-admin4.js (PAGES['admin/whatsapp']). Behind a flag: it is
 // disabled until the WhatsApp business number is approved (the .soonbar coming-soon state). The
@@ -26,7 +27,7 @@ export default function AdminWhatsApp() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-o btn-s">Connect a number</button>
+      <ActionButton className="btn btn-o btn-s" message="Connecting the WhatsApp business number wires to the API">Connect a number</ActionButton>
     </>
   );
 

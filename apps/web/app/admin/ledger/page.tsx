@@ -1,5 +1,6 @@
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { ActionButton } from '../../../components/ActionButton';
 import { DONATIONS_TODAY } from '../../../lib/adminData';
 
 function bgTag(g: string) {
@@ -37,12 +38,12 @@ export default function AdminLedger() {
           <h3 style={css('margin-bottom:4px')}>Enter a year</h3>
           <p className="sm" style={css('margin-bottom:16px')}>The gap between 2013 and today closes with four numbers a year — no migration needed.</p>
           <div className="g2" style={css('gap:12px')}>
-            <div className="fgrp"><label className="lb">Year</label><input className="fld" placeholder="2013" /></div>
-            <div className="fgrp"><label className="lb">Bags</label><input className="fld" /></div>
-            <div className="fgrp"><label className="lb">CCs</label><input className="fld" /></div>
-            <div className="fgrp"><label className="lb">Platelets + FFP</label><input className="fld" /></div>
+            <div className="fgrp"><label className="lb">Year</label><input className="fld" inputMode="numeric" placeholder="2013" /></div>
+            <div className="fgrp"><label className="lb">Bags</label><input className="fld" inputMode="numeric" /></div>
+            <div className="fgrp"><label className="lb">CCs</label><input className="fld" inputMode="numeric" /></div>
+            <div className="fgrp"><label className="lb">Platelets + FFP</label><input className="fld" inputMode="numeric" /></div>
           </div>
-          <button className="btn btn-p" style={css('width:100%')}>Save the year</button>
+          <ActionButton className="btn btn-p" style={css('width:100%')} message="Saving the year wires to the API">Save the year</ActionButton>
         </div>
       </div>
 

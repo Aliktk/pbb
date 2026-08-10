@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 import { agoLabel } from '../../../lib/adminData';
 
 interface Submission {
@@ -103,7 +104,7 @@ function SubmissionSheet({ submission: s, onClose }: { submission: Submission | 
                 </>
               ) : null}
             </div>
-            <button className="btn btn-d" style={css('width:100%;margin-top:12px')}>Mark as answered</button>
+            <button type="button" className="btn btn-d" style={css('width:100%;margin-top:12px')} onClick={() => showToast('Marking as answered wires to the API')}>Mark as answered</button>
           </>
         )}
       </div>

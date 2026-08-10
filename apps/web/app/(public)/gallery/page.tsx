@@ -1,4 +1,5 @@
 import { ImageSlot } from '../../../components/ImageSlot';
+import { ActionButton } from '../../../components/ActionButton';
 import { css } from '../../../lib/style';
 
 // Gallery — ported from the prototype (pbb-pages.js PAGES.gallery). Data mirrors the source.
@@ -22,7 +23,7 @@ export default function Gallery() {
         <div className="wrap">
           <div className="row" style={css('gap:8px;margin-bottom:26px')} id="galFilter">
             {FILTERS.map((f, i) => (
-              <button key={f} className={`pill${i ? '' : ' on'}`}>{f}</button>
+              <ActionButton key={f} className={`pill${i ? '' : ' on'}`} message="Filtering arrives with the media library">{f}</ActionButton>
             ))}
           </div>
           <div className="gal">
@@ -31,7 +32,7 @@ export default function Gallery() {
             ))}
           </div>
           <div style={css('text-align:center;margin-top:30px')}>
-            <button className="btn btn-o">Load more</button>
+            <ActionButton className="btn btn-o" message="Loading more arrives with the media library">Load more</ActionButton>
           </div>
         </div>
       </section>

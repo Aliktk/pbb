@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { showToast } from '../../../lib/toast';
 
 interface RoleCard {
   n: string; // role name
@@ -57,7 +58,7 @@ export default function AdminRoles() {
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button className="btn btn-p btn-s" onClick={() => alert('New role — wires to POST /roles (T1).')}>+ New role</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Editing roles wires to the API')}>+ New role</button>
     </>
   );
 

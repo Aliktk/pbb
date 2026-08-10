@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ActionButton } from '../../../../components/ActionButton';
 import { css } from '../../../../lib/style';
 
 // Same-day removal confirmation — ported from PAGES['me/remove']. Constraint #4: removed the
@@ -27,7 +28,7 @@ export default function MeRemove() {
             <label className="lb">If you would like to tell us why (you need not)</label>
             <textarea className="fld" rows={3} placeholder="Optional" />
           </div>
-          <button className="btn btn-d" style={css('width:100%')}>Remove my record</button>
+          <ActionButton className="btn btn-d" style={css('width:100%')} message="Removal wires to the API — your record is deleted the same day">Remove my record</ActionButton>
           <Link href="/me" className="btn btn-o" style={css('width:100%;margin-top:10px')}>Keep my record</Link>
         </div>
       </div>
