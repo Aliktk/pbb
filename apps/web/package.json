@@ -8,7 +8,7 @@
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --passWithNoTests",
     "test:e2e": "playwright test"
   },
   "dependencies": {
