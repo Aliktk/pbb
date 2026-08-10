@@ -28,9 +28,9 @@ jobs:
       STORAGE_DRIVER: local
     steps:
       - uses: actions/checkout@v4
+      # pnpm version comes from package.json "packageManager"; do not also set it here or
+      # pnpm/action-setup rejects the duplicate.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 22
