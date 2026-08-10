@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService, type AuthTokens, type PublicUser } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -13,6 +14,8 @@ import type { AuthUser } from '../rbac/auth-user';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  // Tight limit: password guessing and refresh-token abuse are the attacks that matter here.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Public()
   @HttpCode(200)
   @Post('login')
@@ -20,6 +23,7 @@ export class AuthController {
     return this.auth.login(dto);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Public()
   @HttpCode(200)
   @Post('refresh')

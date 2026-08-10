@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { PrismaService } from '../prisma/prisma.service';
 import { Public } from '../rbac/decorators';
 
@@ -7,6 +8,7 @@ export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Liveness + DB round-trip. Used by docker-compose healthcheck and Vercel/Render probes. */
+  @SkipThrottle()
   @Public()
   @Get()
   async check() {
