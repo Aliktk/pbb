@@ -23,7 +23,6 @@ const WHERE: [string, number][] = [
   ['Strip across the top of every page', 1],
   ['Card on the home page', 1],
   ['The announcements page', 1],
-  ['WhatsApp broadcast — when the bot is ready', 0],
 ];
 
 export default function AdminAnnouncements() {

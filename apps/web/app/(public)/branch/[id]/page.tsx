@@ -1,5 +1,6 @@
 import { ImageSlot } from '../../../../components/ImageSlot';
 import { css } from '../../../../lib/style';
+import { IMG } from '../../../../lib/images';
 
 // Branch detail — ported from the prototype (pbb-pages2.js PAGES['branch']). Renders the
 // Quetta head-office detail (BRANCHES[0]). Data arrays mirror the source.
@@ -35,7 +36,7 @@ export default function BranchPage() {
                 })}</div>
               </div>
             </div>
-            <div><ImageSlot ratio="4/3" placeholder="photograph of the branch" />
+            <div><ImageSlot ratio="4/3" src={IMG.building} placeholder="photograph of the branch" />
               <div className="card" style={css('margin-top:14px')}><h3 style={css('margin-bottom:10px')}>Serving</h3>
                 {SERVING.map((t) => <span key={t} className="chip">{t}</span>)}
               </div>

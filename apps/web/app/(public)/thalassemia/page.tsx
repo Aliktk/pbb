@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
+import { IMG } from '../../../lib/images';
 
 // Thalassemia — ported from the prototype (pbb-pages.js PAGES.thalassemia). Data array mirrors the source.
 const COST_CARDS: [string, string][] = [
@@ -29,7 +30,7 @@ export default function Thalassemia() {
               ))}</div>
               <p className="muted" style={css('font-size:13.5px;margin-top:14px')}>Figures to be supplied by the head office.</p>
               <Link href="/donate" className="btn btn-p" style={css('margin-top:22px')}>Sponsor a child</Link></div>
-            <ImageSlot ratio="4/3.6" placeholder="photograph slot<br><b>consented portraits only</b><br>no names unless the family has agreed" />
+            <ImageSlot ratio="4/3.6" src={IMG.clinician} placeholder="photograph slot<br><b>consented portraits only</b><br>no names unless the family has agreed" />
           </div>
           <div className="notice" style={css('margin-top:44px')}><b>On photographs.</b> Children appear on this page only where a signed consent form is held by the head office. A child without consent is still counted among the two hundred, and still transfused, but never shown.</div>
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ADMIN_GROUPS, ADMIN_MOBNAV, ALLOW, ROLES, type RoleKey } from '../../lib/admin';
 import { REQUESTS } from '../../lib/adminData';
+import { Icon } from '../Icon';
 
 interface AdminShellProps {
   view: string;
@@ -50,6 +51,7 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
                 <div className="agp">{group}</div>
                 {vis.map(([v, label]) => (
                   <Link key={v} href={`/admin/${v}`} className={`anav${v === view ? ' on' : ''}`}>
+                    <Icon name={v} />
                     {label}
                     {v === 'requests' ? <span className="ct">{openRequests}</span> : v === 'inventory' ? <span className="ct">1</span> : null}
                   </Link>
@@ -81,9 +83,9 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
       </div>
 
       <div className="mobbar">
-        {ADMIN_MOBNAV.filter(([v]) => can(v)).map(([v, label, glyph]) => (
+        {ADMIN_MOBNAV.filter(([v]) => can(v)).map(([v, label]) => (
           <Link key={v} href={`/admin/${v}`} className={v === view ? 'on' : undefined}>
-            <b>{glyph}</b>{label.split(' ')[0]}
+            <b><Icon name={v} size={20} /></b>{label.split(' ')[0]}
           </Link>
         ))}
       </div>

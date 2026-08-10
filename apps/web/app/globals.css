@@ -597,3 +597,10 @@ section.blk{padding:46px 0}
 /* toast — design-phase action feedback (lib/toast.ts) */
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:13px 22px;border-radius:99px;font-size:14.5px;font-weight:600;box-shadow:0 10px 30px rgba(0,0,0,.24);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s;z-index:200;max-width:90vw;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* admin nav icons (components/Icon.tsx) — inherit currentColor, never shrink so the
+   .ct count badge keeps its margin-left:auto alignment */
+.anav svg{flex:none;opacity:.9}
+.anav.on svg{opacity:1}
+.mobbar b{display:flex;align-items:center;justify-content:center}
+.mobbar b svg{width:20px;height:20px}

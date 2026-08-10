@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { ImageSlot } from '../../components/ImageSlot';
 import { css } from '../../lib/style';
+import { IMG } from '../../lib/images';
+
+const NEWS_COVERS = [IMG.community, IMG.building, IMG.bloodBags];
 
 // Home — ported from the prototype (pbb-app.js PAGES['']). Data arrays mirror the source.
 const STOCK: [string, string, string][] = [
@@ -52,7 +55,7 @@ export default function Home() {
                 <div><div className="n">3</div><div className="c">ambulances, 24 hours</div></div>
               </div>
             </div>
-            <ImageSlot ratio="4/4.4" style="border-radius:var(--rl)" placeholder="Drop the hero photograph — a donor at the bench, or a PBB ambulance" />
+            <ImageSlot ratio="4/4.4" style="border-radius:var(--rl)" src={IMG.heroDonation} placeholder="Drop the hero photograph — a donor at the bench, or a PBB ambulance" />
           </div>
         </div>
       </header>
@@ -128,7 +131,7 @@ export default function Home() {
               </p>
               <Link href="/branches" className="btn btn-o">See every branch</Link>
             </div>
-            <ImageSlot ratio="4/3" style="border-radius:var(--rl)" placeholder="Drop a map of Balochistan showing the six branches" />
+            <ImageSlot ratio="4/3" style="border-radius:var(--rl)" src={IMG.landscape} placeholder="Drop a map of Balochistan showing the six branches" />
           </div>
         </div>
       </section>
@@ -143,9 +146,9 @@ export default function Home() {
             <Link href="/news" className="btn btn-o btn-s" style={css('margin-left:auto')}>All announcements</Link>
           </div>
           <div className="g3">
-            {HOME_NEWS.map(([k, d, t, b, c]) => (
+            {HOME_NEWS.map(([k, d, t, b, c], i) => (
               <div key={t} className="card" style={css('padding:0;overflow:hidden')}>
-                <ImageSlot ratio="16/9" style="border-radius:0" placeholder="Drop a cover photo" />
+                <ImageSlot ratio="16/9" style="border-radius:0" src={NEWS_COVERS[i % NEWS_COVERS.length]} placeholder="Drop a cover photo" />
                 <div style={css('padding:22px')}>
                   <div className="row" style={css('gap:9px')}>
                     <span className={`tag ${c}`}>{k}</span>

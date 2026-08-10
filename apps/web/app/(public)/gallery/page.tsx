@@ -1,6 +1,7 @@
 import { ImageSlot } from '../../../components/ImageSlot';
 import { ActionButton } from '../../../components/ActionButton';
 import { css } from '../../../lib/style';
+import { IMG_ROTATION } from '../../../lib/images';
 
 // Gallery — ported from the prototype (pbb-pages.js PAGES.gallery). Data mirrors the source.
 
@@ -28,7 +29,7 @@ export default function Gallery() {
           </div>
           <div className="gal">
             {GALLERY_RATIOS.map((r, i) => (
-              <ImageSlot key={i} ratio={String(r)} style="border-radius:18px" placeholder={i % 5 === 3 ? '▶ video' : 'photograph'} />
+              <ImageSlot key={i} ratio={String(r)} src={IMG_ROTATION[i % IMG_ROTATION.length]} style="border-radius:18px" placeholder={i % 5 === 3 ? '▶ video' : 'photograph'} />
             ))}
           </div>
           <div style={css('text-align:center;margin-top:30px')}>
