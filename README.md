@@ -4,7 +4,7 @@ An operational blood-bank system that also publishes a website. A coordinator us
 three in the morning to find someone who can give O− in Quetta. It replaces a paper Donor
 Diary kept since 24 March 1999 across fourteen towns in Balochistan.
 
-> Spec: [`docs/PBB Build Harness.md`](docs/PBB%20Build%20Harness.md) (what & why).
+> Spec: [`docs/PBB Build Harness.md`](<docs/PBB%20Build%20Harness.md>) (what & why).
 > Design: `_handoff/modernist/project/` (the prototype — how it looks & reads).
 > Plan: [`docs/BUILD-PLAN.md`](docs/BUILD-PLAN.md) · Prompt: [`docs/HARNESS-MODE-PROMPT.md`](docs/HARNESS-MODE-PROMPT.md).
 
