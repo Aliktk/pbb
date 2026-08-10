@@ -2,8 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ADMIN_GROUPS, ADMIN_MOBNAV, ALLOW, ROLES, type RoleKey } from '../../lib/admin';
-import { REQUESTS } from '../../lib/adminData';
+import { useRouter } from 'next/navigation';
+import { ADMIN_GROUPS, ADMIN_MOBNAV } from '../../lib/admin';
+import { useAuth } from '../../lib/auth';
+import { api } from '../../lib/api';
+import type { Paged, AdminRequestRow } from '../../lib/apiTypes';
 import { Icon } from '../Icon';
 
 interface AdminShellProps {
@@ -15,13 +18,14 @@ interface AdminShellProps {
 }
 
 /**
- * The admin chrome (aside sidebar + topbar + mobile bar), ported from the prototype's
- * adminShell(). The role switcher is a demonstration control - it changes which sidebar
- * items are visible and the branch scope label. Real RBAC is enforced server-side (T1);
- * hiding a control here is presentation only.
+ * The admin chrome (sidebar + topbar + mobile bar). It reads the signed-in user from the auth
+ * context: the account decides the town scope and what the server will allow. Hiding a nav item
+ * is presentation only; the API enforces access on every call.
  */
 export function AdminShell({ view, title, subtitle, actions, children }: AdminShellProps) {
-  const [role, setRole] = useState<RoleKey>('head');
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const [openRequests, setOpenRequests] = useState<number | null>(null);
 
   // Apply the prototype's body.adminmode styles while an admin screen is mounted.
   useEffect(() => {
@@ -29,11 +33,24 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
     return () => document.body.classList.remove('adminmode');
   }, []);
 
-  const current = ROLES.find((r) => r.key === role)!;
-  const scope = current.scope;
-  const allowed = ALLOW[role];
-  const can = (v: string) => !allowed || allowed.includes(v);
-  const openRequests = (scope ? REQUESTS.filter((r) => r.c === scope) : REQUESTS).filter((r) => r.st === 'open').length;
+  // Live "open requests" badge from the API (best effort).
+  useEffect(() => {
+    let alive = true;
+    api
+      .get<Paged<AdminRequestRow>>('/requests?status=OPEN&pageSize=1')
+      .then((res) => alive && setOpenRequests(res.meta.total))
+      .catch(() => alive && setOpenRequests(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const scopeLabel = user?.townId ? 'Your branch' : 'All branches';
+
+  async function signOut() {
+    await logout();
+    router.replace('/admin/login');
+  }
 
   return (
     <>
@@ -41,27 +58,25 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
         <aside className="aside">
           <Link href="/admin/overview" className="abrand">
             <img src="/assets/pbb-logo.png" alt="" />
-            <span>Blood Register<small>{scope ?? 'All branches'}</small></span>
+            <span>Blood Register<small>{scopeLabel}</small></span>
           </Link>
-          {ADMIN_GROUPS.map(([group, items]) => {
-            const vis = items.filter(([v]) => can(v));
-            if (!vis.length) return null;
-            return (
-              <div key={group}>
-                <div className="agp">{group}</div>
-                {vis.map(([v, label]) => (
-                  <Link key={v} href={`/admin/${v}`} className={`anav${v === view ? ' on' : ''}`}>
-                    <Icon name={v} />
-                    {label}
-                    {v === 'requests' ? <span className="ct">{openRequests}</span> : v === 'inventory' ? <span className="ct">1</span> : null}
-                  </Link>
-                ))}
-              </div>
-            );
-          })}
+          {ADMIN_GROUPS.map(([group, items]) => (
+            <div key={group}>
+              <div className="agp">{group}</div>
+              {items.map(([v, label]) => (
+                <Link key={v} href={`/admin/${v}`} className={`anav${v === view ? ' on' : ''}`}>
+                  <Icon name={v} />
+                  {label}
+                  {v === 'requests' && openRequests !== null ? <span className="ct">{openRequests}</span> : null}
+                </Link>
+              ))}
+            </div>
+          ))}
           <div className="awho">
-            Signed in as<b>{current.who}</b>{current.sub}
-            <Link href="/" className="alogout">Back to website</Link>
+            Signed in as<b>{user?.name ?? 'Loading'}</b>{user?.role.name ?? ''}
+            <button type="button" className="alogout" onClick={signOut} style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+              Sign out
+            </button>
           </div>
         </aside>
 
@@ -70,20 +85,14 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
             <h1>{title}</h1>
             {subtitle && <span className="asub">{subtitle}</span>}
             {actions}
-            <div className="roleswitch">
-              {ROLES.map((r) => (
-                <button key={r.key} className={r.key === role ? 'on' : undefined} onClick={() => setRole(r.key)} title={`View as ${r.who}`}>
-                  {r.short}
-                </button>
-              ))}
-            </div>
+            <Link href="/" className="btn btn-o btn-s" style={{ marginLeft: 'auto' }}>Back to website</Link>
           </div>
           <div className="acont">{children}</div>
         </div>
       </div>
 
       <div className="mobbar">
-        {ADMIN_MOBNAV.filter(([v]) => can(v)).map(([v, label]) => (
+        {ADMIN_MOBNAV.map(([v, label]) => (
           <Link key={v} href={`/admin/${v}`} className={v === view ? 'on' : undefined}>
             <b><Icon name={v} size={20} /></b>{label.split(' ')[0]}
           </Link>

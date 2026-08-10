@@ -1,42 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
+import { api } from '../../../lib/api';
+import type { Paged, PublicRequestRow } from '../../../lib/apiTypes';
 
-// Who needs blood now - ported from the prototype's needs board (pbb-me.js NEEDS). Client
-// component so the group filter works. Privacy is CRITICAL: NO patient names, NO phone
-// numbers - a blood group, a hospital and an hour is all a donor needs (INV-11).
-interface Need {
-  g: string;
-  u: number;
-  h: string;
-  c: string;
-  urg: string;
-  ago: string;
-}
+// Who needs blood now, from GET /requests/public. Privacy is CRITICAL: the public projection
+// carries NO patient names and NO phone numbers (INV-11) - a blood group, a town and an hour is
+// all a donor needs.
 
-const NEEDS: Need[] = [
-  { g: 'O−', u: 3, h: 'Civil Hospital, Quetta', c: 'Quetta', urg: 'Critical - today', ago: '22 minutes ago' },
-  { g: 'B−', u: 2, h: 'Bolan Medical Complex, Quetta', c: 'Quetta', urg: 'Urgent - within 2 days', ago: '1 hour ago' },
-  { g: 'A+', u: 1, h: 'DHQ Hospital, Zhob', c: 'Zhob', urg: 'Planned - a date is set', ago: '3 hours ago' },
-  { g: 'O+', u: 2, h: 'Sandeman Hospital, Quetta', c: 'Quetta', urg: 'Urgent - within 2 days', ago: '4 hours ago' },
-];
+const FILTERS: string[] = ['All', 'O−', 'O+', 'A−', 'A+', 'B−', 'B+', 'AB−', 'AB+'];
 
-const FILTERS: [string, string][] = [
-  ['All', 'All groups'], ['O−', 'O−'], ['O+', 'O+'], ['A−', 'A−'], ['A+', 'A+'],
-  ['B−', 'B−'], ['B+', 'B+'], ['AB−', 'AB−'], ['AB+', 'AB+'],
-];
+const URGENCY_LABEL: Record<string, string> = { CRITICAL: 'Critical', URGENT: 'Urgent', ROUTINE: 'Planned' };
+const URGENCY_TAG: Record<string, string> = { CRITICAL: 'no', URGENT: 'wt', ROUTINE: 'gy' };
 
-function urgencyTag(urg: string): string {
-  if (urg.startsWith('Critical')) return 'no';
-  if (urg.startsWith('Urgent')) return 'wt';
-  return 'gy';
+function agoLabel(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  if (mins < 1440) { const h = Math.floor(mins / 60); return `${h} hour${h === 1 ? '' : 's'} ago`; }
+  const d = Math.floor(mins / 1440);
+  return `${d} day${d === 1 ? '' : 's'} ago`;
 }
 
 export default function Needs() {
+  const [rows, setRows] = useState<PublicRequestRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [group, setGroup] = useState('All');
-  const rows = group === 'All' ? NEEDS : NEEDS.filter((n) => n.g === group);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .get<Paged<PublicRequestRow>>('/requests/public', { auth: false })
+      .then((res) => alive && setRows(res.data))
+      .catch(() => alive && setError('Could not load the board just now. Please try again shortly.'))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const shown = group === 'All' ? rows : rows.filter((n) => n.group === group);
 
   return (
     <>
@@ -45,7 +51,7 @@ export default function Needs() {
           <span className="eyebrow"><b />Right now</span>
           <h1>Who needs blood today</h1>
           <p className="lead" style={css('margin-top:18px;max-width:62ch')}>
-            Every open request across the fourteen towns. No names - a blood group, a hospital and an
+            Every open request across the fourteen towns. No names - a blood group, a town and an
             hour is all a donor needs to decide.
           </p>
         </div>
@@ -53,29 +59,36 @@ export default function Needs() {
       <section className="blk" style={css('padding-top:0')}>
         <div className="wrap">
           <div className="row" style={css('gap:8px;margin-bottom:24px;flex-wrap:wrap')}>
-            {FILTERS.map(([g, l]) => {
-              const count = g === 'All' ? NEEDS.length : NEEDS.filter((n) => n.g === g).length;
+            {FILTERS.map((g) => {
+              const count = g === 'All' ? rows.length : rows.filter((n) => n.group === g).length;
               return (
                 <button key={g} className={`pill${g === group ? ' on' : ''}`} onClick={() => setGroup(g)}>
-                  {l}{count ? <> <b style={css('font-variant-numeric:tabular-nums')}>{count}</b></> : null}
+                  {g === 'All' ? 'All groups' : g}{count ? <> <b style={css('font-variant-numeric:tabular-nums')}>{count}</b></> : null}
                 </button>
               );
             })}
           </div>
 
-          {rows.length ? (
+          {loading ? (
+            <div className="card" style={css('text-align:center;padding:52px 26px')}><h3>Loading the board</h3></div>
+          ) : error ? (
+            <div className="card" style={css('text-align:center;padding:52px 26px')}>
+              <h3>{error}</h3>
+              <p className="sm" style={css('margin-top:8px')}>In an emergency, phone the head office in Quetta on <b>081-2836820</b>.</p>
+            </div>
+          ) : shown.length ? (
             <div className="g2" style={css('gap:16px')}>
-              {rows.map((n) => (
-                <div key={n.h + n.g} className={`card needcard ${n.urg.startsWith('Critical') ? 'crit' : ''}`}>
+              {shown.map((n) => (
+                <div key={n.reference} className={`card needcard ${n.urgency === 'CRITICAL' ? 'crit' : ''}`}>
                   <div className="row" style={css('justify-content:space-between;align-items:flex-start;gap:14px')}>
                     <div>
-                      <div className="needg">{n.g}</div>
-                      <div className="sm" style={css('margin-top:4px')}>{n.u} {n.u === 1 ? 'bag' : 'bags'} needed</div>
+                      <div className="needg">{n.group}</div>
+                      <div className="sm" style={css('margin-top:4px')}>{n.unitsNeeded} {n.unitsNeeded === 1 ? 'bag' : 'bags'} needed</div>
                     </div>
-                    <span className={`tag ${urgencyTag(n.urg)}`}>{n.urg}</span>
+                    <span className={`tag ${URGENCY_TAG[n.urgency] ?? 'gy'}`}>{URGENCY_LABEL[n.urgency] ?? n.urgency}</span>
                   </div>
-                  <h3 style={css('margin:16px 0 4px')}>{n.h}</h3>
-                  <p className="sm">{n.c} · asked {n.ago}</p>
+                  <h3 style={css('margin:16px 0 4px')}>{n.town}</h3>
+                  <p className="sm">Asked {agoLabel(n.createdAt)} · ref {n.reference}</p>
                   <a href="tel:0812836820" className="btn btn-p btn-s" style={css('margin-top:16px;width:100%')}>Call the branch to give</a>
                 </div>
               ))}
@@ -83,19 +96,19 @@ export default function Needs() {
           ) : (
             <div className="card" style={css('text-align:center;padding:52px 26px')}>
               <div className="needg" style={css('color:var(--grn)')}>{group}</div>
-              <h3 style={css('margin:14px 0 6px')}>No open requests for {group} right now</h3>
+              <h3 style={css('margin:14px 0 6px')}>{rows.length ? `No open requests for ${group} right now` : 'No open requests right now'}</h3>
               <p className="sm" style={css('max-width:44ch;margin:0 auto')}>
-                Other groups are still being asked for - check <b>All groups</b> above. This board changes
-                through the day, so it is worth looking again.
+                {rows.length
+                  ? <>Other groups are still being asked for - check <b>All groups</b> above.</>
+                  : <>When every group is clear, this board is empty, and that is good news.</>}
               </p>
-              <button className="btn btn-o btn-s" style={css('margin-top:18px')} onClick={() => setGroup('All')}>Show every group</button>
+              {rows.length ? <button className="btn btn-o btn-s" style={css('margin-top:18px')} onClick={() => setGroup('All')}>Show every group</button> : null}
             </div>
           )}
 
           <div className="notice" style={css('margin-top:26px')}>
             A request leaves this board the moment a branch marks it arranged, so nobody travels to a
-            hospital that no longer needs them. When every group is clear, this board is empty - and that
-            is good news.
+            hospital that no longer needs them.
           </div>
           <div className="closer" style={css('margin-top:34px')}>
             <div>

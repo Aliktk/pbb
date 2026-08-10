@@ -1,35 +1,102 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { css } from '../lib/style';
 import { TOWNS, BLOOD_GROUPS } from '../lib/nav';
 import { FORM_FIELDS, NEED_GROUP, SUCCESS, type JoinKind } from '../lib/join';
 import { showToast } from '../lib/toast';
+import { api, ApiError } from '../lib/api';
+import { splitGroup } from '../lib/bloodGroup';
 
 interface JoinFormProps {
   kind: JoinKind;
 }
 
+interface Town {
+  id: string;
+  name: string;
+}
+
+function urgencyEnum(value: string): 'CRITICAL' | 'URGENT' | 'ROUTINE' {
+  if (value.startsWith('Critical')) return 'CRITICAL';
+  if (value.startsWith('Urgent')) return 'URGENT';
+  return 'ROUTINE';
+}
+
 /**
- * The one-form-five-kinds join form. Client component: manages the blood-group picker and,
- * on submit, shows the prototype's success panel. No backend yet (design phase) - submission
- * is intercepted and acknowledged locally; wiring to POST /requests etc. comes with T3/T2.
+ * The one-form-five-kinds join form. The requester kind is wired to POST /requests (it appears
+ * in the admin the moment it is submitted). The other kinds acknowledge locally until their
+ * endpoints exist.
  */
 export function JoinForm({ kind }: JoinFormProps) {
   const [group, setGroup] = useState<string>('');
+  const [towns, setTowns] = useState<Town[] | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [ref, setRef] = useState('');
+  const [busy, setBusy] = useState(false);
   const rows = FORM_FIELDS[kind];
   const groupLabel = NEED_GROUP[kind];
   const success = SUCCESS[kind];
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    api
+      .get<{ data: Town[] }>('/towns', { auth: false })
+      .then((res) => setTowns(res.data))
+      .catch(() => setTowns([]));
+  }, []);
+
+  async function submitRequester(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const { bloodGroup, rhFactor } = splitGroup(group);
+    const disease = String(fd.get('disease') ?? '').trim();
+    const age = String(fd.get('age') ?? '').trim();
+    const genderText = String(fd.get('gender') ?? '').trim();
+    const notes = [disease && `Case: ${disease}`, age && `Age ${age}`, genderText]
+      .filter(Boolean)
+      .join(' · ');
+
+    const payload = {
+      patientName: String(fd.get('patient') ?? '').trim() || undefined,
+      hospital: String(fd.get('hospital') ?? '').trim(),
+      townId: String(fd.get('city') ?? ''),
+      bloodGroup,
+      rhFactor,
+      unitsNeeded: Number(fd.get('units')) || 1,
+      urgency: urgencyEnum(String(fd.get('urgency') ?? '')),
+      requesterName: String(fd.get('att') ?? '').trim(),
+      requesterPhone: String(fd.get('phone') ?? '').trim(),
+      transportAvailable: String(fd.get('transport') ?? '').startsWith('Yes'),
+      exchangePossible: String(fd.get('exchange') ?? '') === 'Yes',
+      caseNotes: notes || undefined,
+    };
+
+    const res = await api.post<{ reference: string; status: string }>('/requests', payload, { auth: false });
+    setRef(res.reference);
+    setSubmitted(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (groupLabel && !group) {
       showToast(`Please choose ${groupLabel.toLowerCase()}.`);
       return;
     }
+
+    if (kind === 'requester') {
+      setBusy(true);
+      try {
+        await submitRequester(e.currentTarget);
+      } catch (err) {
+        showToast(err instanceof ApiError ? err.message : 'Could not submit. Is the API running?');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // Other kinds are acknowledged locally until their API lands.
     const n = Math.floor(1000 + Math.random() * 9000);
     setRef(kind === 'donor' ? `D-${n}` : `PBB-${n}`);
     setSubmitted(true);
@@ -98,7 +165,7 @@ export function JoinForm({ kind }: JoinFormProps) {
         ) : row.type === 'select' ? (
           <div className="fgrp" key={row.name}>
             <label className="lb">{row.label}{row.required ? ' *' : ''}</label>
-            <select className="fld" name={row.name}>
+            <select className="fld" name={row.name} required={row.required}>
               {(row.options ?? []).map((o) => <option key={o}>{o}</option>)}
             </select>
           </div>
@@ -123,8 +190,10 @@ export function JoinForm({ kind }: JoinFormProps) {
 
       <div className="fgrp">
         <label className="lb">Town *</label>
-        <select className="fld" name="city">
-          {TOWNS.map((t) => <option key={t}>{t}</option>)}
+        <select className="fld" name="city" required>
+          {towns && towns.length
+            ? towns.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)
+            : TOWNS.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
 
@@ -139,8 +208,8 @@ export function JoinForm({ kind }: JoinFormProps) {
         <span>What I have entered is accurate, and I agree to be contacted about it.</span>
       </label>
 
-      <button className="btn btn-p" style={css('width:100%;padding:16px;font-size:16px;margin-top:14px')}>
-        {kind === 'requester' ? 'Submit the request' : 'Send'}
+      <button className="btn btn-p" disabled={busy} style={css('width:100%;padding:16px;font-size:16px;margin-top:14px')}>
+        {busy ? 'Submitting...' : kind === 'requester' ? 'Submit the request' : 'Send'}
       </button>
     </form>
   );

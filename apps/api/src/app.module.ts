@@ -9,6 +9,7 @@ import { ConsoleNotifier } from './notifications/console.notifier';
 import { AuthModule } from './auth/auth.module';
 import { DonorsModule } from './donors/donors.module';
 import { RequestsModule } from './requests/requests.module';
+import { TownsModule } from './towns/towns.module';
 import { JwtAuthGuard } from './rbac/jwt-auth.guard';
 import { PermissionsGuard } from './rbac/permissions.guard';
 
@@ -32,6 +33,7 @@ import { PermissionsGuard } from './rbac/permissions.guard';
     AuthModule,
     DonorsModule,
     RequestsModule,
+    TownsModule,
   ],
   controllers: [HealthController],
   providers: [
