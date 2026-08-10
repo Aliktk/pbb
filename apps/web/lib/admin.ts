@@ -21,7 +21,7 @@ export const ROLES: Role[] = [
 // Which views each role may reach (null = all). Mirrors ALLOW in the prototype.
 export const ALLOW: Record<RoleKey, string[] | null> = {
   head: null,
-  mgr: ['overview', 'requests', 'find', 'inventory', 'inbox', 'whatsapp', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'partners', 'reports', 'branches', 'accounts', 'audit', 'profile'],
+  mgr: ['overview', 'requests', 'find', 'inventory', 'inbox', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'partners', 'reports', 'branches', 'accounts', 'audit', 'profile'],
   emp: ['overview', 'requests', 'find', 'inventory', 'donors', 'record', 'profile'],
 };
 
@@ -29,7 +29,7 @@ export const LANDING: Record<RoleKey, string> = { head: 'overview', mgr: 'overvi
 
 // Sidebar groups: [group title, [ [view, label], … ] ]. Ported from AGROUPS.
 export const ADMIN_GROUPS: [string, [string, string][]][] = [
-  ['Operations', [['overview', 'Overview'], ['requests', 'Blood requests'], ['find', 'Find donors'], ['inventory', 'Inventory'], ['inbox', 'Inbox'], ['whatsapp', 'WhatsApp']]],
+  ['Operations', [['overview', 'Overview'], ['requests', 'Blood requests'], ['find', 'Find donors'], ['inventory', 'Inventory'], ['inbox', 'Inbox']]],
   ['Registry', [['donors', 'Donors'], ['volunteers', 'Volunteers'], ['thalassemia', 'Thalassemia'], ['ledger', 'Donations ledger'], ['record', 'Record a donation']]],
   ['Content', [['homepage', 'Homepage'], ['pages', 'Pages'], ['announcements', 'Announcements'], ['events', 'Events'], ['media', 'Media']]],
   ['Network', [['network', 'All towns'], ['partners', 'Partners & organisations'], ['reports', 'Reports']]],
@@ -53,7 +53,8 @@ export function daysSince(date: string | null): number | null {
 export interface Screening { hcv: string; hiv: string; hbs: string; vdrl: string; mp: string }
 
 export interface Donor {
-  id: number; n: string; g: string; p: string; c: string; last: string | null; times: number;
+  id: number; n: string; g: string; gx: 'Male' | 'Female'; p: string; c: string;
+  last: string | null; times: number;
   mr: string; dob: string; emg: string; emgr: string; addr: string; ml: number; freq: string;
   issue: string; tests: Screening | null; tested: string | null; defer: string | null;
 }

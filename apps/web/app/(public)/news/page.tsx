@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
+import { IMG, IMG_ROTATION } from '../../../lib/images';
 
 // News — ported from the prototype (pbb-pages.js PAGES.news). Data mirrors the source NEWS array.
 
@@ -35,7 +36,7 @@ export default function News() {
         <div className="wrap">
           <div className="card" style={css('padding:0;overflow:hidden;margin-bottom:26px')}>
             <div className="feat">
-              <ImageSlot ratio="16/10" style="border-radius:0;border:0;height:100%" placeholder="event cover photograph" />
+              <ImageSlot ratio="16/10" src={IMG.community} style="border-radius:0;border:0;height:100%" placeholder="event cover photograph" />
               <div style={css('padding:38px')}>
                 <div className="row" style={css('gap:10px')}>
                   <span className="tag no">{feature.k}</span>
@@ -51,9 +52,9 @@ export default function News() {
             </div>
           </div>
           <div className="g3">
-            {NEWS.slice(1).map((n) => (
+            {NEWS.slice(1).map((n, i) => (
               <div key={n.t} className="card" style={css('padding:0;overflow:hidden')}>
-                <ImageSlot ratio="16/9" style="border-radius:0;border:0;border-bottom:1px solid var(--line)" placeholder="cover" />
+                <ImageSlot ratio="16/9" src={IMG_ROTATION[i % IMG_ROTATION.length]} style="border-radius:0;border:0;border-bottom:1px solid var(--line)" placeholder="cover" />
                 <div style={css('padding:22px')}>
                   <div className="row" style={css('gap:9px')}>
                     <span className="tag gy">{n.k}</span>

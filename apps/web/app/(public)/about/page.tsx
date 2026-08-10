@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
+import { IMG } from '../../../lib/images';
 
 // About / story — ported from the prototype (pbb-pages.js PAGES.about).
 // The prototype's era() and quiet() helpers are ported as local components below.
@@ -61,7 +62,7 @@ export default function About() {
             <p className="lead">Pashtoonkhwa Blood Bank and Welfare Society was inaugurated by the Chairman of Pashtoonkhwa Milli Awami Party, Mr. Mehmood Khan Achakzai, on 24th March 1999. It has served the people, irrespective of language, colour, religion, race and ethnicity, since its first day.</p>
             <div className="tl-meta"><div>Inaugurated<b>24 March 1999</b></div><div>Head office<b>Quetta</b></div><div>Branches<b>Six offices</b></div><div>Supervised by<b>Three members</b></div></div>
           </div>
-          <ImageSlot ratio="4/3.4" placeholder="archive photograph<br>the inauguration, or the original premises" />
+          <ImageSlot ratio="4/3.4" src={IMG.building} placeholder="archive photograph<br>the inauguration, or the original premises" />
         </div>
       </header>
 

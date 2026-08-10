@@ -1,6 +1,7 @@
 import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
 import { TOWNS } from '../../../lib/nav';
+import { IMG } from '../../../lib/images';
 
 // Our branches — ported from the prototype (pbb-pages.js PAGES.branches). Data arrays mirror the source.
 interface Branch {
@@ -52,7 +53,7 @@ export default function Branches() {
                 </div>
               ))}
             </div>
-            <ImageSlot ratio="3/4" style="min-height:520px" placeholder="map slot<br>Balochistan — six branch pins, eight more towns served<br>click a pin to jump to its card" />
+            <ImageSlot ratio="3/4" src={IMG.landscape} style="min-height:520px" placeholder="map slot<br>Balochistan — six branch pins, eight more towns served<br>click a pin to jump to its card" />
           </div>
           <div style={css('margin-top:32px')}>
             <div className="qlab" style={css('margin-bottom:12px')}>Also serving, without a permanent office</div>
