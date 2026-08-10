@@ -13,6 +13,7 @@
     "test:api": "vitest run --dir test/api",
     "test:rbac": "vitest run --dir test/rbac",
     "db:seed": "node --env-file-if-exists=../../.env --import tsx prisma/seed.ts",
+    "auth:set-password": "node --env-file-if-exists=../../.env --import tsx prisma/set-admin-password.ts",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate"
   },
