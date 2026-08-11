@@ -8,6 +8,7 @@ import { FORM_FIELDS, NEED_GROUP, SUCCESS, type JoinKind } from '../lib/join';
 import { showToast } from '../lib/toast';
 import { fetchTowns } from '../lib/towns';
 import { submitPublicRequest } from '../lib/requests';
+import { submitContactMessage, type MessageKind } from '../lib/messages';
 import { splitGroup } from '../lib/bloodGroup';
 
 interface JoinFormProps {
@@ -94,11 +95,35 @@ export function JoinForm({ kind }: JoinFormProps) {
       return;
     }
 
-    // Other kinds are acknowledged locally until their API lands.
-    const n = Math.floor(1000 + Math.random() * 9000);
-    setRef(kind === 'donor' ? `D-${n}` : `PBB-${n}`);
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Donor, volunteer, partner and organisation sign-ups become inbox leads for staff to act on.
+    // A donor is only added to the register after verification, so the public never writes donors.
+    setBusy(true);
+    try {
+      const fd = new FormData(e.currentTarget);
+      const cityVal = String(fd.get('city') ?? '').trim();
+      const townId = towns?.find((t) => t.id === cityVal || t.name === cityVal)?.id ?? null;
+      const detail = Array.from(fd.entries())
+        .filter(([k, v]) => !['name', 'att', 'org', 'phone', 'email', 'city'].includes(k) && String(v).trim())
+        .map(([k, v]) => `${k}: ${String(v).trim()}`)
+        .join(' · ');
+      await submitContactMessage({
+        kind: kind as MessageKind,
+        name: String(fd.get('name') ?? fd.get('att') ?? '').trim() || undefined,
+        org: String(fd.get('org') ?? '').trim() || undefined,
+        phone: String(fd.get('phone') ?? '').trim() || undefined,
+        email: String(fd.get('email') ?? '').trim() || undefined,
+        townId,
+        detail: [group ? `Group: ${group}` : '', cityVal ? `Town: ${cityVal}` : '', detail].filter(Boolean).join(' · '),
+      });
+      const n = Math.floor(1000 + Math.random() * 9000);
+      setRef(kind === 'donor' ? `D-${n}` : `PBB-${n}`);
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not submit. Please try again.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (submitted) {
