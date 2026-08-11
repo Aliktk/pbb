@@ -33,7 +33,14 @@ update public.towns set is_office = true,
 
 -- Offices edit their own record: head office may edit any town; an office manager only their own.
 -- (towns already grants public SELECT in 0001; this adds scoped UPDATE.)
-grant update on public.towns to authenticated;
+--
+-- Column-level grant: UPDATE is allowed ONLY on the contact-detail columns. This is enforced by
+-- the database regardless of what column list the client sends, so a manager can never rewrite
+-- name / is_office / is_head_office on their own town row - only address, phones, email and bank.
+-- Structural flags (is_office/is_head_office) stay service-role-only.
+revoke update on public.towns from authenticated;
+grant update (address, phones, email, bank) on public.towns to authenticated;
+
 drop policy if exists towns_manage on public.towns;
 create policy towns_manage on public.towns for update to authenticated
   using (public.is_head() or (public.has_role('manager') and id = public.current_town_id()))
