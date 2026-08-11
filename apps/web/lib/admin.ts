@@ -27,13 +27,17 @@ export const ALLOW: Record<RoleKey, string[] | null> = {
 
 export const LANDING: Record<RoleKey, string> = { head: 'overview', mgr: 'overview', emp: 'requests' };
 
-// Sidebar groups: [group title, [ [view, label], … ] ]. Ported from AGROUPS.
+// Sidebar groups: [group title, [ [view, label], … ] ]. Every admin route stays reachable;
+// labels and grouping are tuned for clarity: "Town coverage" (operational health) is kept
+// distinct from "Offices" (the branch records), and account/role admin sits in one place.
 export const ADMIN_GROUPS: [string, [string, string][]][] = [
-  ['Operations', [['overview', 'Overview'], ['requests', 'Blood requests'], ['find', 'Find donors'], ['inventory', 'Inventory'], ['inbox', 'Inbox']]],
-  ['Registry', [['donors', 'Donors'], ['volunteers', 'Volunteers'], ['thalassemia', 'Thalassemia'], ['ledger', 'Donations ledger'], ['record', 'Record a donation']]],
+  ['Operations', [['overview', 'Overview'], ['requests', 'Blood requests'], ['find', 'Find donors'], ['inbox', 'Inbox'], ['inventory', 'Inventory']]],
+  ['People', [['donors', 'Donors'], ['thalassemia', 'Thalassemia'], ['volunteers', 'Volunteers']]],
+  ['Donations', [['ledger', 'Donations ledger'], ['record', 'Record a donation']]],
   ['Content', [['homepage', 'Homepage'], ['pages', 'Pages'], ['announcements', 'Announcements'], ['events', 'Events'], ['media', 'Media']]],
-  ['Network', [['network', 'All towns'], ['partners', 'Partners & organisations'], ['reports', 'Reports']]],
-  ['Organisation', [['branches', 'Branches'], ['settings', 'Site settings'], ['accounts', 'Accounts & hierarchy'], ['roles', 'Roles & access'], ['data', 'Data'], ['audit', 'Log']]],
+  ['Network', [['network', 'Town coverage'], ['branches', 'Offices'], ['partners', 'Partners']]],
+  ['Insight', [['reports', 'Reports'], ['audit', 'Audit log'], ['data', 'Import & export']]],
+  ['Settings & access', [['settings', 'Site settings'], ['accounts', 'Accounts'], ['roles', 'Roles & access']]],
   ['You', [['profile', 'Your account']]],
 ];
 

@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
-import { api } from '../../../lib/api';
-import type { Paged, PublicRequestRow } from '../../../lib/apiTypes';
+import { fetchPublicNeeds } from '../../../lib/requests';
+import type { PublicRequestRow } from '../../../lib/apiTypes';
 
 // Who needs blood now, from GET /requests/public. Privacy is CRITICAL: the public projection
 // carries NO patient names and NO phone numbers (INV-11) - a blood group, a town and an hour is
@@ -32,9 +32,8 @@ export default function Needs() {
 
   useEffect(() => {
     let alive = true;
-    api
-      .get<Paged<PublicRequestRow>>('/requests/public', { auth: false })
-      .then((res) => alive && setRows(res.data))
+    fetchPublicNeeds()
+      .then((rows) => alive && setRows(rows))
       .catch(() => alive && setError('Could not load the board just now. Please try again shortly.'))
       .finally(() => alive && setLoading(false));
     return () => {
