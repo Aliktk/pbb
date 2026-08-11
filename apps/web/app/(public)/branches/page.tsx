@@ -9,6 +9,7 @@ interface Branch {
   head?: number;
   a: string;
   t: string[];
+  email?: string;
   bank?: string;
   amb?: number;
 }
@@ -18,7 +19,7 @@ const BRANCHES: Branch[] = [
   { n: 'Loralai', a: 'Sayed Abdul Qadir Road', t: ['0824-662066'], bank: 'UBL Loralai · A/C 2101-1' },
   { n: 'Pishin', a: 'Band Road', t: ['0826-421288'], bank: 'NBP Pishin · A/C 4589-93' },
   { n: 'Zhob', a: 'Sharbat Khan Road', t: ['0822-413902'], bank: 'Bank Islami Zhob · A/C 1048-0088676-0001' },
-  { n: 'Chaman', a: 'Taj Road', t: [] },
+  { n: 'Chaman', a: 'Khushi Muhammad Road, District Chaman', t: ['0333-3151503', '0826-612281'], email: 'pbb.chaman@gmail.com' },
   { n: 'Muslim Bagh', a: 'Aryan Market, Muslim Bagh Bazar', t: [] },
 ];
 
@@ -46,6 +47,7 @@ export default function Branches() {
                         <span key={t}>{i > 0 ? ' · ' : ''}<a href={`tel:${t.replace(/-/g, '')}`}>{t}</a></span>
                       ))}</div>
                     ) : <div className="bt muted">Phone number to follow</div>}
+                    {b.email ? <div className="bt"><a href={`mailto:${b.email}`}>{b.email}</a></div> : null}
                     {b.bank ? <div className="bbank">{b.bank}</div> : null}
                     {b.amb ? <span className="tag ok" style={css('margin-top:9px')}>Ambulance service · 24 hours</span> : null}
                   </div>
