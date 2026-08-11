@@ -37,10 +37,17 @@ export interface DonorFilters {
   townId?: string;
 }
 
+// Neutralise PostgREST .or() filter metacharacters (comma, parentheses, quotes, backslash) and the
+// ilike wildcards (% _ *) so a search term can never alter the query grammar - it is only ever a
+// literal substring to match. RLS still scopes results to the caller's town regardless.
+function sanitizeSearch(raw: string): string {
+  return raw.replace(/[,()"'\\%_*]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export async function fetchDonors(filters: DonorFilters = {}): Promise<DonorRow[]> {
   let query = supabase.from('donors_with_eligibility').select('*');
-  if (filters.q && filters.q.trim()) {
-    const q = filters.q.trim();
+  const q = filters.q ? sanitizeSearch(filters.q) : '';
+  if (q) {
     query = query.or(`name.ilike.%${q}%,phone.ilike.%${q}%,mrNo.ilike.%${q}%`);
   }
   if (filters.bloodGroup) query = query.eq('bloodGroup', filters.bloodGroup);
