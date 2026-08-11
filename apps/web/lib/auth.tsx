@@ -59,7 +59,6 @@ async function loadProfile(id: string, email: string | null | undefined): Promis
     .maybeSingle();
 
   if (error || !data) {
-    // eslint-disable-next-line no-console
     console.warn('No profile row for this account yet; signing in with limited access.', error?.message ?? '');
     return fallbackUser(id, email);
   }
