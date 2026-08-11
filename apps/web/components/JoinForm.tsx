@@ -6,7 +6,8 @@ import { css } from '../lib/style';
 import { TOWNS, BLOOD_GROUPS } from '../lib/nav';
 import { FORM_FIELDS, NEED_GROUP, SUCCESS, type JoinKind } from '../lib/join';
 import { showToast } from '../lib/toast';
-import { api, ApiError } from '../lib/api';
+import { fetchTowns } from '../lib/towns';
+import { submitPublicRequest } from '../lib/requests';
 import { splitGroup } from '../lib/bloodGroup';
 
 interface JoinFormProps {
@@ -40,9 +41,8 @@ export function JoinForm({ kind }: JoinFormProps) {
   const success = SUCCESS[kind];
 
   useEffect(() => {
-    api
-      .get<{ data: Town[] }>('/towns', { auth: false })
-      .then((res) => setTowns(res.data))
+    fetchTowns()
+      .then((res) => setTowns(res))
       .catch(() => setTowns([]));
   }, []);
 
@@ -56,7 +56,7 @@ export function JoinForm({ kind }: JoinFormProps) {
       .filter(Boolean)
       .join(' · ');
 
-    const payload = {
+    const res = await submitPublicRequest({
       patientName: String(fd.get('patient') ?? '').trim() || undefined,
       hospital: String(fd.get('hospital') ?? '').trim(),
       townId: String(fd.get('city') ?? ''),
@@ -69,9 +69,7 @@ export function JoinForm({ kind }: JoinFormProps) {
       transportAvailable: String(fd.get('transport') ?? '').startsWith('Yes'),
       exchangePossible: String(fd.get('exchange') ?? '') === 'Yes',
       caseNotes: notes || undefined,
-    };
-
-    const res = await api.post<{ reference: string; status: string }>('/requests', payload, { auth: false });
+    });
     setRef(res.reference);
     setSubmitted(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -89,7 +87,7 @@ export function JoinForm({ kind }: JoinFormProps) {
       try {
         await submitRequester(e.currentTarget);
       } catch (err) {
-        showToast(err instanceof ApiError ? err.message : 'Could not submit. Is the API running?');
+        showToast(err instanceof Error ? err.message : 'Could not submit. Please try again.');
       } finally {
         setBusy(false);
       }

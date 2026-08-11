@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ADMIN_GROUPS, ADMIN_MOBNAV } from '../../lib/admin';
 import { useAuth } from '../../lib/auth';
-import { api } from '../../lib/api';
-import type { Paged, AdminRequestRow } from '../../lib/apiTypes';
+import { countOpenRequests } from '../../lib/requests';
 import { Icon } from '../Icon';
 
 interface AdminShellProps {
@@ -33,12 +32,11 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
     return () => document.body.classList.remove('adminmode');
   }, []);
 
-  // Live "open requests" badge from the API (best effort).
+  // Live "open requests" badge from Supabase (best effort; RLS scopes it to the user's town).
   useEffect(() => {
     let alive = true;
-    api
-      .get<Paged<AdminRequestRow>>('/requests?status=OPEN&pageSize=1')
-      .then((res) => alive && setOpenRequests(res.meta.total))
+    countOpenRequests()
+      .then((n) => alive && setOpenRequests(n))
       .catch(() => alive && setOpenRequests(null));
     return () => {
       alive = false;

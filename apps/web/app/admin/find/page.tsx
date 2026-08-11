@@ -4,11 +4,11 @@ import { useState, type FormEvent } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api, ApiError } from '../../../lib/api';
+import { searchEligibleDonors } from '../../../lib/donors';
 import { splitGroup } from '../../../lib/bloodGroup';
 import { BLOOD_GROUPS } from '../../../lib/nav';
 import { TOWN_COORDS, haversineKm, resolveTownOrigin, type LatLng } from '../../../lib/geo';
-import type { Paged, DonorRow } from '../../../lib/apiTypes';
+import type { DonorRow } from '../../../lib/apiTypes';
 
 // Find donors - the emergency search, wired to GET /donors/search. Eligibility comes from the
 // database view (the API only returns callable, consenting donors). Distance and the radius are
@@ -72,10 +72,9 @@ export default function AdminFind() {
     const { bloodGroup, rhFactor } = splitGroup(group);
 
     try {
-      const params = new URLSearchParams({ group: bloodGroup, rh: rhFactor, includeCooldown: String(includeCooldown) });
-      const res = await api.get<Paged<DonorRow>>(`/donors/search?${params.toString()}`);
+      const donors = await searchEligibleDonors({ bloodGroup, rhFactor, includeCooldown });
 
-      const withDist: ResultRow[] = res.data.map((donor) => {
+      const withDist: ResultRow[] = donors.map((donor) => {
         const coord = donor.town ? TOWN_COORDS[donor.town] ?? null : null;
         return { donor, km: origin && coord ? haversineKm(origin.at, coord) : null };
       });
@@ -88,7 +87,7 @@ export default function AdminFind() {
 
       setResult({ rows, group, originLabel: origin?.label ?? null, radius });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not run the search. Is the API running?');
+      setError(err instanceof Error ? err.message : 'Could not run the search.');
       setResult(null);
     } finally {
       setLoading(false);

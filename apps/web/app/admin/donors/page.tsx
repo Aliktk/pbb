@@ -4,15 +4,11 @@ import { useEffect, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api, ApiError } from '../../../lib/api';
+import { fetchDonors } from '../../../lib/donors';
+import { fetchTowns, type Town } from '../../../lib/towns';
 import { splitGroup } from '../../../lib/bloodGroup';
 import { BLOOD_GROUPS } from '../../../lib/nav';
-import type { Paged, DonorRow } from '../../../lib/apiTypes';
-
-interface Town {
-  id: string;
-  name: string;
-}
+import type { DonorRow } from '../../../lib/apiTypes';
 
 const ELIGIBILITY: Record<string, { lab: string; tag: string }> = {
   ELIGIBLE: { lab: 'Can give', tag: 'ok' },
@@ -42,27 +38,18 @@ export default function AdminDonors() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<{ data: Town[] }>('/towns').then((r) => setTowns(r.data)).catch(() => setTowns([]));
+    fetchTowns().then(setTowns).catch(() => setTowns([]));
   }, []);
 
-  // Refetch when filters change (debounced so typing does not hammer the API).
+  // Refetch when filters change (debounced so typing does not hammer the database).
   useEffect(() => {
     const handle = setTimeout(() => {
-      const params = new URLSearchParams();
-      if (q.trim()) params.set('q', q.trim());
-      if (group) {
-        const { bloodGroup, rhFactor } = splitGroup(group);
-        params.set('group', bloodGroup);
-        params.set('rh', rhFactor);
-      }
-      if (town) params.set('townId', town);
-      params.set('pageSize', '100');
+      const { bloodGroup, rhFactor } = group ? splitGroup(group) : { bloodGroup: undefined, rhFactor: undefined };
       setLoading(true);
       setError(null);
-      api
-        .get<Paged<DonorRow>>(`/donors?${params.toString()}`)
-        .then((res) => setRows(res.data))
-        .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load donors. Is the API running?'))
+      fetchDonors({ q, bloodGroup, rhFactor, townId: town || undefined })
+        .then(setRows)
+        .catch((err) => setError(err instanceof Error ? err.message : 'Could not load donors.'))
         .finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(handle);
