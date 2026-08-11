@@ -4,23 +4,54 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { css } from '../lib/style';
 import { TOWNS } from '../lib/nav';
+import { showToast } from '../lib/toast';
+import { submitContactMessage, type MessageKind } from '../lib/messages';
 
 const MODES = ['General', 'Volunteer', 'Hospital or partner', 'Press'];
 const SKILLS = ['Camps', 'Outreach', 'Driving', 'Office work', 'Design'];
 
-/** Contact form - mode pills reveal volunteer fields; submit shows a success panel. */
+function modeToKind(mode: string): MessageKind {
+  if (mode === 'Volunteer') return 'volunteer';
+  if (mode === 'Hospital or partner') return 'partner';
+  return 'message';
+}
+
+/** Contact form - mode pills reveal volunteer fields; submit lands the message in the office inbox. */
 export function ContactForm() {
   const [mode, setMode] = useState('General');
   const [skills, setSkills] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const toggleSkill = (s: string) =>
     setSkills((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const fd = new FormData(e.currentTarget);
+    const town = String(fd.get('city') ?? '').trim();
+    const detail = [
+      String(fd.get('msg') ?? '').trim(),
+      skills.length ? `Can help with: ${skills.join(', ')}` : '',
+      town ? `Town: ${town}` : '',
+      `About: ${mode}`,
+    ].filter(Boolean).join(' · ');
+    setBusy(true);
+    try {
+      await submitContactMessage({
+        kind: modeToKind(mode),
+        name: String(fd.get('name') ?? ''),
+        phone: String(fd.get('phone') ?? ''),
+        email: String(fd.get('email') ?? ''),
+        detail,
+      });
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not send. Please try again.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (submitted) {
@@ -78,7 +109,7 @@ export function ContactForm() {
         </div>
       )}
       <div className="fgrp"><label className="lb">Message *</label><textarea className="fld" name="msg" rows={4} required /></div>
-      <button className="btn btn-p" style={css('width:100%;padding:15px')}>Send</button>
+      <button className="btn btn-p" style={css('width:100%;padding:15px')} disabled={busy}>{busy ? 'Sending…' : 'Send'}</button>
     </form>
   );
 }
