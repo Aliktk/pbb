@@ -6,13 +6,6 @@ import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { LoginShell } from '../../../components/admin/LoginShell';
 import { useAuth } from '../../../lib/auth';
-import { ApiError } from '../../../lib/api';
-
-// The one account the seed creates is the head office admin. Its password is set with
-// `pnpm --filter @pbb/api auth:set-password` (default: pbbadmin123). Other accounts are created
-// by the head office from inside the panel.
-const DEMO_EMAIL = 'admin@pashtoonkhwabloodbank.org';
-const DEMO_PASSWORD = 'pbbadmin123';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -31,7 +24,7 @@ export default function AdminLogin() {
       await login(email.trim(), pass);
       router.replace('/admin/overview');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not sign in. Is the API running?');
+      setError(err instanceof Error ? err.message : 'Could not sign in. Please try again.');
       setBusy(false);
     }
   }
@@ -65,15 +58,6 @@ export default function AdminLogin() {
         <label className="chk" style={css('margin:2px 0 18px')}><input type="checkbox" defaultChecked /><span>Keep me signed in on this device</span></label>
         <button className="btn btn-p" type="submit" disabled={busy} style={css('width:100%;padding:15px')}>{busy ? 'Signing in...' : 'Sign in'}</button>
         <Link href="/" className="btn btn-o" style={css('width:100%;margin-top:10px')}>Back to the website</Link>
-        <div className="demobox">
-          <div className="qlab" style={css('margin-bottom:8px')}>For this demonstration</div>
-          <p className="sm" style={css('margin-bottom:12px')}>
-            Real accounts are created by the head office. This one is the head office admin - tap to fill the form.
-          </p>
-          <button type="button" className="demorow" onClick={() => { setEmail(DEMO_EMAIL); setPass(DEMO_PASSWORD); }}>
-            <b>{DEMO_EMAIL}</b><span>Head office · sees all fourteen towns</span>
-          </button>
-        </div>
       </form>
     </LoginShell>
   );
