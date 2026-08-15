@@ -21,7 +21,12 @@ const ICONS = {
   building: 'M3 21h18M5 21V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v17m3 0v-9a1 1 0 0 0-1-1h-3M8 7h2M8 11h2M8 15h2',
   log: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6ZM8 12h8M8 16h8M8 8h4',
   box: 'M21 8-9-4-9 4m18 0-9 4m9-4v8l-9 4m0-12L3 8m9 4v8m0-8L3 8m0 0v8l9 4',
-  heart: 'M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.6l-1-1a5.5 5.5 0 1 0-7.8 7.8l8.8 8.8 8.8-8.8a5.5 5.5 0 0 0 0-7.8Z',
+  menu: 'M3 12h18M3 6h18M3 18h18',
+  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  sidebar: 'M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm5 0v16',
+  chevronLeft: 'M15 18l-6-6 6-6',
+  chevronRight: 'M9 18l6-6-6-6',
+  location: 'M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z',
 
   // Admin `view` keys.
   overview: 'M3 13h8V3H3v10Zm10 8h8V11h-8v10ZM3 21h8v-6H3v6ZM13 3v6h8V3h-8Z',

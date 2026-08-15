@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { css } from '../../../lib/style';
 
 // The problem - ported from the prototype (pbb-pages.js PAGES.problem). Data arrays mirror the source.
 // Each gap is [title, body, svgPath].
@@ -21,31 +20,151 @@ const GAPS: [string, string, string][] = [
 export default function Problem() {
   return (
     <>
-      <header className="ph-hero">
+      {/* Hero Pro Banner Split Screen */}
+      <header className="problem-hero-pro">
         <div className="wrap">
-          <span className="eyebrow"><b />The problem</span>
-          <h1>What keeps blood from<br />reaching people in time</h1>
-          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>Twelve gaps between a patient who needs blood and a person willing to give it. Pashtoonkhwa Blood Bank was built to close them in Balochistan, one town at a time.</p>
+          <div className="problem-hero-grid">
+            {/* Left Content */}
+            <div className="problem-hero-left">
+              <div className="problem-pill-tag">
+                <span className="animated-filled-circle" />
+                <span>The Problem</span>
+              </div>
+              
+              <h1 className="problem-hero-title">
+                What keeps blood from<br />reaching people <span className="highlight-text-red">in time.</span>
+              </h1>
+              
+              <p className="problem-hero-desc">
+                Twelve critical gaps stand between a patient in an emergency room and a donor willing to save them. Pashtoonkhwa Blood Bank was built to bridge every single gap across Balochistan.
+              </p>
+
+              <div className="problem-hero-actions">
+                <a href="#gaps-section" className="btn btn-primary-glow">
+                  Explore 12 Gaps ↓
+                </a>
+                <Link href="/join/donor" className="btn btn-outline-dark">
+                  Register as Donor
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Visual Showcase Card */}
+            <div className="problem-hero-right">
+              <div className="problem-visual-card">
+                <div className="visual-card-header">
+                  <div className="card-status-tag">
+                    <span className="dot-pulse-red" />
+                    <span>Balochistan Supply Crisis</span>
+                  </div>
+                  <span className="live-clock">Real-time Analysis</span>
+                </div>
+
+                <div className="visual-metrics-grid">
+                  <div className="v-metric-box metric-alert">
+                    <span className="v-val">0</span>
+                    <span className="v-lbl">National Databases</span>
+                    <span className="v-sub">Manual phone lists used</span>
+                  </div>
+
+                  <div className="v-metric-box metric-ok">
+                    <span className="v-val">14</span>
+                    <span className="v-lbl">Districts Connected</span>
+                    <span className="v-sub">Networked by PBB</span>
+                  </div>
+
+                  <div className="v-metric-box metric-purple">
+                    <span className="v-val">200+</span>
+                    <span className="v-lbl">Thalassemia Children</span>
+                    <span className="v-sub">Lifetime care supported</span>
+                  </div>
+
+                  <div className="v-metric-box metric-gold">
+                    <span className="v-val">1999</span>
+                    <span className="v-lbl">Non-Stop Service</span>
+                    <span className="v-sub">0 purchased bags ever</span>
+                  </div>
+                </div>
+
+                <div className="visual-card-footer">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span>Every gap identified below is being systematically resolved by PBB branch networks.</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
-      <section className="blk" style={css('padding-top:0')}>
+
+      {/* 12 Gaps Grid */}
+      <section id="gaps-section" className="section-block padding-top-zero">
         <div className="wrap">
-          <div className="gapgrid">
+          <div className="gap-grid-pro">
             {GAPS.map((g, i) => (
-              <div key={g[0]} className="gapcard" style={css(`--i:${i}`)}>
-                <div className="gapnum">{String(i + 1).padStart(2, '0')}</div>
-                <div className="gapic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={g[2]} /></svg></div>
-                <h3>{g[0]}</h3><p>{g[1]}</p>
+              <div key={g[0]} className="gap-card-pro">
+                <div className="gap-card-top">
+                  <div className="gap-icon-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d={g[2]} />
+                    </svg>
+                  </div>
+                  <div className="gap-num-pill">Gap #{String(i + 1).padStart(2, '0')}</div>
+                </div>
+
+                <h3 className="gap-title">{g[0]}</h3>
+                <p className="gap-body">{g[1]}</p>
               </div>
             ))}
           </div>
-          <div className="answer">
-            <div><div className="qlab" style={css('color:#FFD9D5')}>Our answer</div><h2 style={css('color:#fff;margin:12px 0 14px')}>A register anyone can search,<br />kept in fourteen towns.</h2>
-              <p style={css('color:#FFD9D5;font-size:17px;line-height:1.65;max-width:60ch')}>Not a national programme - a working one. Every donor recorded, every request logged, every branch able to see who in their own town can give today. It has run since 1999 on exchange, charity and Zakat, and has never purchased a single bag.</p>
-              <div className="row" style={css('margin-top:26px;gap:12px')}><Link href="/join/donor" className="btn btn-w">Join the register</Link><Link href="/about" className="btn" style={css('border-color:rgba(255,255,255,.4);color:#fff')}>How it started</Link></div></div>
+
+          {/* Solution Answer Banner */}
+          <div className="answer-banner-pro">
+            <div className="answer-content">
+              <div className="answer-label-pill">
+                <span className="dot-pulse-red" />
+                <span>Our Solution &amp; Answer</span>
+              </div>
+
+              <h2 className="answer-heading">
+                A register anyone can search,<br />kept in fourteen towns.
+              </h2>
+
+              <p className="answer-desc">
+                Not a national programme — a working one. Every donor recorded, every request logged, every branch able to see who in their own town can give today. It has run since 1999 on exchange, charity and Zakat, and has never purchased a single bag.
+              </p>
+
+              <div className="answer-actions">
+                <Link href="/join/donor" className="btn-white-pill">
+                  Join the Register
+                </Link>
+                <Link href="/about" className="btn-outline-glass">
+                  How It Started →
+                </Link>
+              </div>
+            </div>
+
+            <div className="answer-stats-side">
+              <div className="a-stat-box">
+                <span className="a-stat-num">1999</span>
+                <span className="a-stat-txt">Founding Year in Quetta</span>
+              </div>
+              <div className="a-stat-box">
+                <span className="a-stat-num">0</span>
+                <span className="a-stat-txt">Bags Ever Purchased</span>
+              </div>
+              <div className="a-stat-box">
+                <span className="a-stat-num">24/7</span>
+                <span className="a-stat-txt">Active Emergency Hub</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     </>
   );
 }
+

@@ -67,7 +67,7 @@ export function SiteHeader() {
           </ul>
           <div className="navcta">
             <button className="lang" type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>EN ▾</button>
-            <Link href="/join" className="btn btn-p btn-s">Get involved</Link>
+            <Link href="/join" className="btn-nav-primary">Get Involved</Link>
             <button className="btn btn-o btn-s burger" onClick={() => setMobOpen(true)} aria-label="Menu" type="button">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 <path d="M3 6h18M3 12h18M3 18h18" />
