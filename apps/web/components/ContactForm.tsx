@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { css } from '../lib/style';
+import { CustomSelect } from './CustomSelect';
 import { TOWNS } from '../lib/nav';
 
 const MODES = ['General', 'Volunteer', 'Hospital or partner', 'Press'];
@@ -11,6 +11,7 @@ const SKILLS = ['Camps', 'Outreach', 'Driving', 'Office work', 'Design'];
 /** Contact form - mode pills reveal volunteer fields; submit shows a success panel. */
 export function ContactForm() {
   const [mode, setMode] = useState('General');
+  const [town, setTown] = useState<string>(TOWNS[0]);
   const [skills, setSkills] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
@@ -25,15 +26,17 @@ export function ContactForm() {
 
   if (submitted) {
     return (
-      <div className="card">
-        <div className="done">
-          <div className="tick">✓</div>
-          <h2>Message sent</h2>
-          <p className="lead" style={css('margin-top:12px')}>
-            Someone from the office will reply. For anything urgent, please call 081-2836820.
+      <div className="contact-form-card">
+        <div className="contact-success-box">
+          <div className="contact-success-icon">✓</div>
+          <h2 className="contact-success-title">Message Received</h2>
+          <p className="contact-success-desc">
+            Thank you for reaching out. Someone from our central office will review and respond to your inquiry shortly. For immediate emergency blood dispatches, please call <a href="tel:0812836820">081-2836820</a>.
           </p>
-          <div className="row" style={css('justify-content:center;margin-top:22px')}>
-            <Link href="/" className="btn btn-p">Back to home</Link>
+          <div style={{ marginTop: '28px', textAlign: 'center' }}>
+            <Link href="/" className="btn-crimson-pill">
+              Back to Home Page →
+            </Link>
           </div>
         </div>
       </div>
@@ -41,44 +44,84 @@ export function ContactForm() {
   }
 
   return (
-    <form className="card" onSubmit={onSubmit}>
-      <h3 style={css('margin-bottom:18px')}>Send a message</h3>
-      <div className="fgrp">
-        <label className="lb">What is this about?</label>
-        <div className="row" style={css('gap:8px')}>
+    <form className="contact-form-card" onSubmit={onSubmit}>
+      <div className="contact-form-header">
+        <h3 className="contact-form-title">Send a Direct Inquiry</h3>
+        <p className="contact-form-sub">Select a category below to direct your message to the appropriate desk.</p>
+      </div>
+
+      {/* Topic Mode Selector Pills */}
+      <div className="fgrp" style={{ marginBottom: '22px' }}>
+        <label className="lb">What is this regarding?</label>
+        <div className="contact-mode-pills">
           {MODES.map((m) => (
-            <button key={m} type="button" className={`pill${mode === m ? ' on' : ''}`} onClick={() => setMode(m)}>
+            <button
+              key={m}
+              type="button"
+              className={`contact-mode-pill ${mode === m ? 'active' : ''}`}
+              onClick={() => setMode(m)}
+            >
               {m}
             </button>
           ))}
         </div>
       </div>
-      <div className="fgrp"><label className="lb">Name *</label><input className="fld" name="name" required /></div>
-      <div className="fgrp"><label className="lb">Phone *</label><input className="fld" name="phone" type="tel" required /></div>
+
       <div className="fgrp">
-        <label className="lb">Email <span className="muted" style={css('font-weight:500')}>- optional</span></label>
-        <input className="fld" name="email" type="email" />
+        <label className="lb">Your Full Name *</label>
+        <input className="fld" name="name" placeholder="e.g. Tariq Khan" required />
       </div>
+
+      <div className="fgrp">
+        <label className="lb">Phone Number *</label>
+        <input className="fld" name="phone" type="tel" placeholder="e.g. 0300-1234567" required />
+      </div>
+
+      <div className="fgrp">
+        <label className="lb">Email Address <span className="muted" style={{ fontWeight: 500 }}>(optional)</span></label>
+        <input className="fld" name="email" type="email" placeholder="e.g. tariq@example.com" />
+      </div>
+
       {mode === 'Volunteer' && (
-        <div>
+        <div className="contact-volunteer-section">
           <div className="fgrp">
-            <label className="lb">Town</label>
-            <select className="fld" name="city">{TOWNS.map((t) => <option key={t}>{t}</option>)}</select>
+            <label className="lb">Your Town / District</label>
+            <CustomSelect
+              options={TOWNS}
+              value={town}
+              onChange={setTown}
+              placeholder="Select your town"
+              name="city"
+            />
           </div>
+
           <div className="fgrp">
-            <label className="lb">What can you help with?</label>
-            <div className="row" style={css('gap:7px')}>
+            <label className="lb">How would you like to contribute?</label>
+            <div className="contact-skills-grid">
               {SKILLS.map((s) => (
-                <button key={s} type="button" className={`pill${skills.includes(s) ? ' on' : ''}`} onClick={() => toggleSkill(s)}>
-                  {s}
+                <button
+                  key={s}
+                  type="button"
+                  className={`contact-skill-pill ${skills.includes(s) ? 'active' : ''}`}
+                  onClick={() => toggleSkill(s)}
+                >
+                  <span>{s}</span>
                 </button>
               ))}
             </div>
           </div>
         </div>
       )}
-      <div className="fgrp"><label className="lb">Message *</label><textarea className="fld" name="msg" rows={4} required /></div>
-      <button className="btn btn-p" style={css('width:100%;padding:15px')}>Send</button>
+
+      <div className="fgrp">
+        <label className="lb">Your Message *</label>
+        <textarea className="fld" name="msg" rows={4} placeholder="Type your inquiry, request, or feedback here..." required />
+      </div>
+
+      <button className="btn-crimson-pill" style={{ width: '100%', justifyContent: 'center', padding: '16px 28px', fontSize: '15px' }}>
+        Send Message →
+      </button>
     </form>
   );
 }
+

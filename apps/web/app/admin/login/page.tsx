@@ -3,14 +3,10 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { css } from '../../../lib/style';
 import { LoginShell } from '../../../components/admin/LoginShell';
 import { useAuth } from '../../../lib/auth';
 import { ApiError } from '../../../lib/api';
 
-// The one account the seed creates is the head office admin. Its password is set with
-// `pnpm --filter @pbb/api auth:set-password` (default: pbbadmin123). Other accounts are created
-// by the head office from inside the panel.
 const DEMO_EMAIL = 'admin@pashtoonkhwabloodbank.org';
 const DEMO_PASSWORD = 'pbbadmin123';
 
@@ -31,50 +27,135 @@ export default function AdminLogin() {
       await login(email.trim(), pass);
       router.replace('/admin/overview');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not sign in. Is the API running?');
+      setError(err instanceof ApiError ? err.message : 'Could not sign in. Is the API service running?');
       setBusy(false);
     }
   }
 
   return (
     <LoginShell>
-      <form onSubmit={onSubmit}>
-        <h2 style={css('margin-bottom:6px')}>Sign in</h2>
-        <p className="muted" style={css('margin-bottom:24px;font-size:14.5px')}>
-          Use the email address your office was given. Your town and what you can do are already set on your account.
-        </p>
+      <form onSubmit={onSubmit} className="login-form">
+        <div className="login-form-header">
+          <span className="sponsor-badge-pill">HEAD OFFICE &amp; BRANCH DISPATCH</span>
+          <h2 className="login-form-title">Sign In to Control Panel</h2>
+          <p className="login-form-sub">
+            Use the official staff credentials assigned to your branch office to access system records.
+          </p>
+        </div>
+
         {error && (
-          <div className="tag no" style={css('display:block;padding:12px 14px;border-radius:12px;margin-bottom:16px;font-weight:600')}>
-            {error}
+          <div className="login-error-alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{error}</span>
           </div>
         )}
+
         <div className="fgrp">
-          <label className="lb">Email address</label>
-          <input className="fld" type="email" required placeholder="name@pashtoonkhwabloodbank.org" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <label className="lb">Official Email Address</label>
+          <div className="login-input-wrapper">
+            <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            <input
+              className="fld login-input-iconic"
+              type="email"
+              required
+              placeholder="name@pashtoonkhwabloodbank.org"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
         </div>
+
         <div className="fgrp">
-          <div className="row" style={css('justify-content:space-between;align-items:baseline')}>
-            <label className="lb">Password</label>
-            <Link href="/admin/forgot" className="minilink">Forgotten it?</Link>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+            <label className="lb" style={{ margin: 0 }}>Password</label>
+            <Link href="/admin/forgot" className="login-forgot-link">
+              Forgotten password?
+            </Link>
           </div>
-          <div className="pwwrap">
-            <input className="fld" type={show ? 'text' : 'password'} required autoComplete="current-password" value={pass} onChange={(e) => setPass(e.target.value)} />
-            <button type="button" className="pweye" onClick={() => setShow((s) => !s)} aria-label="Show password">{show ? 'Hide' : 'Show'}</button>
+          <div className="pwwrap login-input-wrapper">
+            <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <input
+              className="fld login-input-iconic"
+              type={show ? 'text' : 'password'}
+              required
+              placeholder="••••••••••••"
+              autoComplete="current-password"
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+            />
+            <button
+              type="button"
+              className="pweye"
+              onClick={() => setShow((s) => !s)}
+              aria-label="Toggle password visibility"
+            >
+              {show ? 'Hide' : 'Show'}
+            </button>
           </div>
         </div>
-        <label className="chk" style={css('margin:2px 0 18px')}><input type="checkbox" defaultChecked /><span>Keep me signed in on this device</span></label>
-        <button className="btn btn-p" type="submit" disabled={busy} style={css('width:100%;padding:15px')}>{busy ? 'Signing in...' : 'Sign in'}</button>
-        <Link href="/" className="btn btn-o" style={css('width:100%;margin-top:10px')}>Back to the website</Link>
-        <div className="demobox">
-          <div className="qlab" style={css('margin-bottom:8px')}>For this demonstration</div>
-          <p className="sm" style={css('margin-bottom:12px')}>
-            Real accounts are created by the head office. This one is the head office admin - tap to fill the form.
-          </p>
-          <button type="button" className="demorow" onClick={() => { setEmail(DEMO_EMAIL); setPass(DEMO_PASSWORD); }}>
-            <b>{DEMO_EMAIL}</b><span>Head office · sees all fourteen towns</span>
+
+        <label className="chk" style={{ margin: '14px 0 24px' }}>
+          <input type="checkbox" defaultChecked />
+          <span>Keep me securely signed in on this device</span>
+        </label>
+
+        <button
+          type="submit"
+          disabled={busy}
+          className="btn-crimson-pill"
+          style={{ width: '100%', justifyContent: 'center', padding: '16px 28px', fontSize: '15.5px' }}
+        >
+          {busy ? 'Verifying & Signing In...' : 'Sign In to Control Panel →'}
+        </button>
+
+        <Link
+          href="/"
+          className="btn-glass-pill"
+          style={{ width: '100%', justifyContent: 'center', marginTop: '12px', padding: '13px 24px', fontSize: '14px' }}
+        >
+          ← Return to Public Website
+        </Link>
+
+        {/* Demo Quick Auto-Fill Card */}
+        <div className="login-demobox">
+          <div className="demobox-header">
+            <span className="demobox-badge">DEMO ACCESS</span>
+            <span className="demobox-hint">Tap below to auto-fill credentials</span>
+          </div>
+
+          <button
+            type="button"
+            className="demorow-pro"
+            onClick={() => {
+              setEmail(DEMO_EMAIL);
+              setPass(DEMO_PASSWORD);
+            }}
+          >
+            <div className="demo-avatar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+            <div className="demo-text">
+              <span className="demo-email">{DEMO_EMAIL}</span>
+              <span className="demo-role">Head Office Administrator · Sees all 14 towns</span>
+            </div>
           </button>
         </div>
       </form>
     </LoginShell>
   );
 }
+

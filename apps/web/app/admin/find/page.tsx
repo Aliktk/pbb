@@ -6,9 +6,12 @@ import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
 import { api, ApiError } from '../../../lib/api';
 import { splitGroup } from '../../../lib/bloodGroup';
-import { BLOOD_GROUPS } from '../../../lib/nav';
+import { BLOOD_GROUPS, TOWNS } from '../../../lib/nav';
 import { TOWN_COORDS, haversineKm, resolveTownOrigin, type LatLng } from '../../../lib/geo';
 import type { Paged, DonorRow } from '../../../lib/apiTypes';
+import { DonorSheet } from '../../../components/admin/DonorSheet';
+import { CustomSelect } from '../../../components/CustomSelect';
+import { Icon } from '../../../components/Icon';
 
 // Find donors - the emergency search, wired to GET /donors/search. Eligibility comes from the
 // database view (the API only returns callable, consenting donors). Distance and the radius are
@@ -16,6 +19,8 @@ import type { Paged, DonorRow } from '../../../lib/apiTypes';
 // when there is no origin so the same people are not exhausted.
 
 const RADII = [5, 10, 25, 50, 100] as const;
+const RADIUS_OPTIONS = RADII.map((r) => ({ value: String(r), label: `${r} km` }));
+const TOWN_OPTIONS = [{ value: '', label: 'All towns / Any location' }, ...TOWNS.map((t) => ({ value: t, label: t }))];
 
 interface ResultRow {
   donor: DonorRow;
@@ -47,6 +52,7 @@ export default function AdminFind() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [called, setCalled] = useState<Set<string>>(new Set());
+  const [selectedDonor, setSelectedDonor] = useState<{ donor: DonorRow; km: number | null } | null>(null);
 
   function useMyLocation() {
     if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
@@ -116,16 +122,35 @@ export default function AdminFind() {
         <div className="g2" style={css('gap:14px;align-items:end')}>
           <div>
             <label className="lb">City / area</label>
-            <div className="row" style={css('gap:8px')}>
-              <input className="fld" style={css('flex:1;min-width:150px')} placeholder="e.g. Quetta" value={city} onChange={(e) => setCity(e.target.value)} />
-              <button type="button" className="btn btn-o btn-s" onClick={useMyLocation}>Use my location</button>
+            <div className="row" style={{ gap: '8px', alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: '170px' }}>
+                <CustomSelect
+                  name="city"
+                  options={TOWN_OPTIONS}
+                  value={city}
+                  onChange={(val) => setCity(val)}
+                  placeholder="Select or type city..."
+                />
+              </div>
+              <button
+                type="button"
+                className="btn btn-o btn-s"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', height: '42px', padding: '0 14px' }}
+                onClick={useMyLocation}
+              >
+                <Icon name="location" size={15} />
+                Use my location
+              </button>
             </div>
           </div>
-          <div>
+          <div style={{ minWidth: '130px' }}>
             <label className="lb">Radius</label>
-            <select className="fld" value={radius} onChange={(e) => setRadius(Number(e.target.value))}>
-              {RADII.map((r) => <option key={r} value={r}>{r} km</option>)}
-            </select>
+            <CustomSelect
+              name="radius"
+              options={RADIUS_OPTIONS}
+              value={String(radius)}
+              onChange={(val) => setRadius(Number(val))}
+            />
           </div>
         </div>
 
@@ -161,14 +186,14 @@ export default function AdminFind() {
                     const n = daysSince(donor.lastDonatedAt);
                     const isCalled = called.has(donor.id);
                     return (
-                      <tr key={donor.id}>
-                        <td className="m2"><div className="nm">{donor.name}</div><div className="sm">{donor.mrNo} · {donor.timesDonated ? `${donor.timesDonated} donations` : 'never donated'}</div></td>
+                      <tr key={donor.id} onClick={() => setSelectedDonor({ donor, km })}>
+                        <td className="m2"><div className="nm">{donor.name}</div><div className="sm">{donor.mrNo || 'No MR'} · {donor.timesDonated ? `${donor.timesDonated} donations` : 'never donated'}</div></td>
                         <td>{bgTag(donor.group)}</td>
                         <td className="m1">{donor.town ?? '-'}</td>
                         <td>{km !== null ? `${Math.round(km)} km` : <span className="sm">-</span>}</td>
                         <td>{n !== null ? `${n} days ago` : <span className="sm">Never</span>}</td>
                         <td>
-                          <div className="row" style={css('gap:6px')}>
+                          <div className="row" style={css('gap:6px')} onClick={(e) => e.stopPropagation()}>
                             {donor.phone ? <a className="btn btn-p btn-s" href={`tel:${donor.phone.replace(/ /g, '')}`}>Call</a> : <span className="sm">no phone</span>}
                             <button type="button" className={`btn btn-s ${isCalled ? 'btn-d' : 'btn-o'}`} onClick={() => toggleCalled(donor.id)}>{isCalled ? 'Called' : 'Mark called'}</button>
                           </div>
@@ -193,6 +218,14 @@ export default function AdminFind() {
           </p>
         </>
       )}
+
+      <DonorSheet
+        donor={selectedDonor?.donor ?? null}
+        distanceKm={selectedDonor?.km}
+        isCalled={selectedDonor ? called.has(selectedDonor.donor.id) : false}
+        onToggleCalled={toggleCalled}
+        onClose={() => setSelectedDonor(null)}
+      />
     </AdminShell>
   );
 }

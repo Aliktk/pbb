@@ -23,7 +23,7 @@ import { PermissionsGuard } from './rbac/permissions.guard';
  */
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
     // Rate limiting (layer 9): a generous per-IP default for authenticated browsing; sensitive
     // public routes (login, refresh, request intake) tighten this with @Throttle at the route.
     ThrottlerModule.forRoot([
