@@ -39,7 +39,7 @@ export function SiteFooter() {
 
           {/* About Column */}
           <div className="footer-nav-col">
-            <h4>About</h4>
+            <p className="footer-col-title">About</p>
             <Link href="/problem">The problem we are solving</Link>
             <Link href="/about">Our story</Link>
             <Link href="/people">Our leadership</Link>
@@ -49,7 +49,7 @@ export function SiteFooter() {
 
           {/* Support Column */}
           <div className="footer-nav-col">
-            <h4>Support</h4>
+            <p className="footer-col-title">Support</p>
             <Link href="/partners">Work with us</Link>
             <Link href="/supporters">Who stands with us</Link>
             <Link href="/publications">Publications</Link>
@@ -59,7 +59,7 @@ export function SiteFooter() {
 
           {/* Get Involved Column */}
           <div className="footer-nav-col">
-            <h4>Get Involved</h4>
+            <p className="footer-col-title">Get Involved</p>
             <Link href="/join">Everything in one place</Link>
             <Link href="/join/donor">Register as a donor</Link>
             <Link href="/join/volunteer">Volunteer</Link>

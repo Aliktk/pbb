@@ -178,7 +178,7 @@ export default function Home() {
                   <div className="stock-header">
                     <div>
                       <span className="section-label">{cfg.label}</span>
-                      <h3 className="stock-title">{cfg.title}</h3>
+                      <div className="stock-title">{cfg.title}</div>
                     </div>
                     <span className="live-status-pill">
                       <span className="dot-green" /> {cfg.updatedText}
