@@ -58,6 +58,62 @@ export async function fetchDonors(filters: DonorFilters = {}): Promise<DonorRow[
   return ((data ?? []) as unknown as RawDonor[]).map(mapDonor);
 }
 
+export async function fetchDonorById(id: string): Promise<DonorRow | null> {
+  const { data, error } = await supabase.from('donors_with_eligibility').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapDonor(data as unknown as RawDonor) : null;
+}
+
+export interface NewDonorInput {
+  name: string;
+  mrNo?: string;
+  bloodGroup: string;
+  rhFactor: string;
+  dateOfBirth: string;
+  phone?: string | null;
+  townId: string;
+  consentToCall: boolean;
+}
+
+// Register a donor. branchId is left unset (nullable per 0007); the town scopes the record and
+// RLS confines the insert to the caller's town. The written row is read back from the view so the
+// caller gets computed group/eligibility.
+export async function createDonor(input: NewDonorInput): Promise<DonorRow> {
+  const row: Record<string, unknown> = {
+    name: input.name,
+    bloodGroup: input.bloodGroup,
+    rhFactor: input.rhFactor,
+    dateOfBirth: input.dateOfBirth,
+    phone: input.phone ?? null,
+    townId: input.townId,
+    consentToCall: input.consentToCall,
+  };
+  if (input.mrNo) row.mrNo = input.mrNo;
+  const { data, error } = await supabase.from('donors').insert(row).select('id').single();
+  if (error) throw new Error(error.message);
+  const donor = await fetchDonorById(data.id as string);
+  if (!donor) throw new Error('Donor saved but could not be read back.');
+  return donor;
+}
+
+export interface DonorPatch {
+  name?: string;
+  mrNo?: string;
+  bloodGroup?: string;
+  rhFactor?: string;
+  phone?: string | null;
+  townId?: string;
+  consentToCall?: boolean;
+}
+
+export async function updateDonor(id: string, patch: DonorPatch): Promise<DonorRow> {
+  const { error } = await supabase.from('donors').update(patch).eq('id', id);
+  if (error) throw new Error(error.message);
+  const donor = await fetchDonorById(id);
+  if (!donor) throw new Error('Donor updated but could not be read back.');
+  return donor;
+}
+
 // The emergency search: only consenting, callable donors of the exact group. Eligibility filtering
 // mirrors the old API - eligible now, plus cooldown when the coordinator opts in.
 export async function searchEligibleDonors(input: {

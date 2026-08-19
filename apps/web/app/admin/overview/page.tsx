@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
-import { api } from '../../../lib/api';
-import type { Paged, DonorRow, AdminRequestRow } from '../../../lib/apiTypes';
+import { fetchDonors } from '../../../lib/donors';
+import { fetchAdminRequests } from '../../../lib/requests';
+import type { DonorRow, AdminRequestRow } from '../../../lib/apiTypes';
 
 interface StockRow {
   bloodGroup: string;
@@ -94,21 +95,13 @@ export default function AdminOverview() {
   useEffect(() => {
     let alive = true;
     Promise.all([
-      api.get<Paged<DonorRow>>('/donors?pageSize=1000').catch(() => ({ data: [], meta: { total: 0 } })),
-      api.get<Paged<AdminRequestRow>>('/requests?pageSize=1000').catch(() => ({ data: [], meta: { total: 0 } })),
-      api.get<{ data: StockRow[] }>('/stock').catch(() => ({ data: [] })),
-    ]).then(([donorsRes, requestsRes, stockRes]) => {
+      fetchDonors().catch(() => [] as DonorRow[]),
+      fetchAdminRequests().catch(() => [] as AdminRequestRow[]),
+    ]).then(([donorsRes, requestsRes]) => {
       if (!alive) return;
-      setDonors(donorsRes.data);
-      setRequests(requestsRes.data);
-
-      const stockMap: Record<string, number> = { 'O+': 0, 'O−': 0, 'A+': 0, 'A−': 0, 'B+': 0, 'B−': 0, 'AB+': 0, 'AB−': 0 };
-      stockRes.data.forEach((item) => {
-        const sign = item.rhFactor === 'POSITIVE' ? '+' : '−';
-        const key = `${item.bloodGroup}${sign}`;
-        stockMap[key] = (stockMap[key] || 0) + item.unitsAvailable;
-      });
-      setStock(stockMap);
+      setDonors(donorsRes);
+      setRequests(requestsRes);
+      // Stock holding is wired in the Inventory step; until then it reads as zero.
       setLoading(false);
     });
 

@@ -1,17 +1,13 @@
 'use client';
 
 import { useState, useEffect, type FormEvent } from 'react';
-import { api } from '../../lib/api';
+import { updateDonor } from '../../lib/donors';
 import { showToast } from '../../lib/toast';
 import { splitGroup } from '../../lib/bloodGroup';
 import { BLOOD_GROUPS } from '../../lib/nav';
 import { CustomSelect } from '../CustomSelect';
+import type { Town } from '../../lib/towns';
 import type { DonorRow } from '../../lib/apiTypes';
-
-interface Town {
-  id: string;
-  name: string;
-}
 
 interface EditDonorModalProps {
   donor: DonorRow | null;
@@ -55,40 +51,22 @@ export function EditDonorModal({ donor, isOpen, onClose, onSuccess, towns }: Edi
 
     setSubmitting(true);
     const { bloodGroup, rhFactor } = splitGroup(group);
-    const selectedTown = towns.find((t) => t.id === townId);
-
-    const payload = {
-      name: name.trim(),
-      mrNo: mrNo.trim() || undefined,
-      bloodGroup,
-      rhFactor,
-      phone: phone.trim() || undefined,
-      townId,
-      consentToCall,
-    };
 
     try {
-      const updated = await api.patch<DonorRow>(`/donors/${donor!.id}`, payload);
-      showToast(`Donor ${updated.name || name} updated successfully.`);
-      onSuccess(updated);
-      onClose();
-    } catch {
-      // Local state update fallback
-      const updatedMock: DonorRow = {
-        ...donor!,
+      const updated = await updateDonor(donor!.id, {
         name: name.trim(),
-        mrNo: mrNo.trim() || donor!.mrNo,
-        group,
+        mrNo: mrNo.trim() || undefined,
         bloodGroup,
         rhFactor,
         phone: phone.trim() || null,
-        town: selectedTown?.name || donor!.town,
         townId,
         consentToCall,
-      };
-      showToast(`Updated donor details for ${updatedMock.name}.`);
-      onSuccess(updatedMock);
+      });
+      showToast(`Donor ${updated.name || name} updated successfully.`);
+      onSuccess(updated);
       onClose();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not update the donor.');
     } finally {
       setSubmitting(false);
     }
