@@ -2,9 +2,10 @@
 
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { CustomSelect } from './CustomSelect';
+import { css } from '../lib/style';
 import { TOWNS } from '../lib/nav';
-import { api } from '../lib/api';
+import { showToast } from '../lib/toast';
+import { submitContactMessage, type MessageKind } from '../lib/messages';
 
 const MODES = ['General', 'Volunteer', 'Hospital or partner', 'Press'];
 const SKILLS = ['Camps', 'Outreach', 'Driving', 'Office work', 'Design'];
@@ -18,60 +19,52 @@ function modeToKind(mode: string): MessageKind {
 /** Contact form - mode pills reveal volunteer fields; submit lands the message in the office inbox. */
 export function ContactForm() {
   const [mode, setMode] = useState('General');
-  const [town, setTown] = useState<string>(TOWNS[0]);
   const [skills, setSkills] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const toggleSkill = (s: string) =>
     setSkills((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitting(true);
-
-    const formData = new FormData(e.currentTarget);
-    const name = (formData.get('name') as string) || '';
-    const phone = (formData.get('phone') as string) || '';
-    const email = (formData.get('email') as string) || '';
-    const msg = (formData.get('msg') as string) || '';
-
-    let fullBody = msg;
-    if (email) fullBody += `\n\nEmail: ${email}`;
-    if (mode === 'Volunteer') {
-      fullBody += `\nTown: ${town}`;
-      if (skills.length > 0) fullBody += `\nSkills: ${skills.join(', ')}`;
-    }
-
+    const fd = new FormData(e.currentTarget);
+    const town = String(fd.get('city') ?? '').trim();
+    const detail = [
+      String(fd.get('msg') ?? '').trim(),
+      skills.length ? `Can help with: ${skills.join(', ')}` : '',
+      town ? `Town: ${town}` : '',
+      `About: ${mode}`,
+    ].filter(Boolean).join(' · ');
+    setBusy(true);
     try {
-      await api.post('/messages', {
-        fromName: name,
-        fromPhone: phone,
-        subject: mode,
-        body: fullBody,
+      await submitContactMessage({
+        kind: modeToKind(mode),
+        name: String(fd.get('name') ?? ''),
+        phone: String(fd.get('phone') ?? ''),
+        email: String(fd.get('email') ?? ''),
+        detail,
       });
-    } catch {
-      // Proceed gracefully
-    } finally {
-      setSubmitting(false);
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not send. Please try again.');
+    } finally {
+      setBusy(false);
     }
   }
 
   if (submitted) {
     return (
-      <div className="contact-form-card">
-        <div className="contact-success-box">
-          <div className="contact-success-icon">✓</div>
-          <h2 className="contact-success-title">Message Received</h2>
-          <p className="contact-success-desc">
-            Thank you for reaching out. Someone from our central office will review and respond to your inquiry shortly. For immediate emergency blood dispatches, please call <a href="tel:0812836820">081-2836820</a>.
+      <div className="card">
+        <div className="done">
+          <div className="tick">✓</div>
+          <h2>Message sent</h2>
+          <p className="lead" style={css('margin-top:12px')}>
+            Someone from the office will reply. For anything urgent, please call 081-2836820.
           </p>
-          <div style={{ marginTop: '28px', textAlign: 'center' }}>
-            <Link href="/" className="btn-crimson-pill">
-              Back to Home Page →
-            </Link>
+          <div className="row" style={css('justify-content:center;margin-top:22px')}>
+            <Link href="/" className="btn btn-p">Back to home</Link>
           </div>
         </div>
       </div>
@@ -79,84 +72,44 @@ export function ContactForm() {
   }
 
   return (
-    <form className="contact-form-card" onSubmit={onSubmit}>
-      <div className="contact-form-header">
-        <h3 className="contact-form-title">Send a Direct Inquiry</h3>
-        <p className="contact-form-sub">Select a category below to direct your message to the appropriate desk.</p>
-      </div>
-
-      {/* Topic Mode Selector Pills */}
-      <div className="fgrp" style={{ marginBottom: '22px' }}>
-        <label className="lb">What is this regarding?</label>
-        <div className="contact-mode-pills">
+    <form className="card" onSubmit={onSubmit}>
+      <h3 style={css('margin-bottom:18px')}>Send a message</h3>
+      <div className="fgrp">
+        <label className="lb">What is this about?</label>
+        <div className="row" style={css('gap:8px')}>
           {MODES.map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={`contact-mode-pill ${mode === m ? 'active' : ''}`}
-              onClick={() => setMode(m)}
-            >
+            <button key={m} type="button" className={`pill${mode === m ? ' on' : ''}`} onClick={() => setMode(m)}>
               {m}
             </button>
           ))}
         </div>
       </div>
-
+      <div className="fgrp"><label className="lb">Name *</label><input className="fld" name="name" required /></div>
+      <div className="fgrp"><label className="lb">Phone *</label><input className="fld" name="phone" type="tel" required /></div>
       <div className="fgrp">
-        <label className="lb">Your Full Name *</label>
-        <input className="fld" name="name" placeholder="e.g. Tariq Khan" required />
+        <label className="lb">Email <span className="muted" style={css('font-weight:500')}>- optional</span></label>
+        <input className="fld" name="email" type="email" />
       </div>
-
-      <div className="fgrp">
-        <label className="lb">Phone Number *</label>
-        <input className="fld" name="phone" type="tel" placeholder="e.g. 0300-1234567" required />
-      </div>
-
-      <div className="fgrp">
-        <label className="lb">Email Address <span className="muted" style={{ fontWeight: 500 }}>(optional)</span></label>
-        <input className="fld" name="email" type="email" placeholder="e.g. tariq@example.com" />
-      </div>
-
       {mode === 'Volunteer' && (
-        <div className="contact-volunteer-section">
+        <div>
           <div className="fgrp">
-            <label className="lb">Your Town / District</label>
-            <CustomSelect
-              options={TOWNS}
-              value={town}
-              onChange={setTown}
-              placeholder="Select your town"
-              name="city"
-            />
+            <label className="lb">Town</label>
+            <select className="fld" name="city">{TOWNS.map((t) => <option key={t}>{t}</option>)}</select>
           </div>
-
           <div className="fgrp">
-            <label className="lb">How would you like to contribute?</label>
-            <div className="contact-skills-grid">
+            <label className="lb">What can you help with?</label>
+            <div className="row" style={css('gap:7px')}>
               {SKILLS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`contact-skill-pill ${skills.includes(s) ? 'active' : ''}`}
-                  onClick={() => toggleSkill(s)}
-                >
-                  <span>{s}</span>
+                <button key={s} type="button" className={`pill${skills.includes(s) ? ' on' : ''}`} onClick={() => toggleSkill(s)}>
+                  {s}
                 </button>
               ))}
             </div>
           </div>
         </div>
       )}
-
-      <div className="fgrp">
-        <label className="lb">Your Message *</label>
-        <textarea className="fld" name="msg" rows={4} placeholder="Type your inquiry, request, or feedback here..." required />
-      </div>
-
-      <button className="btn-crimson-pill" style={{ width: '100%', justifyContent: 'center', padding: '16px 28px', fontSize: '15px' }}>
-        Send Message →
-      </button>
+      <div className="fgrp"><label className="lb">Message *</label><textarea className="fld" name="msg" rows={4} required /></div>
+      <button className="btn btn-p" style={css('width:100%;padding:15px')} disabled={busy}>{busy ? 'Sending…' : 'Send'}</button>
     </form>
   );
 }
-

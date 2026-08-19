@@ -1,6 +1,20 @@
 'use client';
 
 import { api } from './api';
+import { supabase } from './supabaseClient';
+
+// Minimal town shape + live Supabase reader used by the Supabase-wired pages (donors, find, the
+// public join/request forms). Kept alongside the network-town helpers below so both compile.
+export interface Town {
+  id: string;
+  name: string;
+}
+
+export async function fetchTowns(): Promise<Town[]> {
+  const { data, error } = await supabase.from('towns').select('id,name').order('name');
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Town[];
+}
 
 export interface TownNetworkItem {
   id: string;

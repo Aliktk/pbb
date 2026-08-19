@@ -11,12 +11,7 @@ import { Icon } from '../../../components/Icon';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { getTownNamesList } from '../../../lib/towns';
 
-export default function AdminAccounts() {
-  const { user } = useAuth();
-  const myRole = (user?.role.id ?? 'viewer') as string;
-  const myTownId = user?.townId ?? null;
-  const isHead = myRole === 'head';
-  const assignable = useMemo(() => assignableRoles(myRole), [myRole]);
+type AccountStatus = 'active' | 'invited' | 'suspended';
 
 interface Account {
   id: string;
@@ -242,12 +237,40 @@ export default function AdminAccounts() {
     if (!createdCredentials) return;
     const textToCopy = `===================================
 PBB ADMIN PORTAL LOGIN CREDENTIALS
+===================================
+Account Name: ${createdCredentials.name}
+Appointed Role: ${createdCredentials.role} (${createdCredentials.town})
+Official Email Address: ${createdCredentials.email}
+Login Password: ${createdCredentials.password}
+Portal Login Link: http://localhost:3000/admin/login
+===================================`;
+
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedCreds(true);
+    showToast('Login credentials copied to clipboard!');
+  }
+
+  const filteredAccounts = accounts.filter((a) => {
+    const matchesSearch =
+      a.n.toLowerCase().includes(search.toLowerCase()) ||
+      a.e.toLowerCase().includes(search.toLowerCase()) ||
+      a.ph.includes(search);
+    const matchesRole = roleFilter === 'All' || a.r === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  const townOptions = ['All towns', ...getTownNamesList()];
+
+  const topActions = (
+    <button
+      type="button"
+      className="btn btn-p btn-s"
+      onClick={openCreateModal}
+      style={{ borderRadius: '12px', padding: '9px 18px', fontSize: '13px', fontWeight: 800 }}
+    >
+      + Create Account
+    </button>
   );
-
-  const activeCount = staff.filter((a) => a.is_active).length;
-  const suspended = staff.filter((a) => !a.is_active).length;
-
-  const subtitle = isHead ? `${staff.length} people · all offices` : `${townName(myTownId)} office`;
 
   return (
     <AdminShell
@@ -312,6 +335,8 @@ PBB ADMIN PORTAL LOGIN CREDENTIALS
               onChange={(val) => setRoleFilter(val)}
             />
           </div>
+        </div>
+      </div>
 
       {/* Accounts Table */}
       <div className="atbl" style={{ marginBottom: '24px', overflowX: 'auto' }}>

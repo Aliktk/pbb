@@ -26,8 +26,9 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-read the current session's profile (role/town) after it may have changed. */
   refetchUser: () => Promise<void>;
-  /** Does the signed-in user's role grant `resource:action`? Presentation only; the server enforces. */
+  /** Does the signed-in user's role grant `resource:action`? Presentation only; the DB (RLS) enforces. */
   can: (resource: string, action: string) => boolean;
 }
 
@@ -70,17 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refetchUser = useCallback(async () => {
-    if (!tokenStore.access) return;
-    try {
-      const me = await api.get<PublicUser>('/auth/me');
-      setUser(me);
-    } catch {
-      // Keep existing user on error
-    }
-  }, []);
-
-  // On first load, if we have a token, ask the server who we are. A bad/expired token clears.
+  // Restore an existing session on load, and keep in sync with sign-in / sign-out / token refresh.
   useEffect(() => {
     let alive = true;
 
@@ -120,6 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
+  }, []);
+
+  const refetchUser = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    const session = data.session;
+    if (session?.user) setUser(await loadProfile(session.user.id, session.user.email));
+    else setUser(null);
   }, []);
 
   const can = useCallback(
