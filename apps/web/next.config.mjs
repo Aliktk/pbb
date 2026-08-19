@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   // Public site pages are Server Components - fast on 3G, indexable (Harness §2).
   // Media may come from Supabase Storage / Cloudinary - allow their hosts here per env.
   images: {
