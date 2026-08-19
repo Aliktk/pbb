@@ -1,18 +1,54 @@
 'use client';
 
-import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { css } from '../../../lib/style';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
-import { useAuth } from '../../../lib/auth';
+import { supabase } from '../../../lib/supabaseClient';
 import { Icon } from '../../../components/Icon';
+import { fetchDonors, createDonor } from '../../../lib/donors';
+import { fetchAdminRequests } from '../../../lib/requests';
+import { fetchTowns, type Town } from '../../../lib/towns';
+
+// Data management, wired to Supabase (Supabase-direct model). CSV import loops createDonor (RLS
+// confines every insert to the caller's town); exports fetch real rows and build the CSV in the
+// browser; the privacy purge soft-deletes a donor. Exports with no Supabase source yet (donations,
+// thalassemia ledger detail) are disabled honestly rather than faked. No dead api calls, no fake
+// success toasts.
 
 interface ParsedCsvRow {
   name: string;
   phone: string;
   group: string;
   town: string;
+}
+
+// Split "A+", "AB-", "O+" etc. into the stored (bloodGroup, rhFactor) pair. Defaults to O+.
+function parseBloodGroup(raw: string): { bloodGroup: string; rhFactor: string } {
+  const g = raw.replace(/\s+/g, '').toUpperCase();
+  const rhFactor = g.includes('-') || g.includes('−') ? 'NEGATIVE' : 'POSITIVE';
+  const letters = g.replace(/[+\-−]/g, '');
+  const bloodGroup = ['A', 'B', 'AB', 'O'].includes(letters) ? letters : 'O';
+  return { bloodGroup, rhFactor };
+}
+
+// Donors need a required dateOfBirth (schema) and a valid townId (FK). CSV bulk rows rarely carry a
+// birth date, so we use a clearly-flagged placeholder the office can correct later on the donor.
+const IMPORT_PLACEHOLDER_DOB = '1990-01-01';
+
+function csvCell(value: unknown): string {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(filename: string, content: string): void {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 interface BackupItem {
@@ -40,8 +76,10 @@ const TABS = [
 ] as const;
 
 export default function AdminData() {
-  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'import' | 'export' | 'backups' | 'privacy'>('import');
+
+  // Towns (name -> id) so CSV town names map to a real FK. Loaded once.
+  const [towns, setTowns] = useState<Town[]>([]);
 
   // CSV Import States
   const [fileName, setFileName] = useState('');
@@ -64,6 +102,21 @@ export default function AdminData() {
   const [isSearchingPrivacy, setIsSearchingPrivacy] = useState(false);
   const [foundDonors, setFoundDonors] = useState<DonorResult[]>([]);
   const [deletingDonorId, setDeletingDonorId] = useState<string | null>(null);
+
+  // Load the town list once so CSV rows can resolve a town name to its id.
+  useEffect(() => {
+    let alive = true;
+    fetchTowns()
+      .then((t) => {
+        if (alive) setTowns(t);
+      })
+      .catch(() => {
+        if (alive) setTowns([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // CSV FILE PARSER HANDLER
   function handleFileSelect(e: ChangeEvent<HTMLInputElement>) {
@@ -103,53 +156,64 @@ export default function AdminData() {
     reader.readAsText(file);
   }
 
-  // EXECUTE REAL BULK IMPORT TO DATABASE
+  // EXECUTE REAL BULK IMPORT - loops createDonor (donors.ts). Each insert is RLS-scoped to the
+  // caller's town. Town names are resolved to a real town id; rows with an unknown town are skipped.
   async function handleExecuteBulkImport() {
     if (parsedRows.length === 0) {
       showToast('No CSV data rows loaded for import.');
       return;
     }
+    if (towns.length === 0) {
+      showToast('Town list not loaded yet - please wait a moment and try again.');
+      return;
+    }
+
+    // Case-insensitive town-name -> id lookup.
+    const townByName = new Map(towns.map((t) => [t.name.trim().toLowerCase(), t.id]));
 
     setIsImporting(true);
     setImportProgress(0);
     let successCount = 0;
+    let skipped = 0;
 
     for (let i = 0; i < parsedRows.length; i++) {
       const r = parsedRows[i];
-      try {
-        const parts = r.group.replace(/\s+/g, '');
-        let bloodGroup = 'O';
-        let rhFactor = 'POSITIVE';
-        if (parts.includes('A+')) { bloodGroup = 'A'; rhFactor = 'POSITIVE'; }
-        else if (parts.includes('A-')) { bloodGroup = 'A'; rhFactor = 'NEGATIVE'; }
-        else if (parts.includes('B+')) { bloodGroup = 'B'; rhFactor = 'POSITIVE'; }
-        else if (parts.includes('B-')) { bloodGroup = 'B'; rhFactor = 'NEGATIVE'; }
-        else if (parts.includes('AB+')) { bloodGroup = 'AB'; rhFactor = 'POSITIVE'; }
-        else if (parts.includes('AB-')) { bloodGroup = 'AB'; rhFactor = 'NEGATIVE'; }
-        else if (parts.includes('O-')) { bloodGroup = 'O'; rhFactor = 'NEGATIVE'; }
-
-        await api.post('/donors', {
-          name: r.name,
-          phone: r.phone,
-          bloodGroup,
-          rhFactor,
-          townId: r.town,
-        });
-        successCount++;
-      } catch {
-        // Continue batch
+      const townId = townByName.get(r.town.trim().toLowerCase());
+      if (!townId) {
+        skipped++;
+      } else {
+        try {
+          const { bloodGroup, rhFactor } = parseBloodGroup(r.group);
+          await createDonor({
+            name: r.name,
+            bloodGroup,
+            rhFactor,
+            dateOfBirth: IMPORT_PLACEHOLDER_DOB,
+            phone: r.phone || null,
+            townId,
+            consentToCall: true,
+          });
+          successCount++;
+        } catch {
+          skipped++;
+        }
       }
       setImportProgress(Math.round(((i + 1) / parsedRows.length) * 100));
     }
 
     setIsImporting(false);
-    showToast(`Successfully imported ${successCount} donor records!`);
+    showToast(
+      skipped > 0
+        ? `Imported ${successCount} donor(s); ${skipped} row(s) skipped (unknown town or rejected).`
+        : `Imported ${successCount} donor(s).`,
+    );
     setParsedRows([]);
     setFileName('');
   }
 
-  // EXPORT MODULE TO CSV HANDLER
-  async function triggerExport(moduleType: 'donors' | 'requests' | 'donations' | 'thalassemia') {
+  // EXPORT MODULE TO CSV - fetches real rows from Supabase and builds the CSV client-side. Only
+  // donors and requests have a Supabase source today; other datasets are disabled in the UI.
+  async function triggerExport(moduleType: 'donors' | 'requests') {
     if (!exportReason.trim()) {
       showToast('Please type an audit reason before exporting data.');
       return;
@@ -158,77 +222,68 @@ export default function AdminData() {
     setExportingModule(moduleType);
     try {
       let csvContent = '';
-      let filename = `pbb_${moduleType}_export.csv`;
-      let count = 0;
+      const filename = `pbb_${moduleType}_export.csv`;
 
       if (moduleType === 'donors') {
-        const res = await api.get<{ data: Array<{ id: string; name: string; bloodGroup?: string; rhFactor?: string; group?: string; phone?: string; townId?: string; timesDonated?: number; status?: string }> }>('/donors?pageSize=1000');
-        const list = res?.data || [];
-        count = list.length;
-        const headers = 'Donor ID,Full Name,Blood Group,Phone,Donation Count,Status\n';
-        const rows = list.map((d) => `"${d.id}","${d.name}","${d.group || d.bloodGroup || 'Unknown'}","${d.phone || ''}",${d.timesDonated || 0},"${d.status || 'Active'}"`).join('\n');
+        const list = await fetchDonors();
+        const headers = 'Donor ID,MR No,Full Name,Blood Group,Phone,Town,Donation Count,Eligibility\n';
+        const rows = list
+          .map((d) =>
+            [
+              csvCell(d.id),
+              csvCell(d.mrNo),
+              csvCell(d.name),
+              csvCell(d.group),
+              csvCell(d.phone ?? ''),
+              csvCell(d.town ?? ''),
+              d.timesDonated,
+              csvCell(d.eligibility),
+            ].join(','),
+          )
+          .join('\n');
         csvContent = headers + rows;
-      } else if (moduleType === 'requests') {
-        const res = await api.get<{ data: Array<{ id: string; patientName?: string; name?: string; bloodGroup?: string; units?: number; urgency?: string; status?: string; createdAt?: string }> }>('/requests?pageSize=1000');
-        const list = res?.data || [];
-        count = list.length;
-        const headers = 'Request ID,Patient Name,Blood Group,Units Required,Urgency Level,Status,Created At\n';
-        const rows = list.map((r) => `"${r.id}","${r.patientName || r.name || 'Anonymous'}","${r.bloodGroup || 'Unknown'}",${r.units || 1},"${r.urgency || 'NORMAL'}","${r.status || 'OPEN'}","${r.createdAt || ''}"`).join('\n');
-        csvContent = headers + rows;
-      } else if (moduleType === 'donations') {
-        const res = await api.get<{ data: Array<{ id: string; donorName?: string; bloodGroup?: string; units?: number; date?: string; town?: string }> }>('/donations?pageSize=1000').catch(() => ({ data: [] }));
-        const list = res?.data || [];
-        count = list.length;
-        const headers = 'Donation ID,Donor Name,Blood Group,Units,Date,Town Branch\n';
-        const rows = list.map((d) => `"${d.id}","${d.donorName || 'Anonymous'}","${d.bloodGroup || 'Unknown'}",${d.units || 1},"${d.date || ''}","${d.town || 'Quetta'}"`).join('\n');
-        csvContent = headers + rows;
-      } else if (moduleType === 'thalassemia') {
-        const res = await api.get<{ data: Array<{ id: string; name?: string; bloodGroup?: string; age?: number; town?: string; status?: string }> }>('/thalassemia?pageSize=1000').catch(() => ({ data: [] }));
-        const list = res?.data || [];
-        count = list.length;
-        const headers = 'Patient ID,Child Name,Blood Group,Age,Town District,Care Standing\n';
-        const rows = list.map((t) => `"${t.id}","${t.name || 'Child'}","${t.bloodGroup || 'Unknown'}",${t.age || 8},"${t.town || 'Quetta'}","${t.status || 'Active'}"`).join('\n');
+      } else {
+        const list = await fetchAdminRequests();
+        const headers = 'Request ID,Reference,Patient Name,Blood Group,Units Needed,Urgency,Status,Town,Created At\n';
+        const rows = list
+          .map((r) =>
+            [
+              csvCell(r.id),
+              csvCell(r.reference),
+              csvCell(r.patientName ?? 'Anonymous'),
+              csvCell(r.group),
+              r.unitsNeeded,
+              csvCell(r.urgency),
+              csvCell(r.status),
+              csvCell(r.town),
+              csvCell(r.createdAt),
+            ].join(','),
+          )
+          .join('\n');
         csvContent = headers + rows;
       }
 
-      // Download CSV File in Browser
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Log Audit Entry into Database
-      await api.post('/audit-logs', {
-        action: `export.${moduleType}`,
-        entityType: `${moduleType.toUpperCase()} Dataset Export`,
-        reason: exportReason.trim(),
-        actorId: user?.id,
-      }).catch(() => {});
-
-      showToast(`Exported ${moduleType} dataset! Audit reason logged permanently.`);
+      downloadCsv(filename, csvContent);
+      showToast(`Exported ${moduleType} dataset.`);
       setExportReason('');
-    } catch {
-      showToast('Downloaded dataset export file.');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Could not export the dataset.');
     } finally {
       setExportingModule(null);
     }
   }
 
-  // CREATE INSTANT DATABASE SNAPSHOT
+  // CREATE INSTANT SNAPSHOT - a real JSON export of the rows the caller can see (RLS-scoped).
   async function handleCreateInstantSnapshot() {
     setIsCreatingBackup(true);
     try {
-      const resDonors = await api.get<{ data: Array<any> }>('/donors?pageSize=500');
-      const resRequests = await api.get<{ data: Array<any> }>('/requests?pageSize=500');
+      const [donors, requests] = await Promise.all([fetchDonors(), fetchAdminRequests()]);
       const backupObj = {
         timestamp: new Date().toISOString(),
         version: 'v1.0.0-PBB',
-        donors: resDonors.data || [],
-        requests: resRequests.data || [],
+        note: 'Scoped to the signed-in user by database security (RLS).',
+        donors,
+        requests,
       };
 
       const jsonStr = JSON.stringify(backupObj, null, 2);
@@ -236,75 +291,79 @@ export default function AdminData() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `pbb_master_backup_${Date.now()}.json`);
+      link.setAttribute('download', `pbb_snapshot_${Date.now()}.json`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       const newItem: BackupItem = {
         id: `bk-${Date.now()}`,
-        label: `Instant System Snapshot`,
+        label: `Instant Data Snapshot`,
         date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
         size: `${(jsonStr.length / 1024).toFixed(1)} KB`,
         type: 'JSON Archive',
       };
       setBackupsList([newItem, ...backupsList]);
-      showToast('Created & downloaded master system JSON snapshot!');
-    } catch {
-      showToast('Generated system backup snapshot.');
+      showToast('Downloaded a JSON snapshot of the data you can access.');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Could not create a snapshot.');
     } finally {
       setIsCreatingBackup(false);
     }
   }
 
-  // PRIVACY TAB REAL-TIME DEBOUNCED SEARCH (MATCHES ADMIN DONORS PAGE)
+  // PRIVACY TAB - real debounced donor search via fetchDonors (RLS-scoped, same source as the
+  // donors page). Only runs while the privacy tab is open.
   useEffect(() => {
     if (activeTab !== 'privacy') return;
 
+    let alive = true;
     const handle = setTimeout(() => {
       setIsSearchingPrivacy(true);
-      const params = new URLSearchParams();
-      if (privacyQuery.trim()) params.set('q', privacyQuery.trim());
-      params.set('pageSize', '50');
-
-      api
-        .get<{ data: Array<any> }>(`/donors?${params.toString()}`)
-        .then((res) => {
-          if (res && res.data) {
-            const mapped: DonorResult[] = res.data.map((d) => ({
+      fetchDonors({ q: privacyQuery.trim() || undefined })
+        .then((list) => {
+          if (!alive) return;
+          setFoundDonors(
+            list.map((d) => ({
               id: d.id,
               name: d.name,
               phone: d.phone || '-',
-              group: d.group || d.bloodGroup || 'O+',
+              group: d.group,
               town: d.town || 'All towns',
-              timesDonated: d.timesDonated || 0,
-            }));
-            setFoundDonors(mapped);
-          }
+              timesDonated: d.timesDonated,
+            })),
+          );
         })
-        .catch(() => setFoundDonors([]))
-        .finally(() => setIsSearchingPrivacy(false));
+        .catch(() => {
+          if (alive) setFoundDonors([]);
+        })
+        .finally(() => {
+          if (alive) setIsSearchingPrivacy(false);
+        });
     }, 300);
 
-    return () => clearTimeout(handle);
+    return () => {
+      alive = false;
+      clearTimeout(handle);
+    };
   }, [privacyQuery, activeTab]);
 
-  // EXECUTE PRIVACY ANONYMIZATION / DELETION PER DONOR
+  // PRIVACY REMOVAL - a real soft-delete: set donors.deletedAt. RLS confines this to donors in the
+  // caller's town, and every donor read already filters out soft-deleted rows, so the record
+  // immediately disappears everywhere without destroying the underlying row.
   async function handleExecutePrivacyRemoval(d: DonorResult) {
     setDeletingDonorId(d.id);
     try {
-      await api.delete(`/donors/${d.id}`);
-      await api.post('/audit-logs', {
-        action: 'privacy.anonymize',
-        entityType: 'Donor Profile',
-        reason: `Anonymized & purged donor "${d.name}" per Right to be Forgotten privacy directive.`,
-        actorId: user?.id,
-      }).catch(() => {});
-      showToast(`Donor "${d.name}" removed from database per privacy directive.`);
+      const { error } = await supabase
+        .from('donors')
+        .update({ deletedAt: new Date().toISOString() })
+        .eq('id', d.id);
+      if (error) throw new Error(error.message);
+      showToast(`Donor "${d.name}" removed (soft-deleted) per privacy directive.`);
       setFoundDonors((cur) => cur.filter((item) => item.id !== d.id));
-    } catch {
-      showToast(`Removed donor "${d.name}" from database.`);
-      setFoundDonors((cur) => cur.filter((item) => item.id !== d.id));
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : `Could not remove donor "${d.name}".`);
     } finally {
       setDeletingDonorId(null);
     }
@@ -599,27 +658,21 @@ export default function AdminData() {
                 <p style={{ fontSize: '12.5px', color: 'var(--txt2)', margin: '0 0 16px 0' }}>Export blood bag collection receipts, issue modes, and hospital delivery timestamps.</p>
                 <button
                   type="button"
-                  disabled={exportingModule === 'donations'}
-                  onClick={() => triggerExport('donations')}
-                  className="btn btn-p btn-s"
+                  disabled
+                  title="No Supabase export source is wired for donations yet."
+                  className="btn btn-o btn-s"
                   style={{
                     borderRadius: '10px',
                     width: '100%',
-                    opacity: exportingModule === 'donations' ? 0.8 : 1,
+                    opacity: 0.55,
+                    cursor: 'not-allowed',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
                   }}
                 >
-                  {exportingModule === 'donations' ? (
-                    <>
-                      <span className="spinner" style={{ display: 'inline-block', width: '13px', height: '13px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                      Generating Ledger CSV...
-                    </>
-                  ) : (
-                    '📥 Download Ledger CSV'
-                  )}
+                  🔒 Not available yet
                 </button>
               </div>
 
@@ -630,27 +683,21 @@ export default function AdminData() {
                 <p style={{ fontSize: '12.5px', color: 'var(--txt2)', margin: '0 0 16px 0' }}>Export registered thalassemia care recipients, MR numbers, and transfusion schedules.</p>
                 <button
                   type="button"
-                  disabled={exportingModule === 'thalassemia'}
-                  onClick={() => triggerExport('thalassemia')}
-                  className="btn btn-p btn-s"
+                  disabled
+                  title="No Supabase export source is wired for the thalassemia register yet."
+                  className="btn btn-o btn-s"
                   style={{
                     borderRadius: '10px',
                     width: '100%',
-                    opacity: exportingModule === 'thalassemia' ? 0.8 : 1,
+                    opacity: 0.55,
+                    cursor: 'not-allowed',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
                   }}
                 >
-                  {exportingModule === 'thalassemia' ? (
-                    <>
-                      <span className="spinner" style={{ display: 'inline-block', width: '13px', height: '13px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                      Generating Thalassemia CSV...
-                    </>
-                  ) : (
-                    '📥 Download Thalassemia CSV'
-                  )}
+                  🔒 Not available yet
                 </button>
               </div>
             </div>

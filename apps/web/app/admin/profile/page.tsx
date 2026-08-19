@@ -1,33 +1,25 @@
 'use client';
 
 import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
+import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../lib/auth';
 import { Icon } from '../../../components/Icon';
 
-interface DetailedUser {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  role?: { id: string; name: string; level: number };
-  town?: { id: string; name: string } | null;
-  townId?: string | null;
-  avatarUrl?: string | null;
-}
+// My profile, wired straight to Supabase. The signed-in user comes from useAuth (their profiles
+// row, RLS-scoped). "Save Profile Changes" updates profiles.name for their own row (0014 grants a
+// column-level UPDATE on name + a self-row policy). "Update Password" calls supabase.auth. Email,
+// role and town are shown read-only here because a user cannot change their own role/town, and
+// email is the Auth identity - it is not edited on this screen.
 
 export default function AdminProfile() {
-  const { user: authUser } = useAuth();
-  const [userProfile, setUserProfile] = useState<DetailedUser | null>(null);
+  const { user: authUser, refetchUser } = useAuth();
   const [loading, setLoading] = useState(true);
 
-  // Form fields
+  // Editable field: display name only.
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  // Avatar preview is LOCAL ONLY - there is no avatar column in profiles, so it is not persisted.
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
@@ -36,36 +28,14 @@ export default function AdminProfile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // Load exact signed-in user profile from PostgreSQL
+  const email = authUser?.email ?? '';
+
+  // Seed the form from the authenticated user's profile (already loaded by the auth provider).
   useEffect(() => {
-    async function loadProfile() {
-      if (!authUser) {
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const res = await api.get<{ data: Array<DetailedUser> }>('/users');
-        if (res && res.data && res.data.length > 0) {
-          // Match by authenticated user ID or email
-          const matched = res.data.find((u) => u.id === authUser.id || u.email.toLowerCase() === authUser.email.toLowerCase());
-          const active = matched || res.data[0];
-
-          setUserProfile(active);
-          setName(active.name || '');
-          setEmail(active.email || '');
-          setPhone(active.phone || '');
-          setAvatarUrl(active.avatarUrl || null);
-        }
-      } catch {
-        showToast('Loaded signed-in user profile.');
-      } finally {
-        setLoading(false);
-      }
+    if (authUser) {
+      setName(authUser.name || '');
     }
-
-    loadProfile();
+    setLoading(false);
   }, [authUser]);
 
   // Image Upload Handler -> compresses file using Canvas and converts to Base64 data URI
@@ -104,7 +74,7 @@ export default function AdminProfile() {
           ctx.drawImage(img, 0, 0, width, height);
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
           setAvatarUrl(compressedDataUrl);
-          showToast('Avatar preview updated! Click "Save Profile Changes" to save changes.');
+          showToast('Avatar preview set (shown here only - not saved to the database).');
         }
       };
       img.src = rawDataUrl;
@@ -112,49 +82,33 @@ export default function AdminProfile() {
     reader.readAsDataURL(file);
   }
 
-  // Save Profile Changes
+  // Save Profile Changes - updates only the display name on the caller's own profiles row.
   async function handleSaveProfile(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      showToast('Please enter full name.');
+      showToast('Please enter your full name.');
       return;
     }
-    if (!email.trim()) {
-      showToast('Please enter email address.');
-      return;
-    }
-    if (!userProfile) return;
+    if (!authUser) return;
 
     setIsSavingProfile(true);
     try {
-      await api.patch(`/users/${userProfile.id}`, {
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        avatarUrl,
-      });
+      const { error } = await supabase
+        .from('profiles')
+        .update({ name: name.trim() })
+        .eq('id', authUser.id);
+      if (error) throw new Error(error.message);
 
-      const updatedSession = { ...userProfile, name: name.trim(), email: email.trim(), phone: phone.trim(), avatarUrl };
-      setUserProfile(updatedSession);
-
-      // Log action to audit ledger
-      await api.post('/audit-logs', {
-        action: 'profile.update',
-        entityType: 'User Profile',
-        reason: `Updated administrative profile details for "${name.trim()}"`,
-        actorId: userProfile?.id || authUser?.id,
-      }).catch(() => {});
-
-      showToast('Profile details updated successfully!');
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Profile details updated.';
-      showToast(msg);
+      await refetchUser();
+      showToast('Profile name updated.');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Could not update your profile.');
     } finally {
       setIsSavingProfile(false);
     }
   }
 
-  // Save Password Update
+  // Update Password - via Supabase Auth for the signed-in user.
   async function handleUpdatePassword(e: FormEvent) {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
@@ -165,42 +119,30 @@ export default function AdminProfile() {
       showToast('New passwords do not match. Please re-verify.');
       return;
     }
-    if (!userProfile) return;
 
     setIsUpdatingPassword(true);
     try {
-      await api.patch(`/users/${userProfile.id}`, {
-        password: newPassword,
-      });
-
-      // Log action to audit ledger
-      await api.post('/audit-logs', {
-        action: 'user.password_change',
-        entityType: 'User Account',
-        reason: `Changed security password for profile "${userProfile.name}"`,
-        actorId: userProfile?.id || authUser?.id,
-      }).catch(() => {});
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw new Error(error.message);
 
       setNewPassword('');
       setConfirmPassword('');
-      showToast('Security password updated successfully!');
-    } catch {
-      showToast('Password updated successfully.');
-      setNewPassword('');
-      setConfirmPassword('');
+      showToast('Password updated.');
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Could not update your password.');
     } finally {
       setIsUpdatingPassword(false);
     }
   }
 
-  const roleName = userProfile?.role?.name || authUser?.role?.name || 'Administrative Officer';
-  const townName = userProfile?.town?.name || (userProfile?.townId ? 'Assigned Town' : 'All 14 Towns');
+  const roleName = authUser?.role?.name || 'Staff';
+  const townName = authUser?.townId ? 'Assigned town' : 'All towns';
 
   return (
     <AdminShell
       view="profile"
       title="My Administrative Profile"
-      subtitle={`${userProfile?.name || 'Logged-In Officer'} · ${roleName}`}
+      subtitle={`${name || authUser?.name || 'Signed-in user'} · ${roleName}`}
     >
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--txt3)' }}>
@@ -244,12 +186,12 @@ export default function AdminProfile() {
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
-                      alt={userProfile?.name || 'Profile Picture'}
+                      alt={name || 'Profile Picture'}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   ) : (
                     <span style={{ fontSize: '36px', fontWeight: 900, color: 'var(--p)' }}>
-                      {(userProfile?.name || 'A').slice(0, 2).toUpperCase()}
+                      {(name || authUser?.name || 'A').slice(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
@@ -288,7 +230,7 @@ export default function AdminProfile() {
               {/* OFFICER DETAILS & BADGES */}
               <div style={{ flex: 1, minWidth: '220px' }}>
                 <h1 style={{ fontSize: '24px', fontWeight: 900, color: 'var(--txt1)', margin: '0 0 6px 0' }}>
-                  {userProfile?.name}
+                  {name || authUser?.name}
                 </h1>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
@@ -304,7 +246,7 @@ export default function AdminProfile() {
                 </div>
 
                 <p style={{ fontSize: '12.5px', color: 'var(--txt2)', margin: 0 }}>
-                  ✉️ {userProfile?.email} {userProfile?.phone ? `· 📞 ${userProfile.phone}` : ''}
+                  ✉️ {email}
                 </p>
               </div>
             </div>
@@ -316,7 +258,8 @@ export default function AdminProfile() {
               📝 Personal Profile Information
             </h2>
             <p style={{ fontSize: '13px', color: 'var(--txt2)', margin: '0 0 20px 0' }}>
-              Update your full name, email address, contact telephone, and profile picture.
+              Update your display name. Your email, role and town are managed by the head office and
+              shown here read-only.
             </p>
 
             <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -333,31 +276,33 @@ export default function AdminProfile() {
                 </div>
 
                 <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700 }}>Official Email Address *</label>
+                  <label className="lb" style={{ fontWeight: 700 }}>Email Address (read-only)</label>
                   <input
                     type="email"
                     className="fld"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
+                    disabled
+                    readOnly
+                    style={{ opacity: 0.7, cursor: 'not-allowed' }}
                   />
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
                 <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700 }}>Contact Telephone Number</label>
+                  <label className="lb" style={{ fontWeight: 700 }}>Role &amp; Town (read-only)</label>
                   <input
                     type="text"
                     className="fld"
-                    placeholder="e.g. 0300-3815590"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    value={`${roleName} · ${townName}`}
+                    disabled
+                    readOnly
+                    style={{ opacity: 0.7, cursor: 'not-allowed' }}
                   />
                 </div>
 
                 <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700 }}>Profile Avatar Image</label>
+                  <label className="lb" style={{ fontWeight: 700 }}>Profile Avatar (preview only, not saved)</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <label
                       htmlFor="avatarFileInput"

@@ -4,25 +4,20 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api, ApiError } from '../../../lib/api';
-import { TOWNS } from '../../../lib/nav';
-import { getTownNamesList } from '../../../lib/towns';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
-import type { Paged } from '../../../lib/apiTypes';
+import { fetchTowns, type Town } from '../../../lib/towns';
+import {
+  fetchVolunteers,
+  createVolunteer,
+  updateVolunteer,
+  deleteVolunteer,
+  setVolunteerStage,
+  type Volunteer,
+  type VolStage,
+} from '../../../lib/volunteers';
 
-export type VolStage = 'new' | 'contacted' | 'active';
-
-export interface Volunteer {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  town: string;
-  skills: string[];
-  stage: VolStage;
-  createdAt: string;
-}
+export type { Volunteer, VolStage };
 
 function stageTag(st: VolStage) {
   if (st === 'new') return <span className="tag no">Not contacted</span>;
@@ -71,6 +66,7 @@ const SKILL_LIST = ['All Skills', 'Camps', 'Outreach', 'Driving', 'Office', 'Des
 
 export default function AdminVolunteers() {
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const [towns, setTowns] = useState<Town[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<'all' | 'new' | 'contacted' | 'active'>('all');
@@ -97,41 +93,28 @@ export default function AdminVolunteers() {
     setDeletingSubmitting(true);
     const id = deletingVol.id;
     try {
-      await api.delete(`/volunteers/${id}`);
-      showToast(`Volunteer ${deletingVol.name} deleted successfully.`);
-    } catch {
-      showToast(`Volunteer ${deletingVol.name} removed.`);
-    } finally {
+      await deleteVolunteer(id);
       setVolunteers((cur) => cur.filter((item) => item.id !== id));
       if (selectedVol?.id === id) {
         setSelectedVol(null);
       }
-      setDeletingSubmitting(false);
+      showToast(`Volunteer ${deletingVol.name} deleted.`);
       setDeletingVol(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not delete the volunteer.');
+    } finally {
+      setDeletingSubmitting(false);
     }
   }
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<{ data: Array<{ id: string; name: string; phone: string; email?: string; status: string; skills?: string; townId?: string; createdAt: string }> }>('/volunteers');
-      if (res.data) {
-        const mapped: Volunteer[] = res.data.map((v) => ({
-          id: v.id,
-          name: v.name,
-          phone: v.phone,
-          email: v.email || undefined,
-          town: v.townId || 'Quetta',
-          skills: v.skills ? v.skills.split(',').map((s) => s.trim()) : ['Camps'],
-          stage: v.status === 'APPLIED' ? 'new' : v.status === 'ACTIVE' ? 'active' : 'contacted',
-          createdAt: v.createdAt,
-        }));
-        setVolunteers(mapped);
-      } else {
-        setVolunteers([]);
-      }
+      const [vols, townList] = await Promise.all([fetchVolunteers(), fetchTowns()]);
+      setVolunteers(vols);
+      setTowns(townList);
     } catch (err) {
-      console.error(err);
+      showToast(err instanceof Error ? err.message : 'Could not load volunteers.');
       setVolunteers([]);
     } finally {
       setLoading(false);
@@ -144,15 +127,13 @@ export default function AdminVolunteers() {
 
   async function updateStage(v: Volunteer, nextStage: VolStage) {
     try {
-      await api.patch(`/volunteers/${v.id}/stage`, { stage: nextStage });
-    } catch {
-      // Local fallback
+      const updated = await setVolunteerStage(v.id, nextStage);
+      setVolunteers((cur) => cur.map((item) => (item.id === v.id ? updated : item)));
+      setSelectedVol((cur) => (cur?.id === v.id ? updated : cur));
+      showToast(`Updated ${updated.name}'s stage to ${nextStage}.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : `Could not update ${v.name}'s stage.`);
     }
-    setVolunteers((cur) =>
-      cur.map((item) => (item.id === v.id ? { ...item, stage: nextStage } : item)),
-    );
-    setSelectedVol((cur) => (cur?.id === v.id ? { ...cur, stage: nextStage } : cur));
-    showToast(`Updated ${v.name}'s stage to ${nextStage}.`);
   }
 
   function handleAddVolunteer(newVol: Volunteer) {
@@ -315,6 +296,7 @@ export default function AdminVolunteers() {
       {/* Add Volunteer Modal */}
       <AddVolunteerModal
         isOpen={isAddModalOpen}
+        towns={towns}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={handleAddVolunteer}
       />
@@ -323,6 +305,7 @@ export default function AdminVolunteers() {
       <EditVolunteerModal
         volunteer={editingVol}
         isOpen={editingVol !== null}
+        towns={towns}
         onClose={() => setEditingVol(null)}
         onSuccess={handleEditVolunteerSuccess}
       />
@@ -568,17 +551,19 @@ function VolunteerSheet({
 function EditVolunteerModal({
   volunteer,
   isOpen,
+  towns,
   onClose,
   onSuccess,
 }: {
   volunteer: Volunteer | null;
   isOpen: boolean;
+  towns: Town[];
   onClose: () => void;
   onSuccess: (v: Volunteer) => void;
 }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [town, setTown] = useState<string>(TOWNS[0] || 'Quetta');
+  const [townId, setTownId] = useState('');
   const [skills, setSkills] = useState<string[]>(['Camps']);
   const [submitting, setSubmitting] = useState(false);
 
@@ -586,10 +571,11 @@ function EditVolunteerModal({
     if (volunteer) {
       setName(volunteer.name);
       setPhone(volunteer.phone);
-      setTown(volunteer.town);
+      const matched = towns.find((t) => t.id === volunteer.townId || t.name === volunteer.town);
+      setTownId(matched?.id || towns[0]?.id || '');
       setSkills(volunteer.skills);
     }
-  }, [volunteer]);
+  }, [volunteer, towns]);
 
   if (!isOpen || !volunteer) return null;
 
@@ -599,7 +585,7 @@ function EditVolunteerModal({
     setSkills((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
   }
 
-  const townOptions = getTownNamesList().map((t: string) => ({ value: t, label: t }));
+  const townOptions = towns.map((t) => ({ value: t.id, label: t.name }));
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -607,39 +593,26 @@ function EditVolunteerModal({
       showToast('Please fill in name and phone number.');
       return;
     }
+    if (!townId) {
+      showToast('Please select a town.');
+      return;
+    }
     setSubmitting(true);
 
-    const payload = {
-      name: name.trim(),
-      phone: phone.trim(),
-      townId: town,
-      skills: skills.join(', '),
-    };
-
     try {
-      await api.patch(`/volunteers/${volunteer!.id}`, payload);
-      const updatedVol: Volunteer = {
-        ...volunteer!,
+      const updated = await updateVolunteer(volunteer!.id, {
         name: name.trim(),
         phone: phone.trim(),
-        town,
-        skills: skills.length ? skills : ['Camps'],
-      };
-      showToast(`Volunteer ${updatedVol.name} updated.`);
-      onSuccess(updatedVol);
-    } catch {
-      const updatedVol: Volunteer = {
-        ...volunteer!,
-        name: name.trim(),
-        phone: phone.trim(),
-        town,
-        skills: skills.length ? skills : ['Camps'],
-      };
-      showToast(`Volunteer ${updatedVol.name} updated.`);
-      onSuccess(updatedVol);
+        townId,
+        skills,
+      });
+      showToast(`Volunteer ${updated.name} updated.`);
+      onSuccess(updated);
+      onClose();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not update the volunteer.');
     } finally {
       setSubmitting(false);
-      onClose();
     }
   }
 
@@ -730,10 +703,11 @@ function EditVolunteerModal({
           <div className="fgrp">
             <label className="lb">Town / District *</label>
             <CustomSelect
-              name="town"
+              name="townId"
               options={townOptions}
-              value={town}
-              onChange={(val) => setTown(val)}
+              value={townId}
+              onChange={(val) => setTownId(val)}
+              placeholder="Select town..."
               direction="down"
             />
           </div>
@@ -771,18 +745,26 @@ function EditVolunteerModal({
 
 function AddVolunteerModal({
   isOpen,
+  towns,
   onClose,
   onSuccess,
 }: {
   isOpen: boolean;
+  towns: Town[];
   onClose: () => void;
   onSuccess: (v: Volunteer) => void;
 }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [town, setTown] = useState<string>(TOWNS[0] || 'Quetta');
+  const [townId, setTownId] = useState('');
   const [skills, setSkills] = useState<string[]>(['Camps']);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && towns.length > 0 && !townId) {
+      setTownId(towns[0].id);
+    }
+  }, [isOpen, towns, townId]);
 
   if (!isOpen) return null;
 
@@ -792,7 +774,7 @@ function AddVolunteerModal({
     setSkills((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
   }
 
-  const townOptions = getTownNamesList().map((t: string) => ({ value: t, label: t }));
+  const townOptions = towns.map((t) => ({ value: t.id, label: t.name }));
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -800,43 +782,26 @@ function AddVolunteerModal({
       showToast('Please fill in name and phone number.');
       return;
     }
+    if (!townId) {
+      showToast('Please select a town.');
+      return;
+    }
     setSubmitting(true);
 
-    const payload = {
-      name: name.trim(),
-      phone: phone.trim(),
-      townId: town,
-      skills: skills.join(', '),
-    };
-
     try {
-      const created = await api.post<{ id?: string; name?: string; phone?: string; createdAt?: string }>('/volunteers', payload);
-      const newVol: Volunteer = {
-        id: created?.id || `VOL-${Math.floor(100 + Math.random() * 900)}`,
+      const created = await createVolunteer({
         name: name.trim(),
         phone: phone.trim(),
-        town,
-        skills: skills.length ? skills : ['Camps'],
-        stage: 'new',
-        createdAt: created?.createdAt || new Date().toISOString(),
-      };
-      showToast(`Volunteer ${newVol.name} registered successfully.`);
-      onSuccess(newVol);
-    } catch {
-      const newVol: Volunteer = {
-        id: `VOL-${Math.floor(100 + Math.random() * 900)}`,
-        name: name.trim(),
-        phone: phone.trim(),
-        town,
-        skills: skills.length ? skills : ['Camps'],
-        stage: 'new',
-        createdAt: new Date().toISOString(),
-      };
-      showToast(`Volunteer ${newVol.name} added.`);
-      onSuccess(newVol);
+        townId,
+        skills,
+      });
+      showToast(`Volunteer ${created.name} registered successfully.`);
+      onSuccess(created);
+      onClose();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not register the volunteer.');
     } finally {
       setSubmitting(false);
-      onClose();
     }
   }
 
@@ -929,10 +894,11 @@ function AddVolunteerModal({
           <div className="fgrp">
             <label className="lb">Town / District *</label>
             <CustomSelect
-              name="town"
+              name="townId"
               options={townOptions}
-              value={town}
-              onChange={(val) => setTown(val)}
+              value={townId}
+              onChange={(val) => setTownId(val)}
+              placeholder="Select town..."
               direction="down"
             />
           </div>
