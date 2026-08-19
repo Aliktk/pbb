@@ -1,56 +1,241 @@
-import { ImageSlot } from '../../../components/ImageSlot';
-import { ActionButton } from '../../../components/ActionButton';
-import { css } from '../../../lib/style';
+'use client';
 
-// Publications - ported from the prototype (pbb-pages2.js PAGES.publications). Data mirrors PUBS.
-const PUBS: [string, string, string][] = [
-  ['Eid ul Adha hide collection', 'Poster · Urdu', 'Appeal'],
-  ['Who can donate blood', 'Poster · Urdu, Pashto', 'Awareness'],
-  ['Thalassemia - what parents should know', 'Booklet · Urdu', 'Awareness'],
-  ['Annual report 2012', 'Report · English', 'Report'],
-  ['Hepatitis B vaccination drive', 'Poster · Urdu', 'Awareness'],
-  ['Blood camp - how to organise one', 'Guide · Urdu', 'Guide'],
+import { useState } from 'react';
+import { ActionButton } from '../../../components/ActionButton';
+import { IMG_ROTATION } from '../../../lib/images';
+
+interface PublicationItem {
+  id: number;
+  title: string;
+  meta: string;
+  category: string;
+  fileSize: string;
+  img: string;
+}
+
+const PUBS: PublicationItem[] = [
+  {
+    id: 1,
+    title: 'Eid-ul-Adha Hide Collection Appeal',
+    meta: 'Poster · Urdu',
+    category: 'Appeals',
+    fileSize: '2.4 MB PDF',
+    img: IMG_ROTATION[0],
+  },
+  {
+    id: 2,
+    title: 'Who Can Donate Blood — Guidelines',
+    meta: 'Poster · Urdu, Pashto',
+    category: 'Awareness',
+    fileSize: '3.1 MB PDF',
+    img: IMG_ROTATION[1],
+  },
+  {
+    id: 3,
+    title: 'Thalassemia — What Parents Should Know',
+    meta: 'Booklet · Urdu',
+    category: 'Awareness',
+    fileSize: '5.8 MB PDF',
+    img: IMG_ROTATION[2],
+  },
+  {
+    id: 4,
+    title: 'Annual Institutional Audit Report 2024',
+    meta: 'Report · English',
+    category: 'Reports',
+    fileSize: '8.2 MB PDF',
+    img: IMG_ROTATION[3],
+  },
+  {
+    id: 5,
+    title: 'Hepatitis B & C Vaccination Drive Guide',
+    meta: 'Poster · Urdu',
+    category: 'Awareness',
+    fileSize: '1.9 MB PDF',
+    img: IMG_ROTATION[4],
+  },
+  {
+    id: 6,
+    title: 'How to Organize a Voluntary Blood Camp',
+    meta: 'Guide · Urdu, English',
+    category: 'Guides',
+    fileSize: '4.5 MB PDF',
+    img: IMG_ROTATION[5 % IMG_ROTATION.length],
+  },
 ];
 
 const FILTERS: string[] = ['All', 'Appeals', 'Awareness', 'Reports', 'Guides'];
 
 export default function Publications() {
+  const [activeFilter, setActiveFilter] = useState<string>('All');
+
+  const filteredPubs =
+    activeFilter === 'All'
+      ? PUBS
+      : PUBS.filter((p) => p.category.toLowerCase() === activeFilter.toLowerCase());
+
   return (
     <>
-      <header className="ph-hero">
+      {/* Breathtaking Centered Hero Header */}
+      <header className="join-hero-centered">
+        <div className="hero-grid-pattern" />
+
+        {/* Left Floating Side Badge */}
+        <div className="hero-side-badge left">
+          <div className="side-badge-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div className="side-badge-text">
+            <span className="side-badge-val">Print-Ready PDFs</span>
+            <span className="side-badge-lbl">High Resolution</span>
+          </div>
+        </div>
+
+        {/* Right Floating Side Badge */}
+        <div className="hero-side-badge right">
+          <div className="side-badge-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="2" y1="12" x2="22" y2="12" />
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            </svg>
+          </div>
+          <div className="side-badge-text">
+            <span className="side-badge-val">Urdu &amp; Pashto</span>
+            <span className="side-badge-lbl">Free Download</span>
+          </div>
+        </div>
+
         <div className="wrap">
-          <span className="eyebrow"><b />Publications</span>
-          <h1>Posters, appeals and reports</h1>
-          <p className="lead" style={css('margin-top:18px;max-width:62ch')}>Printed material from twenty-seven years of work. Everything here can be downloaded and printed for your own mosque, school or union council.</p>
+          <div className="join-hero-content">
+            <div className="problem-pill-tag" style={{ margin: '0 auto 16px' }}>
+              <span className="animated-filled-circle" />
+              <span>Printed Media & Archives</span>
+            </div>
+
+            <h1 className="join-hero-title">
+              Posters, appeals and official reports.<br />
+              <span className="highlight-text-red">27 years of educational material.</span>
+            </h1>
+
+            <p className="join-hero-desc">
+              Printed materials compiled across 27 years of community service. Download high-resolution PDFs ready to print for your mosque, school, or union council.
+            </p>
+
+            {/* Emergency Hotline Floating Glass Bar */}
+            <div className="hero-emergency-bar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Need custom vector artwork or bulk printing? Contact <a href="mailto:media@pbb.org.pk">media@pbb.org.pk</a> — Print Desk</span>
+            </div>
+          </div>
         </div>
       </header>
 
-      <section className="blk" style={css('padding-top:0')}>
+      {/* Main Section */}
+      <section className="section-block-pro">
         <div className="wrap">
-          <div className="row" style={css('gap:8px;margin-bottom:26px')}>
-            {FILTERS.map((f, i) => (
-              <ActionButton key={f} className={`pill${i ? '' : ' on'}`} message="Filtering arrives with the media library">{f}</ActionButton>
-            ))}
+          {/* Interactive Filter Bar */}
+          <div className="gpgc-filter-bar">
+            {FILTERS.map((filter) => {
+              const isActive = activeFilter === filter;
+              const count =
+                filter === 'All'
+                  ? PUBS.length
+                  : PUBS.filter((p) => p.category.toLowerCase() === filter.toLowerCase()).length;
+
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  className={`gpgc-filter-pill ${isActive ? 'active' : ''}`}
+                  onClick={() => setActiveFilter(filter)}
+                >
+                  <span>{filter}</span>
+                  <span className="gpgc-filter-count">{count}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="g3">
-            {PUBS.map((p) => (
-              <div key={p[0]} className="card" style={css('padding:0;overflow:hidden')}>
-                <ImageSlot ratio="16/11" placeholder="Drop the poster artwork" />
-                <div style={css('padding:20px')}>
-                  <span className="tag gy">{p[2]}</span>
-                  <h3 style={css('margin:12px 0 6px')}>{p[0]}</h3>
-                  <p className="sm">{p[1]}</p>
-                  <div className="row" style={css('gap:8px;margin-top:16px')}>
-                    <ActionButton className="btn btn-o btn-s" message="Download arrives with the media library">Download</ActionButton>
-                    <ActionButton className="btn btn-o btn-s" message="Print arrives with the media library">Print</ActionButton>
+
+          {/* 3-Column Publication Grid */}
+          <div className="pub-grid-pro">
+            {filteredPubs.map((p) => (
+              <div key={p.id} className="pub-card-luxury">
+                <div className="pub-artwork-box">
+                  <img src={p.img} alt={p.title} className="pub-artwork-img" />
+                  <div className="pub-artwork-overlay">
+                    <span className="pub-pdf-badge">{p.fileSize}</span>
+                    <span className="pub-cat-pill">{p.category}</span>
+                  </div>
+                </div>
+
+                <div className="pub-card-body">
+                  <div className="pub-meta-row">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <span>{p.meta}</span>
+                  </div>
+
+                  <h3 className="pub-card-title">{p.title}</h3>
+
+                  <div className="pub-card-actions">
+                    <ActionButton
+                      className="btn-crimson-sm"
+                      message={`Downloading ${p.title} PDF...`}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                      <span>Download PDF</span>
+                    </ActionButton>
+
+                    <ActionButton
+                      className="btn-glass-sm"
+                      message="Print order functionality arrives with the media library"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="6 9 6 2 18 2 18 9" />
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                        <rect x="6" y="14" width="12" height="8" />
+                      </svg>
+                      <span>Print</span>
+                    </ActionButton>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          <div className="notice" style={css('margin-top:26px')}>Posters are shown at their real proportions, never cropped square - the Urdu and Pashto lettering <b>is</b> the artwork.</div>
+
+          {/* Authentic Calligraphy Notice */}
+          <div className="pub-guidance-notice">
+            <div className="notice-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <p>
+              Posters are maintained at their authentic proportions without square cropping — the traditional Urdu and Pashto calligraphy <strong>is</strong> the artwork.
+            </p>
+          </div>
         </div>
       </section>
     </>
   );
 }
+

@@ -26,6 +26,8 @@ export interface PublicUser {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
+  avatarUrl: string | null;
   role: { id: string; name: string; level: number };
   townId: string | null;
   status: string;
@@ -108,6 +110,8 @@ export class AuthService {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone || null,
+      avatarUrl: user.avatarUrl || null,
       role: { id: user.roleId, name: user.roleName, level: user.level },
       townId: user.townId,
       status: user.status,
@@ -139,19 +143,13 @@ export class AuthService {
     return createHmac('sha256', this.refreshSecret).update(raw).digest('hex');
   }
 
-  private toPublicUser(user: {
-    id: string;
-    name: string;
-    email: string;
-    roleId: string;
-    townId: string | null;
-    status: string;
-    role: { id: string; name: string; level: number; permissions: unknown };
-  }): PublicUser {
+  private toPublicUser(user: any): PublicUser {
     return {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone: user.phone || null,
+      avatarUrl: user.avatarUrl || null,
       role: { id: user.role.id, name: user.role.name, level: user.role.level },
       townId: user.townId,
       status: user.status,

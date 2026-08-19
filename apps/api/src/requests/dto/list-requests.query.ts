@@ -1,11 +1,10 @@
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { RequestStatus } from '@prisma/client';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class ListRequestsQuery {
   @IsOptional()
-  @IsEnum(RequestStatus)
-  status?: RequestStatus;
+  @IsString()
+  status?: string;
 
   @IsOptional()
   @IsString()
@@ -21,6 +20,6 @@ export class ListRequestsQuery {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
-  pageSize = 25;
+  @Max(200)
+  pageSize = 100;
 }

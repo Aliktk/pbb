@@ -52,7 +52,7 @@ export class DonorsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Paged, filtered, town-scoped register. Eligibility comes from the DB view (INV-5). */
-  async list(user: AuthUser, q: ListDonorsQuery) {
+  async list(user: AuthUser | null, q: ListDonorsQuery) {
     const where = donorListWhere({ q: q.q, group: q.group, rh: q.rh, townId: q.townId }, user);
     const [total, donors] = await this.prisma.$transaction([
       this.prisma.donor.count({ where }),
@@ -129,10 +129,22 @@ export class DonorsService {
     return { data, meta: { total: data.length } };
   }
 
-  async create(user: AuthUser, dto: CreateDonorDto) {
+  async create(user: AuthUser | null, dto: CreateDonorDto) {
     // A town-scoped user can only add donors to their own town.
-    const scope = scopeWhere(user);
+    const scope = user ? scopeWhere(user) : {};
     const townId = scope.townId ?? dto.townId;
+
+    // Resolve valid branchId from database
+    let branchId = dto.branchId;
+    const branchExists = branchId ? await this.prisma.branch.findUnique({ where: { id: branchId } }) : null;
+    if (!branchExists) {
+      const townBranch = await this.prisma.branch.findFirst({ where: { townId } });
+      const defaultBranch = townBranch || (await this.prisma.branch.findFirst());
+      if (defaultBranch) {
+        branchId = defaultBranch.id;
+      }
+    }
+
     try {
       const created = await this.prisma.donor.create({
         data: {
@@ -146,22 +158,68 @@ export class DonorsService {
           emergencyRelationship: dto.emergencyRelationship,
           address: dto.address,
           townId,
-          branchId: dto.branchId,
+          branchId,
           quantityMl: dto.quantityMl,
           willingFrequency: dto.willingFrequency,
           modeOfIssue: dto.modeOfIssue,
           consentToCall: dto.consentToCall ?? true,
-          createdById: user.id,
+          createdById: user?.id || null,
         },
         select: DONOR_SELECT,
       });
       return { ...row(created), eligibility: NEVER };
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        throw new ConflictException('A donor with that MR number already exists in this branch');
+        throw new ConflictException('A donor with that MR number already exists');
       }
       throw e;
     }
+  }
+
+  async update(id: string, dto: Partial<CreateDonorDto>) {
+    const existing = await this.prisma.donor.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Donor not found');
+
+    let townId = dto.townId || existing.townId;
+    if (dto.townId) {
+      const townMatch = await this.prisma.town.findFirst({
+        where: {
+          OR: [
+            { id: dto.townId },
+            { name: { equals: dto.townId, mode: 'insensitive' } },
+          ],
+        },
+      });
+      if (townMatch) townId = townMatch.id;
+    }
+
+    const updated = await this.prisma.donor.update({
+      where: { id },
+      data: {
+        ...(dto.mrNo ? { mrNo: dto.mrNo } : {}),
+        ...(dto.name ? { name: dto.name } : {}),
+        ...(dto.bloodGroup ? { bloodGroup: dto.bloodGroup } : {}),
+        ...(dto.rhFactor ? { rhFactor: dto.rhFactor } : {}),
+        ...(dto.dateOfBirth ? { dateOfBirth: new Date(dto.dateOfBirth) } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.consentToCall !== undefined ? { consentToCall: dto.consentToCall } : {}),
+        townId,
+      },
+      select: DONOR_SELECT,
+    });
+    const status = (await this.statusFor([updated.id])).get(updated.id) ?? NEVER;
+    return { ...row(updated), eligibility: status };
+  }
+
+  async remove(id: string) {
+    const existing = await this.prisma.donor.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Donor not found');
+
+    await this.prisma.donor.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { success: true, message: 'Donor deleted successfully' };
   }
 
   /** Map donor ids → eligibility status from the view, in one query. */

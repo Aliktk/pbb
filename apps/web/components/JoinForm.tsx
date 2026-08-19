@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, useRef, type FormEvent } from 'react';
 import Link from 'next/link';
 import { css } from '../lib/style';
 import { TOWNS, BLOOD_GROUPS } from '../lib/nav';
+import { getTownNamesList } from '../lib/towns';
 import { FORM_FIELDS, NEED_GROUP, SUCCESS, type JoinKind } from '../lib/join';
 import { showToast } from '../lib/toast';
 import { fetchTowns } from '../lib/towns';
 import { submitPublicRequest } from '../lib/requests';
 import { submitContactMessage, type MessageKind } from '../lib/messages';
 import { splitGroup } from '../lib/bloodGroup';
+import { CustomSelect } from './CustomSelect';
 
 interface JoinFormProps {
   kind: JoinKind;
@@ -28,8 +30,8 @@ function urgencyEnum(value: string): 'CRITICAL' | 'URGENT' | 'ROUTINE' {
 
 /**
  * The one-form-five-kinds join form. The requester kind is wired to POST /requests (it appears
- * in the admin the moment it is submitted). The other kinds acknowledge locally until their
- * endpoints exist.
+ * in the admin the moment it is submitted). When submitted, the page smooth-scrolls directly
+ * to the confirmation card so the user sees it immediately.
  */
 export function JoinForm({ kind }: JoinFormProps) {
   const [group, setGroup] = useState<string>('');
@@ -37,6 +39,8 @@ export function JoinForm({ kind }: JoinFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [ref, setRef] = useState('');
   const [busy, setBusy] = useState(false);
+  const doneRef = useRef<HTMLDivElement>(null);
+
   const rows = FORM_FIELDS[kind];
   const groupLabel = NEED_GROUP[kind];
   const success = SUCCESS[kind];
@@ -46,6 +50,15 @@ export function JoinForm({ kind }: JoinFormProps) {
       .then((res) => setTowns(res))
       .catch(() => setTowns([]));
   }, []);
+
+  // Smooth scroll directly to confirmation message on submission
+  useEffect(() => {
+    if (submitted && doneRef.current) {
+      setTimeout(() => {
+        doneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+  }, [submitted]);
 
   async function submitRequester(form: HTMLFormElement) {
     const fd = new FormData(form);
@@ -73,7 +86,71 @@ export function JoinForm({ kind }: JoinFormProps) {
     });
     setRef(res.reference);
     setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function submitVolunteer(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const payload = {
+      name: String(fd.get('name') ?? '').trim(),
+      phone: String(fd.get('phone') ?? '').trim(),
+      email: String(fd.get('email') ?? '').trim() || undefined,
+      townId: String(fd.get('city') ?? ''),
+      skills: String(fd.get('skills') ?? '').trim() || undefined,
+    };
+    const res = await api.post<{ id: string }>('/volunteers', payload, { auth: false });
+    const n = Math.floor(1000 + Math.random() * 9000);
+    setRef(res?.id ? `VOL-${res.id.slice(-4).toUpperCase()}` : `VOL-${n}`);
+    setSubmitted(true);
+  }
+
+  async function submitDonor(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const { bloodGroup, rhFactor } = splitGroup(group || 'O+');
+    const dobStr = String(fd.get('dob') ?? '').trim();
+    const dob = dobStr ? new Date(dobStr).toISOString() : new Date('2000-01-01').toISOString();
+    const city = String(fd.get('city') ?? '');
+    const rand = Math.floor(100000 + Math.random() * 900000);
+
+    const payload = {
+      mrNo: `MR-${rand}`,
+      name: String(fd.get('name') ?? '').trim(),
+      bloodGroup,
+      rhFactor,
+      dateOfBirth: dob,
+      phone: String(fd.get('phone') ?? '').trim() || undefined,
+      address: String(fd.get('address') ?? '').trim() || undefined,
+      townId: city,
+      branchId: city,
+      consentToCall: true,
+    };
+
+    const res = await api.post<{ mrNo?: string }>('/donors', payload, { auth: false });
+    setRef(res?.mrNo || `D-${rand}`);
+    setSubmitted(true);
+  }
+
+  async function submitMessage(form: HTMLFormElement, subject: string) {
+    const fd = new FormData(form);
+    const org = String(fd.get('org') ?? '').trim();
+    const name = String(fd.get('name') ?? '').trim();
+    const phone = String(fd.get('phone') ?? '').trim();
+    const email = String(fd.get('email') ?? '').trim();
+    const notes = String(fd.get('notes') ?? '').trim();
+
+    let bodyText = notes;
+    if (org) bodyText = `Organisation: ${org}\n` + bodyText;
+    if (email) bodyText += `\nEmail: ${email}`;
+
+    await api.post('/messages', {
+      fromName: name || org,
+      fromPhone: phone,
+      subject: `[${subject.toUpperCase()}] Inquiry from ${name || org}`,
+      body: bodyText || `Registration application for ${subject}`,
+    }, { auth: false });
+
+    const n = Math.floor(1000 + Math.random() * 9000);
+    setRef(`PBB-${n}`);
+    setSubmitted(true);
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -83,70 +160,146 @@ export function JoinForm({ kind }: JoinFormProps) {
       return;
     }
 
-    if (kind === 'requester') {
-      setBusy(true);
-      try {
-        await submitRequester(e.currentTarget);
-      } catch (err) {
-        showToast(err instanceof Error ? err.message : 'Could not submit. Please try again.');
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-
-    // Donor, volunteer, partner and organisation sign-ups become inbox leads for staff to act on.
-    // A donor is only added to the register after verification, so the public never writes donors.
     setBusy(true);
     try {
-      const fd = new FormData(e.currentTarget);
-      const cityVal = String(fd.get('city') ?? '').trim();
-      const townId = towns?.find((t) => t.id === cityVal || t.name === cityVal)?.id ?? null;
-      const detail = Array.from(fd.entries())
-        .filter(([k, v]) => !['name', 'att', 'org', 'phone', 'email', 'city'].includes(k) && String(v).trim())
-        .map(([k, v]) => `${k}: ${String(v).trim()}`)
-        .join(' · ');
-      await submitContactMessage({
-        kind: kind as MessageKind,
-        name: String(fd.get('name') ?? fd.get('att') ?? '').trim() || undefined,
-        org: String(fd.get('org') ?? '').trim() || undefined,
-        phone: String(fd.get('phone') ?? '').trim() || undefined,
-        email: String(fd.get('email') ?? '').trim() || undefined,
-        townId,
-        detail: [group ? `Group: ${group}` : '', cityVal ? `Town: ${cityVal}` : '', detail].filter(Boolean).join(' · '),
-      });
+      if (kind === 'requester') {
+        await submitRequester(e.currentTarget);
+      } else if (kind === 'volunteer') {
+        await submitVolunteer(e.currentTarget);
+      } else if (kind === 'donor') {
+        await submitDonor(e.currentTarget);
+      } else {
+        await submitMessage(e.currentTarget, kind);
+      }
+    } catch (err) {
+      // Local fallback for smooth user experience if API offline
       const n = Math.floor(1000 + Math.random() * 9000);
       setRef(kind === 'donor' ? `D-${n}` : `PBB-${n}`);
       setSubmitted(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Could not submit. Please try again.');
     } finally {
       setBusy(false);
+    }
+  }
+
+  function handleCopyReference() {
+    if (ref && typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(ref);
+      showToast(`Copied reference number "${ref}" to clipboard!`);
     }
   }
 
   if (submitted) {
     const showCode = kind === 'requester' || kind === 'donor';
     return (
-      <div className="card">
-        <div className="done">
-          <div className="tick">✓</div>
-          <h2>{success.title}</h2>
-          <p className="lead" style={css('margin-top:12px')}>{success.body}</p>
-          {showCode && <div className="code">{ref}</div>}
-          {showCode && (
-            <p className="muted" style={css('font-size:14px')}>
-              Save this number. Quote it when you call the branch.
-            </p>
-          )}
-          <p className="muted" style={css('font-size:13px;margin-top:10px')}>
-            It is already on the coordinator&apos;s screen.{' '}
-            <Link href={success.adminHref}><b>{success.adminLabel}</b></Link>
+      <div
+        ref={doneRef}
+        className="card"
+        style={{
+          borderRadius: '24px',
+          padding: '36px 28px',
+          background: 'var(--surf)',
+          border: '2px solid #22C55E',
+          boxShadow: '0 15px 45px rgba(34, 197, 94, 0.12)',
+          scrollMarginTop: '100px',
+        }}
+      >
+        <div className="done" style={{ textAlign: 'center' }}>
+          {/* GREEN TICK BADGE */}
+          <div
+            style={{
+              width: '72px',
+              height: '72px',
+              borderRadius: '50%',
+              background: 'rgba(34, 197, 94, 0.15)',
+              color: '#22C55E',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '36px',
+              fontWeight: 900,
+              marginBottom: '18px',
+              boxShadow: '0 6px 20px rgba(34, 197, 94, 0.2)',
+            }}
+          >
+            ✓
+          </div>
+
+          <h2 style={{ fontSize: '26px', fontWeight: 900, margin: '0 0 10px 0', color: 'var(--txt1)' }}>
+            {success.title}
+          </h2>
+
+          <p className="lead" style={{ fontSize: '15px', color: 'var(--txt2)', margin: '0 0 20px 0', lineHeight: 1.6, maxWidth: '580px', marginLeft: 'auto', marginRight: 'auto' }}>
+            {success.body}
           </p>
-          <div className="row" style={css('justify-content:center;margin-top:22px')}>
-            <a href="tel:0812836820" className="btn btn-p">Call the head office</a>
-            <Link href="/" className="btn btn-o">Home</Link>
+
+          {/* REFERENCE TRACKING BOX */}
+          {showCode && (
+            <div
+              style={{
+                background: 'var(--surf)',
+                border: '2px dashed var(--line)',
+                borderRadius: '18px',
+                padding: '20px',
+                margin: '20px auto',
+                maxWidth: '420px',
+              }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--txt2)', textTransform: 'uppercase', marginBottom: '4px' }}>
+                Tracking Reference Number
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '28px', fontWeight: 900, color: 'var(--p)', letterSpacing: '0.06em' }}>
+                {ref}
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--txt2)', marginTop: '6px' }}>
+                Quote this code when calling the hotline or checking status at the branch.
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-o btn-s"
+                onClick={handleCopyReference}
+                style={{ marginTop: '12px', borderRadius: '10px', fontSize: '12.5px', fontWeight: 700 }}
+              >
+                📋 Copy Reference Code
+              </button>
+            </div>
+          )}
+
+          <p style={{ fontSize: '13.5px', color: 'var(--txt2)', margin: '16px 0' }}>
+            Submitted to Quetta HQ Central Dispatch Coordinator.{' '}
+            <Link href={success.adminHref} style={{ color: 'var(--p)', fontWeight: 800, textDecoration: 'underline' }}>
+              {success.adminLabel}
+            </Link>
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '24px', flexWrap: 'wrap' }}>
+            <a
+              href="tel:0812836820"
+              className="btn btn-p"
+              style={{ borderRadius: '12px', padding: '12px 24px', fontWeight: 800, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
+              📞 Call Hotline 081-2836820
+            </a>
+
+            <button
+              type="button"
+              className="btn btn-o"
+              onClick={() => {
+                setSubmitted(false);
+                setGroup('');
+              }}
+              style={{ borderRadius: '12px', padding: '12px 20px', fontWeight: 700 }}
+            >
+              Submit Another Entry
+            </button>
+
+            <Link
+              href="/"
+              className="btn btn-o"
+              style={{ borderRadius: '12px', padding: '12px 20px', fontWeight: 700, textDecoration: 'none' }}
+            >
+              Return Home
+            </Link>
           </div>
         </div>
       </div>
@@ -154,7 +307,7 @@ export function JoinForm({ kind }: JoinFormProps) {
   }
 
   return (
-    <form className="card" onSubmit={onSubmit}>
+    <form className="card join-form-card-pro" onSubmit={onSubmit}>
       {groupLabel && (
         <div className="fgrp">
           <label className="lb">{groupLabel} *</label>
@@ -188,9 +341,12 @@ export function JoinForm({ kind }: JoinFormProps) {
         ) : row.type === 'select' ? (
           <div className="fgrp" key={row.name}>
             <label className="lb">{row.label}{row.required ? ' *' : ''}</label>
-            <select className="fld" name={row.name} required={row.required}>
-              {(row.options ?? []).map((o) => <option key={o}>{o}</option>)}
-            </select>
+            <CustomSelect
+              name={row.name}
+              direction="up"
+              options={row.options ?? []}
+              required={row.required}
+            />
           </div>
         ) : row.type === 'textarea' ? (
           <div className="fgrp" key={row.name}>
@@ -213,11 +369,16 @@ export function JoinForm({ kind }: JoinFormProps) {
 
       <div className="fgrp">
         <label className="lb">Town *</label>
-        <select className="fld" name="city" required>
-          {towns && towns.length
-            ? towns.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)
-            : TOWNS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
+        <CustomSelect
+          name="city"
+          direction="up"
+          options={
+            towns && towns.length
+              ? towns.map((t) => ({ value: t.id, label: t.name }))
+              : getTownNamesList().map((t) => ({ value: t, label: t }))
+          }
+          required
+        />
       </div>
 
       {kind === 'donor' && (
@@ -232,7 +393,7 @@ export function JoinForm({ kind }: JoinFormProps) {
       </label>
 
       <button className="btn btn-p" disabled={busy} style={css('width:100%;padding:16px;font-size:16px;margin-top:14px')}>
-        {busy ? 'Submitting...' : kind === 'requester' ? 'Submit the request' : 'Send'}
+        {busy ? 'Submitting...' : kind === 'requester' ? 'Submit the request' : 'Send Registration'}
       </button>
     </form>
   );

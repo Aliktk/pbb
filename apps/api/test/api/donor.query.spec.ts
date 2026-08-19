@@ -4,11 +4,11 @@ import { donorListWhere, callableStatuses } from '../../src/donors/donor.query';
 import type { AuthUser } from '../../src/rbac/auth-user';
 
 const globalUser: AuthUser = {
-  id: 'u0', name: 'Head', email: 'h@pbb.org', roleId: 'r0', roleName: 'Head Office Admin',
+  id: 'u0', name: 'Head', email: 'h@pbb.org', phone: null, avatarUrl: null, roleId: 'r0', roleName: 'Head Office Admin',
   level: 0, townId: 'town-quetta', status: 'ACTIVE', permissions: { '*': ['*'] },
 };
 const scopedUser: AuthUser = {
-  id: 'u1', name: 'Mgr', email: 'm@pbb.org', roleId: 'r2', roleName: 'Branch Manager',
+  id: 'u1', name: 'Mgr', email: 'm@pbb.org', phone: null, avatarUrl: null, roleId: 'r2', roleName: 'Branch Manager',
   level: 2, townId: 'town-zhob', status: 'ACTIVE', permissions: { donors: ['read', 'write'] },
 };
 

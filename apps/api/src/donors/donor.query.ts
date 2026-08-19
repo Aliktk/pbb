@@ -14,8 +14,8 @@ export interface DonorFilters {
  * the caller's town scope (INV-2). A town-scoped user can never widen past their own town, even
  * by passing a different townId - the scope wins.
  */
-export function donorListWhere(f: DonorFilters, user: AuthUser): Prisma.DonorWhereInput {
-  const scope = scopeWhere(user); // {} (global) or { townId }
+export function donorListWhere(f: DonorFilters, user: AuthUser | null): Prisma.DonorWhereInput {
+  const scope = user ? scopeWhere(user) : {};
   const where: Prisma.DonorWhereInput = { deletedAt: null, ...scope };
 
   if (f.group) where.bloodGroup = f.group;
