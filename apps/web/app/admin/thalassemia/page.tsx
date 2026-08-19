@@ -28,16 +28,8 @@ export interface ThalChild {
   guardian?: string;
 }
 
-const INITIAL_THAL: ThalChild[] = [
-  { id: 'T-014', n: 'Habiba Kakar', a: 6, g: 'B+', c: 'Quetta', phone: '0300-9876543', guardian: 'Abdul Samad', due: -4, sp: 0, ph: 0 },
-  { id: 'T-027', n: 'Zarghoona Durrani', a: 11, g: 'O+', c: 'Pishin', phone: '0333-1234567', guardian: 'Niamatullah', due: 3, sp: 1, ph: 1 },
-  { id: 'T-031', n: 'Naveed Baloch', a: 4, g: 'A−', c: 'Zhob', phone: '0312-4455667', guardian: 'Mohammad Din', due: 9, sp: 0, ph: 0 },
-  { id: 'T-044', n: 'Bilal Khan', a: 8, g: 'O−', c: 'Quetta', phone: '0345-7788990', guardian: 'Sher Zaman', due: 1, sp: 1, ph: 0 },
-  { id: 'T-052', n: 'Saima Tareen', a: 7, g: 'B−', c: 'Loralai', phone: '0301-8899001', guardian: 'Ghulam Qadir', due: -2, sp: 0, ph: 1 },
-];
-
 export default function AdminThalassemia() {
-  const [children, setChildren] = useState<ThalChild[]>(INITIAL_THAL);
+  const [children, setChildren] = useState<ThalChild[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'overdue' | 'this_week' | 'sponsored'>('all');
@@ -82,7 +74,7 @@ export default function AdminThalassemia() {
     setLoading(true);
     try {
       const res = await api.get<{ data: Array<{ id: string; name: string; dateOfBirth: string; bloodGroup: string; rhFactor: string; guardianName: string; guardianPhone: string; nextTransfusionDue: string | null; photoConsent: boolean; town?: { name: string } }> }>('/thalassemia');
-      if (res.data && res.data.length > 0) {
+      if (res.data) {
         const mapped: ThalChild[] = res.data.map((item, idx) => {
           const sign = item.rhFactor === 'POSITIVE' ? '+' : '−';
           const dobYears = item.dateOfBirth ? Math.max(1, Math.floor((Date.now() - new Date(item.dateOfBirth).getTime()) / (365.25 * 86400000))) : 6;
@@ -102,9 +94,12 @@ export default function AdminThalassemia() {
           };
         });
         setChildren(mapped);
+      } else {
+        setChildren([]);
       }
-    } catch {
-      // Keep rich sample data if API empty
+    } catch (err) {
+      console.error(err);
+      setChildren([]);
     } finally {
       setLoading(false);
     }

@@ -436,7 +436,7 @@ export default function AdminNetwork() {
             {filteredTowns.length === 0 && (
               <tr>
                 <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--txt3)' }}>
-                  No towns found matching "{search}".
+                  {search ? `No towns found matching "${search}".` : 'No towns have been added to the network yet.'}
                 </td>
               </tr>
             )}
