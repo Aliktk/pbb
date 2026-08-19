@@ -5326,7 +5326,7 @@ body.adminmode {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--red);
+  color: #B71C1C; /* darker red for WCAG AA contrast on light section backgrounds */
   display: block;
   margin-bottom: 4px;
 }
@@ -5402,7 +5402,7 @@ body.adminmode {
 }
 
 .stock-cr .group-name, .stock-cr .group-status {
-  color: var(--red);
+  color: #B71C1C; /* WCAG AA on the light-red stock card background */
 }
 
 .stock-lo {
@@ -5411,7 +5411,7 @@ body.adminmode {
 }
 
 .stock-lo .group-name, .stock-lo .group-status {
-  color: #C05621;
+  color: #9C4221; /* darker amber for WCAG AA on the light stock card background */
 }
 
 .stock-ok {
@@ -5746,7 +5746,7 @@ body.adminmode {
 
 .news-date {
   font-size: 13px;
-  color: var(--mid);
+  color: #5A5E66; /* darker than --mid for WCAG AA contrast on white */
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -6017,12 +6017,12 @@ body.adminmode {
   gap: 8px;
 }
 
-.footer-nav-col h4 {
+.footer-nav-col h4, .footer-nav-col .footer-col-title {
   color: #fff;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  margin-bottom: 14px;
+  margin: 0 0 14px;
   font-weight: 800;
 }
 

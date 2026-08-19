@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV, type NavGroup } from '../lib/nav';
-import { showToast } from '../lib/toast';
+import { useLocale, tr } from '../lib/i18n';
 
 /** Is this nav group the active section for the current path? */
 function isActive(group: NavGroup, pathname: string): boolean {
@@ -29,6 +29,8 @@ const BrandMark = ({ dark = false }: { dark?: boolean }) => (
 export function SiteHeader() {
   const pathname = usePathname();
   const [mobOpen, setMobOpen] = useState(false);
+  const { locale, setLocale } = useLocale();
+  const [langOpen, setLangOpen] = useState(false);
 
   return (
     <>
@@ -39,10 +41,10 @@ export function SiteHeader() {
             {NAV.map((group) => (
               <li key={group.label} data-nav={group.label} className={isActive(group, pathname) ? 'on' : undefined}>
                 {group.href ? (
-                  <Link href={group.href}>{group.label}</Link>
+                  <Link href={group.href}>{tr(locale, group.label)}</Link>
                 ) : (
                   <Link href={group.items![0].href}>
-                    <span>{group.label}</span> <Chevron />
+                    <span>{tr(locale, group.label)}</span> <Chevron />
                   </Link>
                 )}
                 {group.items && (
@@ -66,8 +68,18 @@ export function SiteHeader() {
             ))}
           </ul>
           <div className="navcta">
-            <button className="lang" type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>EN ▾</button>
-            <Link href="/join" className="btn-nav-primary">Get Involved</Link>
+            <div style={{ position: 'relative' }}>
+              <button className="lang" type="button" onClick={() => setLangOpen((o) => !o)} aria-haspopup="true" aria-expanded={langOpen}>
+                {locale === 'ur' ? 'اردو ▾' : 'EN ▾'}
+              </button>
+              {langOpen && (
+                <div role="menu" style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, background: '#fff', border: '1px solid var(--line)', borderRadius: 10, boxShadow: 'var(--sh)', zIndex: 60, minWidth: 130, overflow: 'hidden' }}>
+                  <button type="button" role="menuitem" onClick={() => { setLocale('en'); setLangOpen(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', background: locale === 'en' ? 'var(--bg)' : '#fff', border: 0, cursor: 'pointer', font: 'inherit', fontWeight: 600 }}>English</button>
+                  <button type="button" role="menuitem" onClick={() => { setLocale('ur'); setLangOpen(false); }} style={{ display: 'block', width: '100%', textAlign: 'right', padding: '10px 14px', background: locale === 'ur' ? 'var(--bg)' : '#fff', border: 0, cursor: 'pointer', font: 'inherit', fontWeight: 600 }}>اردو</button>
+                </div>
+              )}
+            </div>
+            <Link href="/join" className="btn-nav-primary">{tr(locale, 'Get Involved')}</Link>
             <button className="btn btn-o btn-s burger" onClick={() => setMobOpen(true)} aria-label="Menu" type="button">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                 <path d="M3 6h18M3 12h18M3 18h18" />
@@ -100,11 +112,10 @@ export function SiteHeader() {
           ),
         )}
         <div className="ft">
-          <Link href="/join/requester" className="btn btn-p" style={{ color: '#fff' }} onClick={() => setMobOpen(false)}>Request Blood</Link>
+          <Link href="/join/requester" className="btn btn-p" style={{ color: '#fff' }} onClick={() => setMobOpen(false)}>{tr(locale, 'Request Blood')}</Link>
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn btn-o" style={{ flex: 1 }} type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>English</button>
-            <button className="btn btn-o" style={{ flex: 1 }} type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>اردو</button>
-            <button className="btn btn-o" style={{ flex: 1 }} type="button" onClick={() => showToast('Urdu and Pashto arrive with the language pass')}>پښتو</button>
+            <button className={`btn ${locale === 'en' ? 'btn-p' : 'btn-o'}`} style={{ flex: 1 }} type="button" onClick={() => { setLocale('en'); setMobOpen(false); }}>English</button>
+            <button className={`btn ${locale === 'ur' ? 'btn-p' : 'btn-o'}`} style={{ flex: 1 }} type="button" onClick={() => { setLocale('ur'); setMobOpen(false); }}>اردو</button>
           </div>
           <div style={{ fontSize: 13, color: 'var(--mid)', paddingTop: 4 }}>
             Emergency · <b style={{ color: 'var(--ink)' }}>081-2836820</b>
