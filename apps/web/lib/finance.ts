@@ -65,10 +65,10 @@ export async function fetchLedger(): Promise<LedgerEntry[]> {
   return (data ?? []) as LedgerEntry[];
 }
 
+// The client sends only the town, customer, status/waive and the item (service + qty). The
+// database prices each item from the price list, computes the totals, and stamps created_by =
+// auth.uid() - so money and audit fields cannot be forged from the browser (see 0009).
 export async function createInvoice(input: CreateInvoiceInput): Promise<string> {
-  const subtotal = input.items.reduce((s, it) => s + it.qty * it.unitPricePkr, 0);
-  const total = input.isWaived ? 0 : subtotal;
-  const { data: auth } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('invoices')
     .insert({
@@ -77,10 +77,7 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<string> 
       customer_phone: input.customerPhone ?? null,
       status: input.isWaived ? 'WAIVED' : 'ISSUED',
       is_waived: input.isWaived,
-      subtotal_pkr: subtotal,
-      total_pkr: total,
       notes: input.notes ?? null,
-      created_by: auth.user?.id ?? null,
     })
     .select('id')
     .single();
@@ -92,8 +89,6 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<string> 
       service_charge_id: it.serviceChargeId ?? null,
       description: it.description,
       qty: it.qty,
-      unit_price_pkr: it.unitPricePkr,
-      amount_pkr: it.qty * it.unitPricePkr,
     }));
     const { error: itemsErr } = await supabase.from('invoice_items').insert(rows);
     if (itemsErr) throw new Error(itemsErr.message);
@@ -102,14 +97,12 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<string> 
 }
 
 export async function recordDonation(input: RecordDonationInput): Promise<void> {
-  const { data: auth } = await supabase.auth.getUser();
   const { error } = await supabase.from('financial_donations').insert({
     town_id: input.townId,
     source: input.source ?? null,
     amount_pkr: input.amountPkr,
     method: input.method ?? 'cash',
     note: input.note ?? null,
-    received_by: auth.user?.id ?? null,
   });
   if (error) throw new Error(error.message);
 }
