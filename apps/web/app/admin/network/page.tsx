@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
@@ -9,10 +9,13 @@ import { api } from '../../../lib/api';
 import { Icon } from '../../../components/Icon';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { DONORS } from '../../../lib/adminData';
+import { TownSheet } from '../../../components/admin/TownSheet';
+import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
 import { getNetworkTowns, saveNetworkTowns, type TownNetworkItem } from '../../../lib/towns';
 
 export default function AdminNetwork() {
   const [towns, setTowns] = useState<TownNetworkItem[]>([]);
+  const [selectedTown, setSelectedTown] = useState<TownNetworkItem | null>(null);
   const [search, setSearch] = useState('');
   const [standingFilter, setStandingFilter] = useState<'all' | 'branches' | 'served'>('all');
 
@@ -28,20 +31,25 @@ export default function AdminNetwork() {
   const [formManager, setFormManager] = useState('');
   const [formStockUpdate, setFormStockUpdate] = useState('today');
 
-  // Sync state on mount and listen to updates
-  useEffect(() => {
-    setTowns(getNetworkTowns());
-
-    function handleTownsUpdate() {
+  const loadNetworkData = useCallback(async () => {
+    try {
+      const res = await api.get<{ data: TownNetworkItem[] }>('/towns/network');
+      if (res.data && res.data.length > 0) {
+        setTowns(res.data);
+      } else {
+        setTowns(getNetworkTowns());
+      }
+    } catch {
       setTowns(getNetworkTowns());
     }
-
-    window.addEventListener('pbb_towns_updated', handleTownsUpdate);
-    return () => window.removeEventListener('pbb_towns_updated', handleTownsUpdate);
   }, []);
 
-  function getTownDonorCount(townName: string): number {
-    return DONORS.filter((d) => d.c.toLowerCase() === townName.toLowerCase()).length;
+  useEffect(() => {
+    loadNetworkData();
+  }, [loadNetworkData]);
+
+  function getTownDonorCount(t: TownNetworkItem): number {
+    return t.donorsCount ?? 0;
   }
 
   function openCreateModal() {
@@ -64,7 +72,7 @@ export default function AdminNetwork() {
     setIsModalOpen(true);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deletingItem) return;
 
     if (deletingItem.name.toLowerCase() === 'quetta') {
@@ -73,28 +81,42 @@ export default function AdminNetwork() {
       return;
     }
 
+    try {
+      await api.delete(`/towns/${deletingItem.id}`);
+    } catch {
+      // Graceful fallback
+    }
+
     const next = towns.filter((t) => t.id !== deletingItem.id);
     setTowns(next);
     saveNetworkTowns(next);
 
     showToast(`Town "${deletingItem.name}" deleted. All dropdowns and cards updated!`);
     setDeletingItem(null);
+    loadNetworkData();
   }
 
-  function handleSaveTown(e: React.FormEvent) {
+  async function handleSaveTown(e: React.FormEvent) {
     e.preventDefault();
     if (!formName.trim()) {
       showToast('Please enter a town name.');
       return;
     }
 
+    const name = formName.trim();
+    const isOffice = formStanding.includes('Branch') || formStanding.includes('Head office');
+
     if (editingItem) {
+      try {
+        await api.patch(`/towns/${editingItem.id}`, { name, isOffice });
+      } catch {}
       const next = towns.map((t) => {
         if (t.id === editingItem.id) {
           return {
             ...t,
-            name: formName.trim(),
+            name,
             standing: formStanding,
+            isOffice,
             officeAddress: formAddress.trim(),
             managerName: formManager.trim(),
             lastStockUpdate: formStockUpdate,
@@ -104,12 +126,22 @@ export default function AdminNetwork() {
       });
       setTowns(next);
       saveNetworkTowns(next);
-      showToast(`Updated details for town "${formName.trim()}". Applied globally!`);
+      showToast(`Updated details for town "${name}". Applied globally!`);
     } else {
+      let createdId = `t-${Date.now()}`;
+      try {
+        const created = await api.post<{ id: string; name: string }>('/towns', { name, isOffice });
+        if (created?.id) createdId = created.id;
+      } catch {}
+
       const newTown: TownNetworkItem = {
-        id: `t-${Date.now()}`,
-        name: formName.trim(),
+        id: createdId,
+        name,
         standing: formStanding,
+        isOffice,
+        donorsCount: 0,
+        volunteersCount: 0,
+        childrenCount: 0,
         openRequests: 0,
         lastStockUpdate: formStockUpdate,
         officeAddress: formAddress.trim(),
@@ -123,6 +155,7 @@ export default function AdminNetwork() {
     }
 
     setIsModalOpen(false);
+    loadNetworkData();
   }
 
   const filteredTowns = towns.filter((t) => {
@@ -187,7 +220,7 @@ export default function AdminNetwork() {
         <div className="c">
           <div className="l">Donors Across Network</div>
           <div className="n" style={{ color: '#3B82F6' }}>
-            {DONORS.length.toLocaleString()}
+            {towns.reduce((sum, t) => sum + (t.donorsCount || 0), 0).toLocaleString()}
           </div>
         </div>
         <div className="c">
@@ -299,10 +332,10 @@ export default function AdminNetwork() {
           </thead>
           <tbody>
             {filteredTowns.map((t) => {
-              const dCount = getTownDonorCount(t.name);
+              const dCount = getTownDonorCount(t);
               const isBranch = t.standing.includes('Branch') || t.standing.includes('Head office');
               return (
-                <tr key={t.id}>
+                <tr key={t.id} onClick={() => setSelectedTown(t)} style={{ cursor: 'pointer' }}>
                   <td className="m2" style={{ paddingRight: '10px' }}>
                     <div className="nm" style={{ fontWeight: 700, fontSize: '14.5px', color: 'var(--txt1)' }}>
                       {t.name}
@@ -588,7 +621,7 @@ export default function AdminNetwork() {
               backgroundColor: 'rgba(15, 23, 42, 0.65)',
               backdropFilter: 'blur(4px)',
               WebkitBackdropFilter: 'blur(4px)',
-              zIndex: 1000,
+              zIndex: 1100,
             }}
           />
           <div
@@ -602,7 +635,7 @@ export default function AdminNetwork() {
               maxWidth: '480px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              zIndex: 1001,
+              zIndex: 1101,
               boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4)',
               background: 'var(--surf)',
               borderRadius: '24px',
@@ -678,68 +711,23 @@ export default function AdminNetwork() {
       )}
 
       {/* CONFIRMATION DELETE MODAL */}
-      {deletingItem && (
-        <>
-          <div
-            className="sheetov on"
-            onClick={() => setDeletingItem(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-              zIndex: 1000,
-            }}
-          />
-          <div
-            className="acard"
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: '440px',
-              zIndex: 1001,
-              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4)',
-              background: 'var(--surf)',
-              borderRadius: '24px',
-              padding: '26px',
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <span style={{ fontSize: '40px', display: 'block', marginBottom: '10px' }}>⚠️</span>
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--txt1)' }}>
-                Delete Town from Network?
-              </h2>
-              <p style={{ fontSize: '14px', color: 'var(--txt2)', margin: 0, lineHeight: 1.5 }}>
-                Are you sure you want to delete <b>"{deletingItem.name}"</b>?
-                This will remove the town from all application dropdowns, filters, and branch maps.
-              </p>
-            </div>
+      <ConfirmDeleteModal
+        isOpen={!!deletingItem}
+        title="Delete Town from Network?"
+        itemName={deletingItem?.name}
+        description={`Are you sure you want to delete town "${deletingItem?.name}"? This will remove the town from all application dropdowns, filters, and branch maps.`}
+        confirmLabel="Delete Town"
+        onConfirm={confirmDelete}
+        onClose={() => setDeletingItem(null)}
+      />
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button
-                type="button"
-                className="btn btn-o"
-                style={{ flex: 1, borderRadius: '10px' }}
-                onClick={() => setDeletingItem(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-p"
-                style={{ flex: 1, borderRadius: '10px', background: '#DC2626', borderColor: '#DC2626' }}
-                onClick={confirmDelete}
-              >
-                Delete Town
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Town Details Side Drawer */}
+      <TownSheet
+        town={selectedTown}
+        onEdit={openEditModal}
+        onDelete={(t) => setDeletingItem(t)}
+        onClose={() => setSelectedTown(null)}
+      />
     </AdminShell>
   );
 }

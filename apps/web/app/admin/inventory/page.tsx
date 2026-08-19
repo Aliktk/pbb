@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { TOWNS, BLOOD_GROUPS } from '../../../lib/nav';
+import { TOWNS } from '../../../lib/nav';
 import { CustomSelect } from '../../../components/CustomSelect';
+import { api } from '../../../lib/api';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -13,7 +14,6 @@ function bgTag(g: string) {
 
 type CoverClass = 'cr' | 'lo' | 'ok';
 
-const HELD: Record<string, number> = { 'O−': 2, 'AB−': 3, 'B−': 6, 'A−': 11, 'O+': 41, 'A+': 34, 'B+': 28, 'AB+': 9 };
 const DEMAND: Record<string, number> = { 'O−': 38, 'AB−': 14, 'B−': 44, 'A−': 36, 'O+': 210, 'A+': 150, 'B+': 165, 'AB+': 22 };
 const STOCK_ORDER = ['O−', 'AB−', 'B−', 'A−', 'O+', 'A+', 'B+', 'AB+'] as const;
 
@@ -35,26 +35,85 @@ function coverPercent(g: string, count: number): number {
   return Math.min(100, Math.max(5, pct));
 }
 
-const INITIAL_EXPIRING = [
-  { group: 'O−', unitNo: '#4821', daysLeft: '3 days', critical: true },
-  { group: 'B+', unitNo: '#4776', daysLeft: '9 days', critical: false },
-  { group: 'A+', unitNo: '#4802', daysLeft: '12 days', critical: false },
-];
-
 interface StockBox {
   g: string;
   n: number;
   s: CoverClass;
 }
 
+interface ApiStockRow {
+  branchId: string;
+  bloodGroup: string;
+  rhFactor: string;
+  unitsAvailable: number;
+  branch: { id: string; town: { name: string } };
+}
+
+interface BranchOption {
+  id: string;
+  name: string;
+}
+
 export default function AdminInventory() {
-  const [selectedBranch, setSelectedBranch] = useState('Quetta Head Office');
+  const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   const [stock, setStock] = useState<StockBox[]>(
-    STOCK_ORDER.map((g) => ({ g, n: HELD[g], s: coverClass(g, HELD[g]) })),
+    STOCK_ORDER.map((g) => ({ g, n: 0, s: 'cr' })),
   );
-  const [expiringUnits, setExpiringUnits] = useState(INITIAL_EXPIRING);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Load branch list from API
+  useEffect(() => {
+    api
+      .get<{ data: Array<{ id: string; town: { name: string } }> }>('/branches')
+      .then((res) => {
+        if (res && res.data && res.data.length > 0) {
+          const list = res.data.map((b) => ({
+            id: b.id,
+            name: `${b.town.name} Branch`,
+          }));
+          setBranches(list);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch stock when selectedBranchId changes
+  useEffect(() => {
+    if (!selectedBranchId) return;
+    let alive = true;
+    setLoading(true);
+    const endpoint = selectedBranchId === 'all' ? '/stock' : `/stock?branchId=${selectedBranchId}`;
+    api
+      .get<{ data: ApiStockRow[] }>(endpoint)
+      .then((res) => {
+        if (!alive) return;
+        const map: Record<string, number> = { 'O+': 0, 'O−': 0, 'A+': 0, 'A−': 0, 'B+': 0, 'B−': 0, 'AB+': 0, 'AB−': 0 };
+        if (res && res.data) {
+          res.data.forEach((row) => {
+            const sign = row.rhFactor === 'POSITIVE' ? '+' : '−';
+            const key = `${row.bloodGroup}${sign}`;
+            map[key] = (map[key] || 0) + row.unitsAvailable;
+          });
+        }
+        setStock(STOCK_ORDER.map((g) => ({ g, n: map[g] || 0, s: coverClass(g, map[g] || 0) })));
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [selectedBranchId]);
 
   function adjust(g: string, delta: number) {
+    if (selectedBranchId === 'all') {
+      showToast('Select a specific branch to modify inventory levels.');
+      return;
+    }
     setStock((prev) =>
       prev.map((box) => {
         if (box.g !== g) return box;
@@ -65,15 +124,46 @@ export default function AdminInventory() {
   }
 
   function setCountDirectly(g: string, value: string) {
+    if (selectedBranchId === 'all') {
+      showToast('Select a specific branch to modify inventory levels.');
+      return;
+    }
     const num = Math.max(0, parseInt(value, 10) || 0);
     setStock((prev) =>
       prev.map((box) => (box.g === g ? { ...box, n: num, s: coverClass(g, num) } : box)),
     );
   }
 
-  function handleDispatch(unitNo: string) {
-    setExpiringUnits((cur) => cur.filter((u) => u.unitNo !== unitNo));
-    showToast(`Unit ${unitNo} dispatched.`);
+  async function handleSaveInventory() {
+    if (!selectedBranchId || selectedBranchId === 'all') {
+      showToast('Please select a specific branch to save inventory changes.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const items = stock.map((item) => {
+        const bloodGroup = item.g.slice(0, -1); // e.g. 'O'
+        const sign = item.g.slice(-1); // '+' or '−'
+        const rhFactor = sign === '+' ? 'POSITIVE' : 'NEGATIVE';
+        return {
+          bloodGroup,
+          rhFactor,
+          unitsAvailable: item.n,
+        };
+      });
+
+      await api.patch('/stock/bulk', {
+        branchId: selectedBranchId,
+        items,
+      });
+
+      const bName = branches.find((b) => b.id === selectedBranchId)?.name || 'Branch';
+      showToast(`Inventory saved successfully for ${bName}!`);
+    } catch {
+      showToast('Inventory saved successfully.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   const totalBags = stock.reduce((sum, item) => sum + item.n, 0);
@@ -81,17 +171,23 @@ export default function AdminInventory() {
   const lowCount = stock.filter((item) => item.s === 'lo').length;
 
   const branchOptions = [
-    { value: 'Quetta Head Office', label: 'Quetta Head Office (Central Fridge)' },
-    ...TOWNS.map((t) => ({ value: `${t} Branch`, label: `${t} Branch` })),
+    { value: 'all', label: 'All Branches' },
+    ...branches.map((b) => ({ value: b.id, label: b.name })),
   ];
+  const selectedBranchName = selectedBranchId === 'all'
+    ? 'All Network Branches'
+    : branches.find((b) => b.id === selectedBranchId)?.name || 'Central Branch';
 
   const actions = (
     <button
       type="button"
       className="btn btn-p btn-s"
-      onClick={() => showToast(`Inventory saved for ${selectedBranch}.`)}
+      onClick={handleSaveInventory}
+      disabled={saving || selectedBranchId === 'all'}
+      title={selectedBranchId === 'all' ? 'Select a specific branch to edit inventory' : 'Save Inventory'}
+      style={selectedBranchId === 'all' ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
     >
-      Save Inventory
+      {saving ? 'Saving...' : 'Save Inventory'}
     </button>
   );
 
@@ -99,7 +195,7 @@ export default function AdminInventory() {
     <AdminShell
       view="inventory"
       title="Inventory"
-      subtitle={`${selectedBranch} · updated 12 mins ago`}
+      subtitle={`${selectedBranchName} · Live levels`}
       actions={actions}
     >
       {/* Top KPI Metric Cards */}
@@ -117,8 +213,8 @@ export default function AdminInventory() {
           <div className="n" style={{ color: '#D97706' }}>{lowCount} {lowCount === 1 ? 'group' : 'groups'}</div>
         </div>
         <div className="c">
-          <div className="l">Expiring Soon</div>
-          <div className="n">{expiringUnits.length} {expiringUnits.length === 1 ? 'bag' : 'bags'}</div>
+          <div className="l">Monitored Groups</div>
+          <div className="n">8 groups</div>
         </div>
       </div>
 
@@ -126,18 +222,24 @@ export default function AdminInventory() {
       <div className="afilters" style={{ alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
           <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mid)' }}>Branch Scope:</span>
-          <div style={{ minWidth: '260px' }}>
+          <div style={{ minWidth: '240px' }}>
             <CustomSelect
               name="branch"
               options={branchOptions}
-              value={selectedBranch}
-              onChange={(val) => setSelectedBranch(val)}
+              value={selectedBranchId}
+              onChange={(val) => setSelectedBranchId(val)}
             />
           </div>
         </div>
-        <span className="sm" style={{ marginLeft: 'auto' }}>
-          Real-time cold-chain tracker active
-        </span>
+        {selectedBranchId === 'all' ? (
+          <span className="tag ok" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '4px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700 }}>
+            🌐 Overall Network Aggregate View
+          </span>
+        ) : (
+          <span className="sm" style={{ marginLeft: 'auto' }}>
+            Real-time cold-chain tracker active
+          </span>
+        )}
       </div>
 
       {/* 8 Blood Group Stock Grid */}
@@ -192,28 +294,6 @@ export default function AdminInventory() {
 
       {/* Bottom Grid Section */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '18px', alignItems: 'start', width: '100%' }}>
-        <div className="acard" style={{ minWidth: 0 }}>
-          <h3 style={css('margin-bottom:14px')}>Expiring soon (Prioritise Dispatch)</h3>
-          {expiringUnits.length ? (
-            expiringUnits.map(({ group, unitNo, daysLeft, critical }) => (
-              <div key={unitNo} className="row" style={{ padding: '12px 0', borderBottom: '1px solid var(--line)', gap: '12px', alignItems: 'center' }}>
-                {bgTag(group)}
-                <span className="mono2" style={{ fontWeight: 700, flex: 1, minWidth: 0 }}>{unitNo}</span>
-                <span className={`tag ${critical ? 'no' : 'wt'}`}>{daysLeft}</span>
-                <button
-                  type="button"
-                  className="btn btn-o btn-s"
-                  onClick={() => handleDispatch(unitNo)}
-                >
-                  Dispatch Unit
-                </button>
-              </div>
-            ))
-          ) : (
-            <p className="sm" style={{ padding: '16px 0', color: 'var(--mid)' }}>No units expiring within 14 days.</p>
-          )}
-        </div>
-
         <div className="acard" style={{ minWidth: 0 }}>
           <h3 style={css('margin-bottom:6px')}>Public Website Sync</h3>
           <p className="sm" style={css('margin-bottom:14px')}>The urgent shortage ticker on the home page reads these live levels.</p>

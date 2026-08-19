@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ADMIN_GROUPS, ADMIN_MOBNAV } from '../../lib/admin';
+import { ADMIN_GROUPS, ADMIN_MOBNAV, isViewAllowedForRole } from '../../lib/admin';
 import { useAuth } from '../../lib/auth';
 import { api } from '../../lib/api';
 import type { Paged, AdminRequestRow } from '../../lib/apiTypes';
 import { Icon } from '../Icon';
 
 import { LogoutConfirmModal } from './LogoutConfirmModal';
+
+import { syncTownsFromApi } from '../../lib/towns';
 
 interface AdminShellProps {
   view: string;
@@ -21,6 +23,8 @@ interface AdminShellProps {
 
 export function AdminShell({ view, title, subtitle, actions, children }: AdminShellProps) {
   const { user, logout } = useAuth();
+  const userRole = user?.role?.name || 'Executive Committee';
+  const isAllowed = isViewAllowedForRole(userRole, view, undefined, user?.permissions);
   const router = useRouter();
   const asideRef = useRef<HTMLElement>(null);
   const [openRequests, setOpenRequests] = useState<number | null>(null);
@@ -36,9 +40,10 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
     return false;
   });
 
-  // Apply body.adminmode class on mount
+  // Apply body.adminmode class on mount & sync live towns
   useEffect(() => {
     document.body.classList.add('adminmode');
+    syncTownsFromApi();
     return () => document.body.classList.remove('adminmode');
   }, []);
 
@@ -130,26 +135,30 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
             </button>
           </div>
 
-          {ADMIN_GROUPS.map(([group, items]) => (
-            <div key={group}>
-              <div className="agp">{group}</div>
-              {items.map(([v, label]) => (
-                <Link
-                  key={v}
-                  href={`/admin/${v}`}
-                  className={`anav${v === view ? ' on' : ''}`}
-                  title={label}
-                >
-                  <Icon name={v} size={collapsed ? 21 : 18} />
-                  <span className="nav-label">{label}</span>
-                  {v === 'requests' && openRequests !== null ? <span className="ct">{openRequests}</span> : null}
-                </Link>
-              ))}
-            </div>
-          ))}
+          {ADMIN_GROUPS.map(([group, items]) => {
+            const visibleItems = items.filter(([v]) => isViewAllowedForRole(userRole, v, undefined, user?.permissions));
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={group}>
+                <div className="agp">{group}</div>
+                {visibleItems.map(([v, label]) => (
+                  <Link
+                    key={v}
+                    href={`/admin/${v}`}
+                    className={`anav${v === view ? ' on' : ''}`}
+                    title={label}
+                  >
+                    <Icon name={v} size={collapsed ? 21 : 18} />
+                    <span className="nav-label">{label}</span>
+                    {v === 'requests' && openRequests !== null ? <span className="ct">{openRequests}</span> : null}
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
           <div className="awho">
             <div className="awho-info">
-              Signed in as<b>{user?.name ?? 'Loading'}</b>{user?.role.name ?? ''}
+              Signed in as<b>{user?.name ?? 'Loading'}</b>{user?.role?.name ?? ''}
             </div>
             <button
               type="button"
@@ -174,7 +183,24 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
               <Link href="/" className="btn btn-o btn-s">Back to website</Link>
             </div>
           </div>
-          <div className="acont">{children}</div>
+          <div className="acont">
+            {!isAllowed ? (
+              <div className="acard" style={{ padding: '60px 30px', textAlign: 'center', borderRadius: '24px' }}>
+                <span style={{ fontSize: '48px', display: 'block', marginBottom: '14px' }}>⛔</span>
+                <h2 style={{ fontSize: '22px', fontWeight: 900, color: 'var(--txt1)', margin: '0 0 8px 0' }}>
+                  Unauthorized Role Access
+                </h2>
+                <p style={{ fontSize: '14px', color: 'var(--txt2)', maxWidth: '520px', margin: '0 auto 20px auto', lineHeight: 1.6 }}>
+                  Your current assigned role <b>"{userRole}"</b> does not have permission to view or manage the <b>"{title}"</b> module. Contact your system administrator to update role access.
+                </p>
+                <Link href="/admin/overview" className="btn btn-p" style={{ borderRadius: '12px', padding: '10px 20px', display: 'inline-block' }}>
+                  Return to Overview Dashboard
+                </Link>
+              </div>
+            ) : (
+              children
+            )}
+          </div>
         </div>
       </div>
 

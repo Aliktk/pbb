@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { DONATIONS_TODAY } from '../../../lib/adminData';
 import { CustomSelect } from '../../../components/CustomSelect';
+import { api } from '../../../lib/api';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -16,6 +16,14 @@ export interface YearRecord {
   bags: number | null;
   ccs?: number;
   platelets?: number;
+}
+
+interface ApiDonationRow {
+  id: string;
+  donatedAt: string;
+  quantityMl: number;
+  donor: { name: string; bloodGroup: string; rhFactor: string; town?: { name: string } };
+  branch: { town: { name: string } };
 }
 
 const INITIAL_YEARLY: YearRecord[] = [
@@ -35,11 +43,22 @@ const PEAK_BAGS = 9484;
 
 export default function AdminLedger() {
   const [yearlyData, setYearlyData] = useState<YearRecord[]>(INITIAL_YEARLY);
+  const [donations, setDonations] = useState<ApiDonationRow[]>([]);
   const [inputYear, setInputYear] = useState('2013');
   const [bagsInput, setBagsInput] = useState('');
   const [ccsInput, setCcsInput] = useState('');
   const [plateletsInput, setPlateletsInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    api.get<{ data: ApiDonationRow[] }>('/donations')
+      .then((res) => {
+        if (alive && res.data) setDonations(res.data);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const recordedYears = yearlyData.filter((y) => y.bags !== null);
   const totalHistoricalBags = recordedYears.reduce((sum, y) => sum + (y.bags || 0), 0);
@@ -217,21 +236,27 @@ export default function AdminLedger() {
             </tr>
           </thead>
           <tbody>
-            {DONATIONS_TODAY.length ? (
-              DONATIONS_TODAY.map(([date, name, g, bags, town]) => (
-                <tr key={`${date}-${name}`}>
-                  <td className="m1 sm">{date}</td>
-                  <td className="m2" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <div className="nm">{name}</div>
-                    <div className="sm">{town}</div>
-                  </td>
-                  <td>{bgTag(g)}</td>
-                  <td className="m3" style={{ fontWeight: 600 }}>{bags} {bags === 1 ? 'bag' : 'bags'}</td>
-                  <td style={{ textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{town}</td>
-                </tr>
-              ))
+            {donations.length ? (
+              donations.map((d) => {
+                const sign = d.donor.rhFactor === 'POSITIVE' ? '+' : '−';
+                const bg = `${d.donor.bloodGroup}${sign}`;
+                const dateStr = new Date(d.donatedAt).toISOString().split('T')[0];
+                const townName = d.branch?.town?.name || d.donor?.town?.name || 'Quetta';
+                return (
+                  <tr key={d.id}>
+                    <td className="m1 sm">{dateStr}</td>
+                    <td className="m2" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div className="nm">{d.donor.name}</div>
+                      <div className="sm">{townName}</div>
+                    </td>
+                    <td>{bgTag(bg)}</td>
+                    <td className="m3" style={{ fontWeight: 600 }}>{d.quantityMl} ml</td>
+                    <td style={{ textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{townName}</td>
+                  </tr>
+                );
+              })
             ) : (
-              <tr><td colSpan={5} className="aempty">No donations recorded today.</td></tr>
+              <tr><td colSpan={5} className="aempty">No recent donations logged in database.</td></tr>
             )}
           </tbody>
         </table>
