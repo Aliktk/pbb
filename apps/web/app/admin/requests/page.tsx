@@ -30,8 +30,6 @@ export default function AdminRequests() {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<AdminRequestRow | null>(null);
   const [donorCount, setDonorCount] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'ARRANGED' | 'CRITICAL'>('ALL');
-  const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,38 +51,22 @@ export default function AdminRequests() {
   const openCount = rows.filter((r) => r.status === 'OPEN').length;
   const arrangedCount = rows.filter((r) => r.status === 'ARRANGED').length;
 
-  async function changeStatus(row: AdminRequestRow, newStatus: 'ARRANGED' | 'OPEN' | 'FULFILLED') {
+  async function markArranged(row: AdminRequestRow) {
     try {
-      const updated = await api.patch<AdminRequestRow>(`/requests/${row.id}/status`, { status: newStatus });
+      const updated = await updateRequestStatus(row.id, 'ARRANGED');
       setRows((cur) => cur.map((r) => (r.id === updated.id ? updated : r)));
       setOpen(updated);
-      showToast(`Request marked as ${newStatus.toLowerCase()}.`);
+      showToast('Marked as arranged.');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Could not update the request.');
     }
   }
 
-  const filteredRows = rows.filter((r) => {
-    if (statusFilter === 'OPEN' && r.status !== 'OPEN') return false;
-    if (statusFilter === 'ARRANGED' && r.status !== 'ARRANGED') return false;
-    if (statusFilter === 'CRITICAL' && r.urgency !== 'CRITICAL') return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      return (
-        r.reference.toLowerCase().includes(q) ||
-        r.hospital.toLowerCase().includes(q) ||
-        r.town.toLowerCase().includes(q) ||
-        (r.patientName && r.patientName.toLowerCase().includes(q)) ||
-        (r.requesterName && r.requesterName.toLowerCase().includes(q))
-      );
-    }
-    return true;
-  });
-
   const actions = (
-    <button type="button" className="btn btn-o btn-s" onClick={load} disabled={loading}>
-      {loading ? 'Refreshing...' : 'Refresh'}
-    </button>
+    <>
+      <span style={css('margin-left:auto')} />
+      <button type="button" className="btn btn-o btn-s" onClick={load}>Refresh</button>
+    </>
   );
 
   return (
@@ -96,47 +78,6 @@ export default function AdminRequests() {
         <div className="c"><div className="l">Donors on register</div><div className="n">{donorCount ?? '-'}</div></div>
       </div>
 
-      <div className="afilters">
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button
-            type="button"
-            className={`btn btn-s ${statusFilter === 'ALL' ? 'btn-p' : 'btn-o'}`}
-            onClick={() => setStatusFilter('ALL')}
-          >
-            All ({rows.length})
-          </button>
-          <button
-            type="button"
-            className={`btn btn-s ${statusFilter === 'OPEN' ? 'btn-p' : 'btn-o'}`}
-            onClick={() => setStatusFilter('OPEN')}
-          >
-            Open ({openCount})
-          </button>
-          <button
-            type="button"
-            className={`btn btn-s ${statusFilter === 'ARRANGED' ? 'btn-p' : 'btn-o'}`}
-            onClick={() => setStatusFilter('ARRANGED')}
-          >
-            Arranged ({arrangedCount})
-          </button>
-          <button
-            type="button"
-            className={`btn btn-s ${statusFilter === 'CRITICAL' ? 'btn-p' : 'btn-o'}`}
-            onClick={() => setStatusFilter('CRITICAL')}
-          >
-            Critical
-          </button>
-        </div>
-        <input
-          type="text"
-          className="fld"
-          style={{ maxWidth: '260px', marginLeft: 'auto', padding: '6px 12px', fontSize: '13.5px' }}
-          placeholder="Search requests..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
       {error ? (
         <div className="acard aempty">
           <h3>Could not load requests</h3>
@@ -144,14 +85,14 @@ export default function AdminRequests() {
           <button type="button" className="btn btn-o" style={css('margin-top:14px')} onClick={load}>Try again</button>
         </div>
       ) : loading ? (
-        <div className="acard aempty"><h3>Loading requests...</h3></div>
+        <div className="acard aempty"><h3>Loading requests</h3></div>
       ) : (
         <div className="atbl">
           <table>
             <thead><tr><th>Patient / hospital</th><th>Group</th><th>Units</th><th>Town</th><th>Asked</th><th>Status</th></tr></thead>
             <tbody>
-              {filteredRows.length ? (
-                filteredRows.map((r) => (
+              {rows.length ? (
+                rows.map((r) => (
                   <tr key={r.id} onClick={() => setOpen(r)}>
                     <td className="m2"><div className="nm">{r.hospital}</div><div className="sm">{r.patientName || 'Patient name not given'} · {r.reference}{r.source === 'PUBLIC_FORM' ? ' · from the website' : ''}</div></td>
                     <td className="m1">{bgTag(r.group)}</td>
@@ -162,7 +103,7 @@ export default function AdminRequests() {
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={6} className="aempty">No matching requests found. <b>Submit one on the website or clear filters.</b></td></tr>
+                <tr><td colSpan={6} className="aempty">No requests yet. <b>Submit one on the website and refresh.</b></td></tr>
               )}
             </tbody>
           </table>
@@ -173,7 +114,7 @@ export default function AdminRequests() {
         A list, not a board. Requests submitted on the public website land here the moment they arrive.
       </p>
 
-      <RequestSheet request={open} onClose={() => setOpen(null)} onStatusChange={changeStatus} />
+      <RequestSheet request={open} onClose={() => setOpen(null)} onArrange={markArranged} />
     </AdminShell>
   );
 }
@@ -181,11 +122,11 @@ export default function AdminRequests() {
 function RequestSheet({
   request: r,
   onClose,
-  onStatusChange,
+  onArrange,
 }: {
   request: AdminRequestRow | null;
   onClose: () => void;
-  onStatusChange: (r: AdminRequestRow, status: 'ARRANGED' | 'OPEN' | 'FULFILLED') => void;
+  onArrange: (r: AdminRequestRow) => void;
 }) {
   const isOpen = r !== null;
   return (
@@ -194,24 +135,11 @@ function RequestSheet({
       <div className={`sheet${isOpen ? ' open' : ''}`}>
         {r && (
           <>
-            <div className="sheet-header">
-              <div className="sheet-top-row">
-                <span className={`tag ${r.status === 'OPEN' ? 'no' : r.status === 'ARRANGED' ? 'ok' : 'gy'}`}>
-                  {r.status === 'OPEN' ? 'Open' : r.status === 'ARRANGED' ? 'Arranged' : r.status}
-                </span>
-                <button className="cl" onClick={onClose} aria-label="Close detail panel">✕</button>
-              </div>
-              <div className="sheet-headline">
-                <h2>
-                  {bgTag(r.group)} <span style={{ marginLeft: '6px', fontSize: '20px', fontWeight: 700, color: 'var(--ink)' }}>{r.unitsNeeded} {r.unitsNeeded === 1 ? 'unit' : 'units'}</span>
-                </h2>
-              </div>
-              <div className="sheet-meta">
-                {r.reference} · asked {agoLabel(r.createdAt)}{r.source === 'PUBLIC_FORM' ? ' · from the website' : ''}
-              </div>
-            </div>
-
-            <div style={css('margin:18px 0')}>
+            <button className="cl" onClick={onClose}>✕</button>
+            <span className={`tag ${r.status === 'OPEN' ? 'no' : 'ok'}`}>{r.status === 'OPEN' ? 'Open' : r.status === 'ARRANGED' ? 'Arranged' : r.status}</span>
+            <h2 style={css('margin:12px 0 4px')}>{bgTag(r.group)} <span style={css('margin-left:8px')}>{r.unitsNeeded} {r.unitsNeeded === 1 ? 'unit' : 'units'}</span></h2>
+            <div className="mono2" style={css('color:var(--mid)')}>{r.reference} · asked {agoLabel(r.createdAt)}{r.source === 'PUBLIC_FORM' ? ' · from the website' : ''}</div>
+            <div style={css('margin:22px 0')}>
               <div className="drow"><span>Patient</span><b>{r.patientName || 'Not given'}</b></div>
               <div className="drow"><span>Hospital</span><b>{r.hospital}</b></div>
               <div className="drow"><span>Town</span><b>{r.town}</b></div>
@@ -221,29 +149,11 @@ function RequestSheet({
               <div className="drow"><span>Phone</span><b>{r.requesterPhone}</b></div>
               {r.caseNotes ? <div className="drow"><span>Notes</span><b>{r.caseNotes}</b></div> : null}
             </div>
-
             <div className="row" style={css('gap:9px')}>
               <a className="btn btn-p" style={css('flex:1')} href={`tel:${r.requesterPhone.replace(/ /g, '')}`}>Call {r.requesterName || 'requester'}</a>
               <a className="btn btn-o" href="/admin/find">Find a donor</a>
             </div>
-
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {r.status === 'OPEN' && (
-                <button type="button" className="btn btn-d" style={{ width: '100%' }} onClick={() => onStatusChange(r, 'ARRANGED')}>
-                  Mark arranged
-                </button>
-              )}
-              {r.status === 'ARRANGED' && (
-                <>
-                  <button type="button" className="btn btn-p" style={{ width: '100%', background: '#16a34a', borderColor: '#16a34a' }} onClick={() => onStatusChange(r, 'FULFILLED')}>
-                    Mark fulfilled
-                  </button>
-                  <button type="button" className="btn btn-o" style={{ width: '100%' }} onClick={() => onStatusChange(r, 'OPEN')}>
-                    Re-open request
-                  </button>
-                </>
-              )}
-            </div>
+            {r.status === 'OPEN' && <button type="button" className="btn btn-d" style={css('width:100%;margin-top:12px')} onClick={() => onArrange(r)}>Mark arranged</button>}
           </>
         )}
       </div>
