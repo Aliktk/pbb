@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '../../lib/api';
+import { fetchDonors } from '../../lib/donors';
 import type { TownNetworkItem } from '../../lib/towns';
-import type { DonorRow, AdminRequestRow } from '../../lib/apiTypes';
+import type { DonorRow } from '../../lib/apiTypes';
 
 interface TownSheetProps {
   town: TownNetworkItem | null;
@@ -12,38 +12,40 @@ interface TownSheetProps {
   onClose: () => void;
 }
 
+// Town inspector drawer. Donors are read live from Supabase (lib/donors, RLS-scoped) when the
+// Donors tab is opened. Blood requests are not yet wired to a Supabase reader here, so that tab
+// shows a clear placeholder instead of a fabricated list. Overview counts show only what is known.
 export function TownSheet({ town: t, onEdit, onDelete, onClose }: TownSheetProps) {
   const isOpen = t !== null;
   const [activeTab, setActiveTab] = useState<'overview' | 'donors' | 'requests'>('overview');
   const [townDonors, setTownDonors] = useState<DonorRow[]>([]);
-  const [townRequests, setTownRequests] = useState<AdminRequestRow[]>([]);
   const [loadingDonors, setLoadingDonors] = useState<boolean>(false);
-  const [loadingRequests, setLoadingRequests] = useState<boolean>(false);
+  const [donorsError, setDonorsError] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab('overview');
     setTownDonors([]);
-    setTownRequests([]);
+    setDonorsError(null);
   }, [t?.id]);
 
   useEffect(() => {
-    if (!t || !isOpen) return;
-
-    if (activeTab === 'donors') {
-      setLoadingDonors(true);
-      api
-        .get<{ data: DonorRow[] }>(`/donors?townId=${t.id}&pageSize=50`)
-        .then((res) => setTownDonors(res.data || []))
-        .catch(() => setTownDonors([]))
-        .finally(() => setLoadingDonors(false));
-    } else if (activeTab === 'requests') {
-      setLoadingRequests(true);
-      api
-        .get<{ data: AdminRequestRow[] }>(`/requests?townId=${t.id}&pageSize=50`)
-        .then((res) => setTownRequests(res.data || []))
-        .catch(() => setTownRequests([]))
-        .finally(() => setLoadingRequests(false));
-    }
+    if (!t || !isOpen || activeTab !== 'donors') return;
+    let alive = true;
+    setLoadingDonors(true);
+    setDonorsError(null);
+    fetchDonors({ townId: t.id })
+      .then((rows) => {
+        if (alive) setTownDonors(rows);
+      })
+      .catch((err) => {
+        if (alive) setDonorsError(err instanceof Error ? err.message : 'Could not load donors.');
+      })
+      .finally(() => {
+        if (alive) setLoadingDonors(false);
+      });
+    return () => {
+      alive = false;
+    };
   }, [activeTab, t, isOpen]);
 
   if (!isOpen || !t) return null;
@@ -195,19 +197,21 @@ export function TownSheet({ town: t, onEdit, onDelete, onClose }: TownSheetProps
         >
           <div style={{ background: '#fff', padding: '10px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Donors</div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', marginTop: '2px' }}>{t.donorsCount ?? 0}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#3b82f6', marginTop: '2px' }}>
+              {activeTab === 'donors' && !loadingDonors ? townDonors.length : '—'}
+            </div>
+          </div>
+          <div style={{ background: '#fff', padding: '10px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Standing</div>
+            <div style={{ fontSize: '13px', fontWeight: 800, color: '#22c55e', marginTop: '4px' }}>{isBranch ? 'Office' : 'Served'}</div>
           </div>
           <div style={{ background: '#fff', padding: '10px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Volunteers</div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#22c55e', marginTop: '2px' }}>{t.volunteersCount ?? 0}</div>
-          </div>
-          <div style={{ background: '#fff', padding: '10px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Children</div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: '#a855f7', marginTop: '2px' }}>{t.childrenCount ?? 0}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#a855f7', marginTop: '2px' }}>—</div>
           </div>
           <div style={{ background: '#fff', padding: '10px 8px', borderRadius: '12px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>Requests</div>
-            <div style={{ fontSize: '16px', fontWeight: 800, color: t.openRequests > 0 ? '#ef4444' : '#64748b', marginTop: '2px' }}>{t.openRequests}</div>
+            <div style={{ fontSize: '16px', fontWeight: 800, color: '#64748b', marginTop: '2px' }}>—</div>
           </div>
         </div>
 
@@ -259,7 +263,7 @@ export function TownSheet({ town: t, onEdit, onDelete, onClose }: TownSheetProps
               borderBottom: activeTab === 'requests' ? '2px solid var(--p, #e02b20)' : '2px solid transparent',
             }}
           >
-            Blood Requests ({t.openRequests})
+            Blood Requests
           </button>
         </div>
 
@@ -270,12 +274,7 @@ export function TownSheet({ town: t, onEdit, onDelete, onClose }: TownSheetProps
               <div className="drow"><span>Town Name</span><b>{t.name}</b></div>
               <div className="drow"><span>Network Standing</span><b>{t.standing}</b></div>
               <div className="drow"><span>Office Address</span><b>{t.officeAddress || (isBranch ? 'Permanent Branch Office' : 'Served Location')}</b></div>
-              <div className="drow"><span>Area Manager / Desk</span><b>{t.managerName || 'Regional Staff Officer'}</b></div>
-              <div className="drow"><span>Stock Audit Update</span><b>{t.lastStockUpdate || 'today'}</b></div>
-              <div className="drow"><span>Active Registered Donors</span><b>{t.donorsCount ?? 0} donors</b></div>
-              <div className="drow"><span>Volunteers Team</span><b>{t.volunteersCount ?? 0} active</b></div>
-              <div className="drow"><span>Thalassemia Patients</span><b>{t.childrenCount ?? 0} registered children</b></div>
-              <div className="drow"><span>Current Urgent Requests</span><b>{t.openRequests} open requests</b></div>
+              <div className="drow"><span>Registered Donors</span><b>{isBranch ? 'Open the Donors tab' : 'See the Donors tab'}</b></div>
             </div>
           )}
 
@@ -283,6 +282,10 @@ export function TownSheet({ town: t, onEdit, onDelete, onClose }: TownSheetProps
             <div>
               {loadingDonors ? (
                 <div style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading donors in {t.name}...</div>
+              ) : donorsError ? (
+                <div style={{ textAlign: 'center', padding: '30px 16px', color: '#ef4444', fontSize: '13.5px', fontWeight: 600 }}>
+                  {donorsError}
+                </div>
               ) : townDonors.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {townDonors.map((d) => (
@@ -317,39 +320,9 @@ export function TownSheet({ town: t, onEdit, onDelete, onClose }: TownSheetProps
           )}
 
           {activeTab === 'requests' && (
-            <div>
-              {loadingRequests ? (
-                <div style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>Loading blood requests in {t.name}...</div>
-              ) : townRequests.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {townRequests.map((r) => (
-                    <div
-                      key={r.id}
-                      style={{
-                        padding: '12px 14px',
-                        borderRadius: '12px',
-                        border: '1px solid #e2e8f0',
-                        background: '#fff',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--p)' }}>{r.reference}</span>
-                        <span className="tag r" style={{ fontSize: '11px', fontWeight: 700 }}>{r.urgency}</span>
-                      </div>
-                      <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--txt1)', marginTop: '4px' }}>
-                        {r.hospital}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>
-                        {r.unitsNeeded} units {r.group} · {r.patientName ? `Patient: ${r.patientName}` : 'Public Request'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '30px 16px', color: '#64748b', fontSize: '13.5px' }}>
-                  No active open blood requests currently logged for <b>{t.name}</b>.
-                </div>
-              )}
+            <div style={{ textAlign: 'center', padding: '30px 16px', color: '#64748b', fontSize: '13.5px' }}>
+              Blood requests for <b>{t.name}</b> are managed on the Requests page. This inspector does
+              not list them yet.
             </div>
           )}
         </div>

@@ -4,8 +4,13 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { showToast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
-import type { Paged, DonorRow, AdminRequestRow } from '../../../lib/apiTypes';
+import { useAuth } from '../../../lib/auth';
+import { fetchDonors } from '../../../lib/donors';
+import { fetchAdminRequests } from '../../../lib/requests';
+import { createDonation } from '../../../lib/donations';
+import type { DonorRow, AdminRequestRow } from '../../../lib/apiTypes';
+
+const ML_PER_BAG = 350;
 
 function bgTag(g: string) {
   const isNeg = g.includes('−') || g.includes('-');
@@ -27,6 +32,8 @@ interface RecordedTodayItem {
 }
 
 export default function AdminRecord() {
+  const { user } = useAuth();
+  const myTownId = user?.townId ?? null;
   const todayStr = new Date().toISOString().slice(0, 10);
   const [donors, setDonors] = useState<DonorRow[]>([]);
   const [requests, setRequests] = useState<AdminRequestRow[]>([]);
@@ -40,19 +47,18 @@ export default function AdminRecord() {
 
   const fetchDonorsAndRequests = useCallback(async () => {
     try {
-      const [donorsRes, reqsRes] = await Promise.all([
-        api.get<Paged<DonorRow>>('/donors?pageSize=1000'),
-        api.get<Paged<AdminRequestRow>>('/requests?status=OPEN&pageSize=100').catch(() => ({ data: [] })),
+      const [liveDonors, openReqs] = await Promise.all([
+        fetchDonors(),
+        fetchAdminRequests().catch(() => [] as AdminRequestRow[]),
       ]);
 
-      const liveDonors = donorsRes.data || [];
       setDonors(liveDonors);
       if (liveDonors.length > 0) {
         setSelectedDonor((cur) => (liveDonors.some((d) => d.id === cur) ? cur : liveDonors[0].id));
       } else {
         setSelectedDonor('');
       }
-      setRequests(reqsRes.data || []);
+      setRequests(openReqs.filter((r) => r.status === 'OPEN'));
     } catch {
       setDonors([]);
       setSelectedDonor('');
@@ -89,38 +95,38 @@ export default function AdminRecord() {
       showToast('Please select a donor.');
       return;
     }
-    setSubmitting(true);
 
     const donor = donors.find((d) => d.id === selectedDonor);
-    const qty = (parseInt(bagsInput, 10) || 1) * 350;
+    // The donation is scoped to the donor's town (falling back to the signed-in user's office).
+    // RLS confines the insert to the caller's town, so these must match.
+    const townId = donor?.townId || myTownId;
+    if (!townId) {
+      showToast('No town on this donor or your account. Cannot record.');
+      return;
+    }
+
+    setSubmitting(true);
+    const qty = (parseInt(bagsInput, 10) || 1) * ML_PER_BAG;
 
     try {
-      await api.post('/donations', {
+      const recorded = await createDonation({
         donorId: selectedDonor,
-        branchId: donor?.townId || 'branch-quetta',
+        townId,
         donatedAt: dateInput,
         quantityMl: qty,
         requestId: requestId || undefined,
       });
 
-      if (donor) {
-        setTodayDonations((prev) => [
-          { id: String(Date.now()), name: donor.name, group: donor.group, quantityMl: qty },
-          ...prev,
-        ]);
-      }
+      setTodayDonations((prev) => [
+        { id: recorded.id, name: recorded.donor.name, group: recorded.donor.group, quantityMl: recorded.quantityMl },
+        ...prev,
+      ]);
       setSaved(true);
-      showToast('Donation recorded successfully!');
+      showToast('Donation recorded.');
       setTimeout(() => setSaved(false), 5000);
       fetchDonorsAndRequests();
-    } catch {
-      showToast('Recorded donation in system.');
-      if (donor) {
-        setTodayDonations((prev) => [
-          { id: String(Date.now()), name: donor.name, group: donor.group, quantityMl: qty },
-          ...prev,
-        ]);
-      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not record the donation.');
     } finally {
       setSubmitting(false);
     }

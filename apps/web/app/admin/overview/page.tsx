@@ -6,13 +6,8 @@ import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { fetchDonors } from '../../../lib/donors';
 import { fetchAdminRequests } from '../../../lib/requests';
+import { fetchStock } from '../../../lib/stock';
 import type { DonorRow, AdminRequestRow } from '../../../lib/apiTypes';
-
-interface StockRow {
-  bloodGroup: string;
-  rhFactor: string;
-  unitsAvailable: number;
-}
 
 const MONTHS = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
 const HOURS = [1, 1, 1, 1, 2, 3, 5, 9, 14, 17, 15, 12, 10, 13, 16, 19, 22, 18, 13, 9, 6, 4, 3, 2];
@@ -97,11 +92,12 @@ export default function AdminOverview() {
     Promise.all([
       fetchDonors().catch(() => [] as DonorRow[]),
       fetchAdminRequests().catch(() => [] as AdminRequestRow[]),
-    ]).then(([donorsRes, requestsRes]) => {
+      fetchStock().catch(() => ({} as Record<string, number>)),
+    ]).then(([donorsRes, requestsRes, stockRes]) => {
       if (!alive) return;
       setDonors(donorsRes);
       setRequests(requestsRes);
-      // Stock holding is wired in the Inventory step; until then it reads as zero.
+      setStock(stockRes);
       setLoading(false);
     });
 

@@ -4,11 +4,19 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
-import { BLOOD_GROUPS, TOWNS } from '../../../lib/nav';
+import { BLOOD_GROUPS } from '../../../lib/nav';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
-import { splitGroup } from '../../../lib/bloodGroup';
+import { splitGroup, joinGroup } from '../../../lib/bloodGroup';
+import { fetchTowns, type Town } from '../../../lib/towns';
+import {
+  fetchPatients,
+  createPatient,
+  updatePatient,
+  deletePatient,
+  recordTransfusion,
+  type ThalPatient,
+} from '../../../lib/thalassemia';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -16,20 +24,48 @@ function bgTag(g: string) {
 
 export interface ThalChild {
   id: string;
-  dbId?: string;
+  dbId: string; // real DB id (the only id CRUD uses)
   n: string;
   a: number;
   g: string;
-  c: string;
+  c: string; // town name (display)
+  townId: string; // real town id (for edits)
   phone?: string;
+  intervalDays: number;
   due: number; // days to next transfusion; negative = overdue
-  sp: 0 | 1; // sponsored
+  sp: 0 | 1; // sponsored - no column in the schema yet, so always 0
   ph: 0 | 1; // photo consent on file
   guardian?: string;
 }
 
+// Map a data-layer patient into the compact row shape the table/drawer/modals consume.
+function toChild(p: ThalPatient): ThalChild {
+  const dobYears = p.dateOfBirth
+    ? Math.max(1, Math.floor((Date.now() - new Date(p.dateOfBirth).getTime()) / (365.25 * 86400000)))
+    : 6;
+  const dueDays = p.nextTransfusionDue
+    ? Math.round((new Date(p.nextTransfusionDue).getTime() - Date.now()) / 86400000)
+    : p.transfusionIntervalDays;
+  return {
+    id: p.id,
+    dbId: p.id,
+    n: p.name,
+    a: dobYears,
+    g: joinGroup(p.bloodGroup, p.rhFactor),
+    c: p.town || '',
+    townId: p.townId,
+    phone: p.guardianPhone || undefined,
+    guardian: p.guardianName || undefined,
+    intervalDays: p.transfusionIntervalDays,
+    due: dueDays,
+    sp: 0, // no sponsorship column in thalassemia_patients yet
+    ph: p.photoConsent ? 1 : 0,
+  };
+}
+
 export default function AdminThalassemia() {
   const [children, setChildren] = useState<ThalChild[]>([]);
+  const [towns, setTowns] = useState<Town[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'overdue' | 'this_week' | 'sponsored'>('all');
@@ -50,55 +86,46 @@ export default function AdminThalassemia() {
     setDeletingChild(child);
   }
 
+  // Real delete: only drop the row from local state after the DB delete succeeds. On failure we
+  // surface the error and leave the record in place (no fake "deleted successfully").
   async function handleConfirmDeleteChild() {
     if (!deletingChild) return;
     setDeletingSubmitting(true);
     const child = deletingChild;
-    const targetId = child.dbId || child.id;
     try {
-      await api.delete(`/thalassemia/${targetId}`);
-      showToast(`Patient record for ${child.n} deleted successfully.`);
-    } catch {
-      showToast(`Patient record for ${child.n} removed.`);
-    } finally {
+      await deletePatient(child.dbId);
       setChildren((cur) => cur.filter((item) => item.id !== child.id));
       if (selectedChild?.id === child.id) {
         setSelectedChild(null);
       }
-      setDeletingSubmitting(false);
+      showToast(`Patient record for ${child.n} deleted.`);
       setDeletingChild(null);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not delete the patient record.');
+    } finally {
+      setDeletingSubmitting(false);
+    }
+  }
+
+  // Record a completed transfusion: persist the new due date, then reflect it in state. Errors are
+  // surfaced and nothing is mutated locally on failure.
+  async function handleTransfused(child: ThalChild) {
+    try {
+      const updated = toChild(await recordTransfusion(child.dbId, child.intervalDays));
+      handleEditChildSuccess(updated);
+      showToast(`Recorded blood transfusion completed for ${child.n}.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not record the transfusion.');
     }
   }
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<{ data: Array<{ id: string; name: string; dateOfBirth: string; bloodGroup: string; rhFactor: string; guardianName: string; guardianPhone: string; nextTransfusionDue: string | null; photoConsent: boolean; town?: { name: string } }> }>('/thalassemia');
-      if (res.data) {
-        const mapped: ThalChild[] = res.data.map((item, idx) => {
-          const sign = item.rhFactor === 'POSITIVE' ? '+' : '−';
-          const dobYears = item.dateOfBirth ? Math.max(1, Math.floor((Date.now() - new Date(item.dateOfBirth).getTime()) / (365.25 * 86400000))) : 6;
-          const dueDays = item.nextTransfusionDue ? Math.round((new Date(item.nextTransfusionDue).getTime() - Date.now()) / 86400000) : 7;
-          return {
-            id: item.id ? `T-${item.id.slice(-3).toUpperCase()}` : `T-0${idx + 10}`,
-            dbId: item.id,
-            n: item.name,
-            a: dobYears,
-            g: `${item.bloodGroup}${sign}`,
-            c: item.town?.name || 'Quetta',
-            phone: item.guardianPhone,
-            guardian: item.guardianName,
-            due: dueDays,
-            sp: 0,
-            ph: item.photoConsent ? 1 : 0,
-          };
-        });
-        setChildren(mapped);
-      } else {
-        setChildren([]);
-      }
+      const patients = await fetchPatients();
+      setChildren(patients.map(toChild));
     } catch (err) {
-      console.error(err);
+      showToast(err instanceof Error ? err.message : 'Could not load the thalassemia register.');
       setChildren([]);
     } finally {
       setLoading(false);
@@ -108,6 +135,10 @@ export default function AdminThalassemia() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    fetchTowns().then(setTowns).catch(() => setTowns([]));
+  }, []);
 
   function handleRegisterSuccess(newChild: ThalChild) {
     setChildren((cur) => [newChild, ...cur]);
@@ -275,11 +306,13 @@ export default function AdminThalassemia() {
         onClose={() => setSelectedChild(null)}
         onEdit={(c) => setEditingChild(c)}
         onDelete={onRequestDeleteChild}
+        onTransfused={handleTransfused}
       />
 
       {/* Register Child Modal */}
       <RegisterChildModal
         isOpen={isModalOpen}
+        towns={towns}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleRegisterSuccess}
       />
@@ -288,6 +321,7 @@ export default function AdminThalassemia() {
       <EditChildModal
         child={editingChild}
         isOpen={editingChild !== null}
+        towns={towns}
         onClose={() => setEditingChild(null)}
         onSuccess={handleEditChildSuccess}
       />
@@ -309,11 +343,13 @@ function ChildSheet({
   onClose,
   onEdit,
   onDelete,
+  onTransfused,
 }: {
   child: ThalChild | null;
   onClose: () => void;
   onEdit?: (c: ThalChild) => void;
   onDelete?: (c: ThalChild) => void;
+  onTransfused?: (c: ThalChild) => void;
 }) {
   const isOpen = t !== null;
   return (
@@ -443,7 +479,7 @@ function ChildSheet({
                   borderRadius: '10px',
                   whiteSpace: 'nowrap',
                 }}
-                onClick={() => showToast(`Recorded blood transfusion completed for ${t.n}.`)}
+                onClick={() => onTransfused?.(t)}
               >
                 🩸 Transfused
               </button>
@@ -497,18 +533,20 @@ function ChildSheet({
 function EditChildModal({
   child,
   isOpen,
+  towns,
   onClose,
   onSuccess,
 }: {
   child: ThalChild | null;
   isOpen: boolean;
+  towns: Town[];
   onClose: () => void;
   onSuccess: (child: ThalChild) => void;
 }) {
   const [name, setName] = useState('');
   const [age, setAge] = useState('6');
   const [group, setGroup] = useState('B+');
-  const [town, setTown] = useState<string>(TOWNS[0] || 'Quetta');
+  const [townId, setTownId] = useState('');
   const [guardian, setGuardian] = useState('');
   const [phone, setPhone] = useState('');
   const [photoConsent, setPhotoConsent] = useState(false);
@@ -519,16 +557,17 @@ function EditChildModal({
       setName(child.n || '');
       setAge(String(child.a || 6));
       setGroup(child.g || 'B+');
-      setTown(child.c || TOWNS[0] || 'Quetta');
+      const matched = towns.find((t) => t.id === child.townId || t.name === child.c);
+      setTownId(matched?.id || towns[0]?.id || '');
       setGuardian(child.guardian || '');
       setPhone(child.phone || '');
       setPhotoConsent(child.ph === 1);
     }
-  }, [child]);
+  }, [child, towns]);
 
   if (!isOpen || !child) return null;
 
-  const townOptions = TOWNS.map((t) => ({ value: t, label: t }));
+  const townOptions = towns.map((t) => ({ value: t.id, label: t.name }));
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -536,53 +575,31 @@ function EditChildModal({
       showToast('Please enter full name.');
       return;
     }
+    if (!townId) {
+      showToast('Please select a town.');
+      return;
+    }
     setSubmitting(true);
 
     const { bloodGroup, rhFactor } = splitGroup(group);
-    const ageNum = parseInt(age, 10) || 5;
-
-    const payload = {
-      name: name.trim(),
-      bloodGroup,
-      rhFactor,
-      guardianName: guardian.trim() || 'Family Guardian',
-      guardianPhone: phone.trim() || undefined,
-      townId: town,
-      photoConsent,
-    };
-
-    const targetId = child!.dbId || child!.id;
 
     try {
-      await api.patch(`/thalassemia/${targetId}`, payload);
-      const updatedChild: ThalChild = {
-        ...child!,
-        n: name.trim(),
-        a: ageNum,
-        g: group,
-        c: town,
-        guardian: guardian.trim() || undefined,
-        phone: phone.trim() || undefined,
-        ph: photoConsent ? 1 : 0,
-      };
-      showToast(`Updated record for ${updatedChild.n}.`);
-      onSuccess(updatedChild);
-    } catch {
-      const updatedChild: ThalChild = {
-        ...child!,
-        n: name.trim(),
-        a: ageNum,
-        g: group,
-        c: town,
-        guardian: guardian.trim() || undefined,
-        phone: phone.trim() || undefined,
-        ph: photoConsent ? 1 : 0,
-      };
-      showToast(`Updated record for ${updatedChild.n}.`);
-      onSuccess(updatedChild);
+      const updated = await updatePatient(child!.dbId, {
+        name: name.trim(),
+        bloodGroup,
+        rhFactor,
+        guardianName: guardian.trim() || 'Family Guardian',
+        guardianPhone: phone.trim() || null,
+        townId,
+        photoConsent,
+      });
+      showToast(`Updated record for ${updated.name}.`);
+      onSuccess(toChild(updated));
+      onClose();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not update the patient record.');
     } finally {
       setSubmitting(false);
-      onClose();
     }
   }
 
@@ -707,10 +724,11 @@ function EditChildModal({
           <div className="fgrp">
             <label className="lb">Town / District *</label>
             <CustomSelect
-              name="town"
+              name="townId"
               options={townOptions}
-              value={town}
-              onChange={(val) => setTown(val)}
+              value={townId}
+              onChange={(val) => setTownId(val)}
+              placeholder="Select town..."
               direction="down"
             />
           </div>
@@ -740,31 +758,43 @@ function EditChildModal({
 
 function RegisterChildModal({
   isOpen,
+  towns,
   onClose,
   onSuccess,
 }: {
   isOpen: boolean;
+  towns: Town[];
   onClose: () => void;
   onSuccess: (child: ThalChild) => void;
 }) {
   const [name, setName] = useState('');
   const [age, setAge] = useState('6');
   const [group, setGroup] = useState('B+');
-  const [town, setTown] = useState<string>(TOWNS[0] || 'Quetta');
+  const [townId, setTownId] = useState('');
   const [guardian, setGuardian] = useState('');
   const [phone, setPhone] = useState('');
   const [photoConsent, setPhotoConsent] = useState(false);
   const [sponsored, setSponsored] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (towns.length > 0 && !townId) {
+      setTownId(towns[0].id);
+    }
+  }, [towns, townId]);
+
   if (!isOpen) return null;
 
-  const townOptions = TOWNS.map((t) => ({ value: t, label: t }));
+  const townOptions = towns.map((t) => ({ value: t.id, label: t.name }));
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name.trim()) {
       showToast('Please enter the child full name.');
+      return;
+    }
+    if (!townId) {
+      showToast('Please select a town.');
       return;
     }
     setSubmitting(true);
@@ -773,51 +803,24 @@ function RegisterChildModal({
     const ageNum = parseInt(age, 10) || 5;
     const dateOfBirth = new Date(Date.now() - ageNum * 365.25 * 86400000).toISOString();
 
-    const payload = {
-      name: name.trim(),
-      dateOfBirth,
-      bloodGroup,
-      rhFactor,
-      guardianName: guardian.trim() || 'Family Guardian',
-      guardianPhone: phone.trim() || undefined,
-      townId: town,
-      photoConsent,
-    };
-
     try {
-      const created = await api.post<{ id?: string; name?: string; town?: { name?: string } }>('/thalassemia', payload);
-      const newChild: ThalChild = {
-        id: created?.id ? `T-${created.id.slice(-3).toUpperCase()}` : `T-0${Math.floor(60 + Math.random() * 40)}`,
-        n: name.trim(),
-        a: ageNum,
-        g: group,
-        c: created?.town?.name || town,
-        guardian: guardian.trim() || undefined,
-        phone: phone.trim() || undefined,
-        due: 21,
-        sp: sponsored ? 1 : 0,
-        ph: photoConsent ? 1 : 0,
-      };
-      showToast(`Registered patient ${newChild.n} (${newChild.id}) successfully.`);
-      onSuccess(newChild);
-    } catch {
-      const newChild: ThalChild = {
-        id: `T-0${Math.floor(60 + Math.random() * 40)}`,
-        n: name.trim(),
-        a: ageNum,
-        g: group,
-        c: town,
-        guardian: guardian.trim() || undefined,
-        phone: phone.trim() || undefined,
-        due: 14,
-        sp: sponsored ? 1 : 0,
-        ph: photoConsent ? 1 : 0,
-      };
-      showToast(`Registered patient ${newChild.n} (${newChild.id}).`);
-      onSuccess(newChild);
+      const created = await createPatient({
+        name: name.trim(),
+        dateOfBirth,
+        bloodGroup,
+        rhFactor,
+        guardianName: guardian.trim() || 'Family Guardian',
+        guardianPhone: phone.trim() || null,
+        townId,
+        photoConsent,
+      });
+      showToast(`Registered patient ${created.name} successfully.`);
+      onSuccess(toChild(created));
+      onClose();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not register the patient.');
     } finally {
       setSubmitting(false);
-      onClose();
     }
   }
 
@@ -910,10 +913,11 @@ function RegisterChildModal({
             <div className="fgrp">
               <label className="lb">Town / District *</label>
               <CustomSelect
-                name="town"
+                name="townId"
                 options={townOptions}
-                value={town}
-                onChange={(val) => setTown(val)}
+                value={townId}
+                onChange={(val) => setTownId(val)}
+                placeholder="Select town..."
                 direction="down"
               />
             </div>

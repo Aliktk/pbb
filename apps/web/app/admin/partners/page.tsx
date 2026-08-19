@@ -1,207 +1,26 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Link from 'next/link';
-import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
+import { useAuth } from '../../../lib/auth';
 import { Icon } from '../../../components/Icon';
 import { CustomSelect } from '../../../components/CustomSelect';
-import { getTownNamesList } from '../../../lib/towns';
+import { fetchTowns, type Town } from '../../../lib/towns';
+import {
+  fetchPartners,
+  createPartner,
+  updatePartner,
+  deletePartner,
+  setPartnerStatus,
+  type Partner,
+  type PartnerKind,
+} from '../../../lib/partners';
 import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
 
-export type PartnerKind =
-  | 'Hospital'
-  | 'Laboratory'
-  | 'Welfare society'
-  | 'Social Welfare'
-  | 'University'
-  | 'Foundation'
-  | 'Government';
-
-export interface PartnerItem {
-  id: string;
-  name: string;
-  kind: PartnerKind;
-  town: string;
-  status: 'active' | 'pending' | 'declined';
-  since: string;
-  note: string;
-  coordinator: string;
-  phone?: string;
-  email?: string;
-}
-
-const INITIAL_PARTNERS: PartnerItem[] = [
-  {
-    id: 'prt-1',
-    name: 'Civil Hospital, Quetta',
-    kind: 'Hospital',
-    town: 'Quetta',
-    status: 'active',
-    since: '2004',
-    note: 'Highest referring hospital. Named coordinator assigned for 24/7 blood exchange.',
-    coordinator: 'Dr. Tariq Kakar',
-    phone: '081-2836820',
-  },
-  {
-    id: 'prt-2',
-    name: 'Bolan Medical Complex',
-    kind: 'Hospital',
-    town: 'Quetta',
-    status: 'active',
-    since: '2007',
-    note: 'Major medical center partner for thalassemic children transfusion schedules.',
-    coordinator: 'Dr. Sanaullah',
-    phone: '081-2839500',
-  },
-  {
-    id: 'prt-3',
-    name: 'DHQ Hospital, Zhob',
-    kind: 'Hospital',
-    town: 'Zhob',
-    status: 'active',
-    since: '2011',
-    note: 'District branch hospital partner in Northern Balochistan corridor.',
-    coordinator: 'Malik Rahim',
-    phone: '0822-413902',
-  },
-  {
-    id: 'prt-4',
-    name: 'Quetta Diagnostic Laboratory',
-    kind: 'Laboratory',
-    town: 'Quetta',
-    status: 'pending',
-    since: '-',
-    note: 'Offering overflow ELISA screening capacity. Awaiting organizing committee decision.',
-    coordinator: 'Assigned upon approval',
-    phone: '081-2840011',
-  },
-  {
-    id: 'prt-5',
-    name: 'Al-Khidmat Welfare Society',
-    kind: 'Welfare society',
-    town: 'Loralai',
-    status: 'active',
-    since: '2015',
-    note: 'Organizes annual cattle hide collection campaign during Eid-ul-Adha in Loralai.',
-    coordinator: 'Bilal Ahmad',
-    phone: '0824-662066',
-  },
-  {
-    id: 'prt-6',
-    name: 'Balochistan University Campus',
-    kind: 'University',
-    town: 'Quetta',
-    status: 'active',
-    since: '2019',
-    note: 'Hosts two student voluntary blood donation awareness drives per year.',
-    coordinator: 'Student Affairs Desk',
-  },
-  {
-    id: 'prt-7',
-    name: 'Sherani Welfare Trust',
-    kind: 'Welfare society',
-    town: 'Sherani',
-    status: 'pending',
-    since: '-',
-    note: 'Requesting to open a permanent branch desk in Sherani district.',
-    coordinator: 'Under Committee Review',
-  },
-  {
-    id: 'prt-8',
-    name: 'Rahmat Medical Foundation',
-    kind: 'Foundation',
-    town: 'Pashtoonkhwa Regional',
-    status: 'pending',
-    since: '-',
-    note: 'Offering to fund virus ELISA screening kits for 500 blood bags per year.',
-    coordinator: 'Executive Board',
-  },
-];
-
-function encodePartnerContact(coordinator: string, status: string, note?: string, town?: string, exactKind?: string): string {
-  const coord = coordinator.trim() || 'Assigned Officer';
-  const stat = status || 'active';
-  const nt = (note || '').trim();
-  const twn = (town || 'Quetta').trim();
-  const knd = (exactKind || 'Hospital').trim();
-  return `${coord}::STATUS=${stat}::TOWN=${twn}::KIND=${knd}::NOTE=${nt}`;
-}
-
-function parsePartnerKind(rawKind?: string, fallback: PartnerKind = 'Hospital'): PartnerKind {
-  if (!rawKind) return fallback;
-  const validKinds: PartnerKind[] = [
-    'Hospital',
-    'Laboratory',
-    'Welfare society',
-    'Social Welfare',
-    'University',
-    'Foundation',
-    'Government',
-  ];
-  if (validKinds.includes(rawKind as PartnerKind)) {
-    return rawKind as PartnerKind;
-  }
-  const k = rawKind.toLowerCase();
-  if (k.includes('lab')) return 'Laboratory';
-  if (k.includes('social')) return 'Social Welfare';
-  if (k.includes('welfare') || k.includes('society')) return 'Welfare society';
-  if (k.includes('uni')) return 'University';
-  if (k.includes('found')) return 'Foundation';
-  if (k.includes('gov')) return 'Government';
-  if (k.includes('hosp')) return 'Hospital';
-  return fallback;
-}
-
-function decodePartnerContact(rawContact?: string | null, fallbackKind: PartnerKind = 'Hospital') {
-  if (!rawContact) {
-    return {
-      coordinator: 'Assigned Officer',
-      status: 'active' as const,
-      town: 'Quetta',
-      exactKind: parsePartnerKind(fallbackKind),
-      note: 'Partner organisation registered with PBB network.',
-    };
-  }
-  if (!rawContact.includes('::STATUS=')) {
-    return {
-      coordinator: rawContact || 'Assigned Officer',
-      status: 'active' as const,
-      town: 'Quetta',
-      exactKind: parsePartnerKind(fallbackKind),
-      note: 'Partner organisation registered with PBB network.',
-    };
-  }
-
-  const [coordPart, rest1] = rawContact.split('::STATUS=');
-  const coordinator = coordPart || 'Assigned Officer';
-
-  let statusStr = 'active';
-  let townStr = 'Quetta';
-  let kindStr: string = fallbackKind;
-  let noteStr = 'Partner organisation registered with PBB network.';
-
-  if (rest1) {
-    const parts = rest1.split('::TOWN=');
-    statusStr = parts[0] || 'active';
-    if (parts[1]) {
-      const parts2 = parts[1].split('::KIND=');
-      townStr = parts2[0] || 'Quetta';
-      if (parts2[1]) {
-        const parts3 = parts2[1].split('::NOTE=');
-        kindStr = parts3[0] || fallbackKind;
-        noteStr = parts3[1] || 'Partner organisation registered with PBB network.';
-      }
-    }
-  }
-
-  const status = (statusStr === 'pending' || statusStr === 'declined' ? statusStr : 'active') as 'active' | 'pending' | 'declined';
-  const exactKind = parsePartnerKind(kindStr, fallbackKind);
-
-  return { coordinator, status, town: townStr, exactKind, note: noteStr };
-}
+// The page's local row shape mirrors the lib Partner. Kept as an alias so the existing JSX (which
+// refers to PartnerItem throughout) does not need touching.
+type PartnerItem = Partner;
 
 function getCategoryBadgeStyle(kind?: string) {
   const k = (kind || '').toLowerCase();
@@ -230,7 +49,13 @@ function getCategoryBadgeStyle(kind?: string) {
 }
 
 export default function AdminPartners() {
+  const { user } = useAuth();
+  // Presentation-only gate; RLS is the real enforcer. Only head office and managers may curate.
+  const canWrite = user?.role.id === 'head' || user?.role.id === 'manager';
+
   const [partners, setPartners] = useState<PartnerItem[]>([]);
+  const [towns, setTowns] = useState<Town[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'declined'>('all');
   const [kindFilter, setKindFilter] = useState('All Categories');
@@ -250,10 +75,10 @@ export default function AdminPartners() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingPartner, setDeletingPartner] = useState<PartnerItem | null>(null);
 
-  // Form State
+  // Form State. formTownId is the selected town's id, or '' for an org-wide partner (no town).
   const [formName, setFormName] = useState('');
   const [formKind, setFormKind] = useState<PartnerKind>('Hospital');
-  const [formTown, setFormTown] = useState('Quetta');
+  const [formTownId, setFormTownId] = useState('');
   const [formCoordinator, setFormCoordinator] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formNote, setFormNote] = useState('');
@@ -264,42 +89,14 @@ export default function AdminPartners() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const loadPartners = useCallback(async () => {
+    setError(null);
     try {
-      const res = await api.get<{ data: Array<{ id: string; name: string; kind: string; contact?: string; phone?: string; townId?: string; sinceYear?: string; createdAt?: string }> }>('/partners');
-      const rawList = res && res.data && res.data.length > 0 ? res.data : [];
-
-      if (rawList.length > 0) {
-        const mapped: PartnerItem[] = rawList.map((item) => {
-          let defaultKind: PartnerKind = 'Hospital';
-          const kUpper = (item.kind || '').toUpperCase();
-          if (kUpper.includes('LAB')) defaultKind = 'Laboratory';
-          else if (kUpper.includes('FOUND')) defaultKind = 'Foundation';
-          else if (kUpper.includes('WELFARE') || kUpper.includes('SOCIETY')) defaultKind = 'Welfare society';
-          else if (kUpper.includes('UNI') || kUpper.includes('CORP')) defaultKind = 'University';
-          else if (kUpper.includes('GOV')) defaultKind = 'Government';
-          else if (kUpper.includes('SOCIAL')) defaultKind = 'Social Welfare';
-
-          const decoded = decodePartnerContact(item.contact, defaultKind);
-          const yearSince = item.sinceYear || (item.createdAt ? new Date(item.createdAt).getFullYear().toString() : '2024');
-
-          return {
-            id: item.id,
-            name: item.name,
-            kind: decoded.exactKind,
-            town: decoded.town,
-            status: decoded.status,
-            since: yearSince,
-            note: decoded.note,
-            coordinator: decoded.coordinator,
-            phone: item.phone || undefined,
-          };
-        });
-        setPartners(mapped);
-      } else {
-        setPartners(INITIAL_PARTNERS);
-      }
-    } catch {
-      setPartners(INITIAL_PARTNERS);
+      const [partnerList, townList] = await Promise.all([fetchPartners(), fetchTowns()]);
+      setPartners(partnerList);
+      setTowns(townList);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load partners.');
+      setPartners([]);
     }
   }, []);
 
@@ -308,53 +105,55 @@ export default function AdminPartners() {
   }, [loadPartners]);
 
   async function handleApprove(p: PartnerItem) {
-    const currentYear = new Date().getFullYear().toString();
-    const newContact = encodePartnerContact(p.coordinator, 'active', p.note, p.town, p.kind);
     try {
-      await api.patch(`/partners/${p.id}`, { name: p.name, contact: newContact });
-    } catch {}
-    await loadPartners();
-    showToast(`Approved "${p.name}" as an active partner! Published to supporters page.`);
-    if (selectedPartner?.id === p.id) {
-      setSelectedPartner({ ...p, status: 'active', since: currentYear });
+      const updated = await setPartnerStatus(p.id, 'active');
+      setPartners((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
+      if (selectedPartner?.id === p.id) setSelectedPartner(updated);
+      showToast(`Approved "${p.name}" as an active partner. Published to supporters page.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : `Could not approve "${p.name}".`);
     }
   }
 
   async function handleDecline(p: PartnerItem) {
-    const newContact = encodePartnerContact(p.coordinator, 'declined', p.note, p.town, p.kind);
     try {
-      await api.patch(`/partners/${p.id}`, { name: p.name, contact: newContact });
-    } catch {}
-    await loadPartners();
-    showToast(`Declined application from "${p.name}".`);
-    if (selectedPartner?.id === p.id) {
-      setSelectedPartner({ ...p, status: 'declined' });
+      const updated = await setPartnerStatus(p.id, 'declined');
+      setPartners((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
+      if (selectedPartner?.id === p.id) setSelectedPartner(updated);
+      showToast(`Declined application from "${p.name}".`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : `Could not decline "${p.name}".`);
     }
   }
 
   async function confirmDelete() {
     if (!deletingPartner) return;
     setIsDeleting(true);
+    const target = deletingPartner;
     try {
-      await api.delete(`/partners/${deletingPartner.id}`);
-      showToast(`Partner "${deletingPartner.name}" removed.`);
-    } catch {
-      showToast(`Removed "${deletingPartner.name}".`);
+      await deletePartner(target.id);
+      setPartners((prev) => prev.filter((x) => x.id !== target.id));
+      if (selectedPartner?.id === target.id) setSelectedPartner(null);
+      setDeletingPartner(null);
+      showToast(`Partner "${target.name}" removed.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : `Could not remove "${target.name}".`);
     } finally {
       setIsDeleting(false);
-      if (selectedPartner?.id === deletingPartner.id) setSelectedPartner(null);
-      setDeletingPartner(null);
-      await loadPartners();
     }
+  }
+
+  function townIdForName(name: string): string {
+    return towns.find((t) => t.name === name)?.id ?? '';
   }
 
   function openCreateModal() {
     setEditingId(null);
     setFormName('');
     setFormKind('Hospital');
-    setFormTown('Quetta');
-    setFormCoordinator('Duty Coordinator');
-    setFormPhone('081-2836820');
+    setFormTownId('');
+    setFormCoordinator('');
+    setFormPhone('');
     setFormNote('');
     setFormStatus('active');
     setFormSince(new Date().getFullYear().toString());
@@ -365,8 +164,8 @@ export default function AdminPartners() {
     setEditingId(p.id);
     setFormName(p.name);
     setFormKind(p.kind);
-    setFormTown(p.town);
-    setFormCoordinator(p.coordinator);
+    setFormTownId(p.townId ?? townIdForName(p.town));
+    setFormCoordinator(p.coordinator === 'Assigned Officer' ? '' : p.coordinator);
     setFormPhone(p.phone || '');
     setFormNote(p.note);
     setFormStatus(p.status === 'declined' ? 'pending' : p.status);
@@ -383,35 +182,33 @@ export default function AdminPartners() {
 
     setIsSubmitting(true);
     const name = formName.trim();
-    const encodedContact = encodePartnerContact(formCoordinator, formStatus, formNote, formTown, formKind);
-    const phone = formPhone.trim();
+    const payload = {
+      name,
+      kind: formKind,
+      townId: formTownId || null,
+      status: formStatus,
+      since: formSince,
+      note: formNote,
+      coordinator: formCoordinator,
+      phone: formPhone,
+    };
 
     try {
       if (editingId) {
-        await api.patch(`/partners/${editingId}`, {
-          name,
-          kind: formKind,
-          contact: encodedContact,
-          phone,
-          sinceYear: formSince,
-        });
-        showToast('Partner details updated successfully!');
+        const updated = await updatePartner(editingId, payload);
+        setPartners((prev) => prev.map((x) => (x.id === editingId ? updated : x)));
+        if (selectedPartner?.id === editingId) setSelectedPartner(updated);
+        showToast('Partner details updated.');
       } else {
-        await api.post('/partners', {
-          name,
-          kind: formKind,
-          contact: encodedContact,
-          phone,
-          sinceYear: formSince,
-        });
-        showToast(`Added new organisation "${name}"!`);
+        const created = await createPartner(payload);
+        setPartners((prev) => [created, ...prev]);
+        showToast(`Added new organisation "${name}".`);
       }
-    } catch {
-      showToast(editingId ? 'Updated partner details successfully.' : `Registered "${name}" successfully.`);
+      setIsModalOpen(false);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not save the partner.');
     } finally {
       setIsSubmitting(false);
-      setIsModalOpen(false);
-      await loadPartners();
     }
   }
 
@@ -452,16 +249,19 @@ export default function AdminPartners() {
     ...kindOptions,
   ];
 
-  const townOptions = getTownNamesList().map((t) => ({ value: t, label: t }));
+  const townOptions = [
+    { value: '', label: 'Organisation-wide (no town)' },
+    ...towns.map((t) => ({ value: t.id, label: t.name })),
+  ];
 
-  const topActions = (
+  const topActions = canWrite ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <button type="button" className="btn btn-p btn-s" onClick={openCreateModal}>
         <Icon name="plus" size={14} />
         <span style={{ marginLeft: '4px' }}>+ Add Organisation</span>
       </button>
     </div>
-  );
+  ) : null;
 
   return (
     <AdminShell
@@ -470,6 +270,24 @@ export default function AdminPartners() {
       subtitle={`${activeCount} active partners · ${pendingCount} awaiting approval`}
       actions={topActions}
     >
+      {error && (
+        <div
+          className="acard"
+          style={{
+            marginBottom: '18px',
+            padding: '14px 18px',
+            borderRadius: '14px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#EF4444',
+            fontSize: '13px',
+            fontWeight: 600,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       {/* High-Contrast Pending Decision Callout Card */}
       {pendingCount > 0 && (
         <div
@@ -712,7 +530,7 @@ export default function AdminPartners() {
                   </td>
 
                   <td style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--txt2)' }}>
-                    {p.town}
+                    {p.town || 'Org-wide'}
                   </td>
 
                   <td style={{ fontSize: '12.5px', color: 'var(--txt3)' }}>
@@ -881,7 +699,7 @@ export default function AdminPartners() {
               {selectedPartner.name}
             </h2>
             <div className="sm" style={{ fontSize: '13px', color: 'var(--txt2)', marginBottom: '18px' }}>
-              {selectedPartner.kind} · {selectedPartner.town}
+              {selectedPartner.kind} · {selectedPartner.town || 'Organisation-wide'}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px', background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid var(--line)' }}>
@@ -902,7 +720,7 @@ export default function AdminPartners() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--txt3)' }}>Town District:</span>
-                <b style={{ color: 'var(--txt1)' }}>{selectedPartner.town}</b>
+                <b style={{ color: 'var(--txt1)' }}>{selectedPartner.town || 'Organisation-wide'}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--txt3)' }}>Partner Since:</span>
@@ -1063,8 +881,8 @@ export default function AdminPartners() {
                   <CustomSelect
                     name="formTown"
                     options={townOptions}
-                    value={formTown}
-                    onChange={(val) => setFormTown(val)}
+                    value={formTownId}
+                    onChange={(val) => setFormTownId(val)}
                   />
                 </div>
 

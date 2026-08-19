@@ -5,7 +5,8 @@ import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
 import { CustomSelect } from '../../../components/CustomSelect';
-import { api } from '../../../lib/api';
+import { supabase } from '../../../lib/supabaseClient';
+import { fetchDonations, type DonationRow } from '../../../lib/donations';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -16,14 +17,6 @@ export interface YearRecord {
   bags: number | null;
   ccs?: number;
   platelets?: number;
-}
-
-interface ApiDonationRow {
-  id: string;
-  donatedAt: string;
-  quantityMl: number;
-  donor: { name: string; bloodGroup: string; rhFactor: string; town?: { name: string } };
-  branch: { town: { name: string } };
 }
 
 const INITIAL_YEARLY: YearRecord[] = [
@@ -41,9 +34,35 @@ const INITIAL_YEARLY: YearRecord[] = [
 
 const PEAK_BAGS = 9484;
 
+interface YearlyIntakeRow {
+  year: number;
+  bags: number;
+  ccs: number;
+  platelets: number;
+}
+
+// Merge any real yearly_intake rows (0010) over the legacy sample figures. The bar chart is a
+// public transparency artifact seeded with historical sample data; a year the head office actually
+// records in the database overrides its sample entry.
+function mergeYearly(base: YearRecord[], rows: YearlyIntakeRow[]): YearRecord[] {
+  const byYear = new Map(rows.map((r) => [r.year, r]));
+  const merged = base.map((y) =>
+    byYear.has(y.year)
+      ? { year: y.year, bags: byYear.get(y.year)!.bags, ccs: byYear.get(y.year)!.ccs, platelets: byYear.get(y.year)!.platelets }
+      : y,
+  );
+  // Include DB years that are not in the sample list at all.
+  for (const r of rows) {
+    if (!merged.some((y) => y.year === r.year)) {
+      merged.push({ year: r.year, bags: r.bags, ccs: r.ccs, platelets: r.platelets });
+    }
+  }
+  return merged.sort((a, b) => a.year - b.year);
+}
+
 export default function AdminLedger() {
   const [yearlyData, setYearlyData] = useState<YearRecord[]>(INITIAL_YEARLY);
-  const [donations, setDonations] = useState<ApiDonationRow[]>([]);
+  const [donations, setDonations] = useState<DonationRow[]>([]);
   const [inputYear, setInputYear] = useState('2013');
   const [bagsInput, setBagsInput] = useState('');
   const [ccsInput, setCcsInput] = useState('');
@@ -52,11 +71,15 @@ export default function AdminLedger() {
 
   useEffect(() => {
     let alive = true;
-    api.get<{ data: ApiDonationRow[] }>('/donations')
-      .then((res) => {
-        if (alive && res.data) setDonations(res.data);
-      })
+    fetchDonations()
+      .then((rows) => { if (alive) setDonations(rows); })
       .catch(() => {});
+    supabase
+      .from('yearly_intake')
+      .select('year,bags,ccs,platelets')
+      .then(({ data }) => {
+        if (alive && data) setYearlyData((cur) => mergeYearly(cur, data as unknown as YearlyIntakeRow[]));
+      });
     return () => { alive = false; };
   }, []);
 
@@ -71,7 +94,7 @@ export default function AdminLedger() {
     { value: '2026', label: '2026 (Current)' },
   ];
 
-  function handleSaveYear(e: React.FormEvent) {
+  async function handleSaveYear(e: React.FormEvent) {
     e.preventDefault();
     const bagsNum = parseInt(bagsInput, 10);
     if (!bagsNum || isNaN(bagsNum) || bagsNum <= 0) {
@@ -84,11 +107,25 @@ export default function AdminLedger() {
     const ccsNum = parseInt(ccsInput, 10) || 0;
     const plateletsNum = parseInt(plateletsInput, 10) || 0;
 
-    setYearlyData((cur) =>
-      cur.map((y) => (y.year === yr ? { ...y, bags: bagsNum, ccs: ccsNum, platelets: plateletsNum } : y)),
-    );
+    // Persist to the yearly_intake table (0010). RLS allows head office only; a non-head save
+    // surfaces the real permission error rather than a fake success.
+    const { error } = await supabase
+      .from('yearly_intake')
+      .upsert({ year: yr, bags: bagsNum, ccs: ccsNum, platelets: plateletsNum }, { onConflict: 'year' });
+    if (error) {
+      showToast(error.message);
+      setSubmitting(false);
+      return;
+    }
 
-    showToast(`Saved ${bagsNum.toLocaleString()} bags for year ${yr}. Chart updated!`);
+    setYearlyData((cur) => {
+      const next = cur.some((y) => y.year === yr)
+        ? cur.map((y) => (y.year === yr ? { ...y, bags: bagsNum, ccs: ccsNum, platelets: plateletsNum } : y))
+        : [...cur, { year: yr, bags: bagsNum, ccs: ccsNum, platelets: plateletsNum }];
+      return next.sort((a, b) => a.year - b.year);
+    });
+
+    showToast(`Saved ${bagsNum.toLocaleString()} bags for year ${yr}.`);
     setBagsInput('');
     setCcsInput('');
     setPlateletsInput('');
@@ -241,7 +278,7 @@ export default function AdminLedger() {
                 const sign = d.donor.rhFactor === 'POSITIVE' ? '+' : '−';
                 const bg = `${d.donor.bloodGroup}${sign}`;
                 const dateStr = new Date(d.donatedAt).toISOString().split('T')[0];
-                const townName = d.branch?.town?.name || d.donor?.town?.name || 'Quetta';
+                const townName = d.town || d.donor?.town?.name || '—';
                 return (
                   <tr key={d.id}>
                     <td className="m1 sm">{dateStr}</td>

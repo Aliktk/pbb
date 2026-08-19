@@ -2,19 +2,29 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
+import { useAuth } from '../../../lib/auth';
 import { Icon } from '../../../components/Icon';
 import { CustomSelect } from '../../../components/CustomSelect';
-import { DONORS } from '../../../lib/adminData';
 import { TownSheet } from '../../../components/admin/TownSheet';
 import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
-import { getNetworkTowns, saveNetworkTowns, type TownNetworkItem } from '../../../lib/towns';
+import {
+  fetchNetworkTowns,
+  createTown,
+  updateTown,
+  type TownNetworkItem,
+} from '../../../lib/towns';
 
 export default function AdminNetwork() {
+  const { user } = useAuth();
+  // Office scoping: head office (role 'head', no town pin) manages every town; any other office
+  // user sees only their own town. Presentation only - the DB (RLS + the 0013 trigger) enforces.
+  const isHead = user?.role.id === 'head';
+  const myTownId = user?.townId ?? null;
+
   const [towns, setTowns] = useState<TownNetworkItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTown, setSelectedTown] = useState<TownNetworkItem | null>(null);
   const [search, setSearch] = useState('');
   const [standingFilter, setStandingFilter] = useState<'all' | 'branches' | 'served'>('all');
@@ -28,37 +38,30 @@ export default function AdminNetwork() {
   const [formName, setFormName] = useState('');
   const [formStanding, setFormStanding] = useState('Branch');
   const [formAddress, setFormAddress] = useState('');
-  const [formManager, setFormManager] = useState('');
-  const [formStockUpdate, setFormStockUpdate] = useState('today');
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadNetworkData = useCallback(async () => {
+    setError(null);
     try {
-      const res = await api.get<{ data: TownNetworkItem[] }>('/towns/network');
-      if (res.data && res.data.length > 0) {
-        setTowns(res.data);
-      } else {
-        setTowns(getNetworkTowns());
-      }
-    } catch {
-      setTowns(getNetworkTowns());
+      const all = await fetchNetworkTowns();
+      // Office scoping: head office sees the whole network; a branch user sees only their own town.
+      const scoped = isHead || !myTownId ? all : all.filter((t) => t.id === myTownId);
+      setTowns(isHead ? all : scoped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load the town network.');
+      setTowns([]);
     }
-  }, []);
+  }, [isHead, myTownId]);
 
   useEffect(() => {
     loadNetworkData();
   }, [loadNetworkData]);
 
-  function getTownDonorCount(t: TownNetworkItem): number {
-    return t.donorsCount ?? 0;
-  }
-
   function openCreateModal() {
     setEditingItem(null);
     setFormName('');
     setFormStanding('Branch');
-    setFormAddress('Central District Office');
-    setFormManager('Branch Manager');
-    setFormStockUpdate('today');
+    setFormAddress('');
     setIsModalOpen(true);
   }
 
@@ -67,33 +70,16 @@ export default function AdminNetwork() {
     setFormName(item.name);
     setFormStanding(item.standing);
     setFormAddress(item.officeAddress || '');
-    setFormManager(item.managerName || '');
-    setFormStockUpdate(item.lastStockUpdate || 'today');
     setIsModalOpen(true);
   }
 
   async function confirmDelete() {
     if (!deletingItem) return;
-
-    if (deletingItem.name.toLowerCase() === 'quetta') {
-      showToast('Quetta Head Office cannot be deleted.');
-      setDeletingItem(null);
-      return;
-    }
-
-    try {
-      await api.delete(`/towns/${deletingItem.id}`);
-    } catch {
-      // Graceful fallback
-    }
-
-    const next = towns.filter((t) => t.id !== deletingItem.id);
-    setTowns(next);
-    saveNetworkTowns(next);
-
-    showToast(`Town "${deletingItem.name}" deleted. All dropdowns and cards updated!`);
+    // Town deletion is a destructive, org-structural action that also cascades to donors/requests;
+    // it is not exposed through the public PostgREST surface (no towns DELETE grant/policy). Rather
+    // than pretend it worked, tell the operator where it belongs.
+    showToast('Removing a town is a head-office data operation and is not available from this page.');
     setDeletingItem(null);
-    loadNetworkData();
   }
 
   async function handleSaveTown(e: React.FormEvent) {
@@ -105,57 +91,30 @@ export default function AdminNetwork() {
 
     const name = formName.trim();
     const isOffice = formStanding.includes('Branch') || formStanding.includes('Head office');
+    const address = formAddress.trim() || null;
+    setIsSaving(true);
 
-    if (editingItem) {
-      try {
-        await api.patch(`/towns/${editingItem.id}`, { name, isOffice });
-      } catch {}
-      const next = towns.map((t) => {
-        if (t.id === editingItem.id) {
-          return {
-            ...t,
-            name,
-            standing: formStanding,
-            isOffice,
-            officeAddress: formAddress.trim(),
-            managerName: formManager.trim(),
-            lastStockUpdate: formStockUpdate,
-          };
-        }
-        return t;
-      });
-      setTowns(next);
-      saveNetworkTowns(next);
-      showToast(`Updated details for town "${name}". Applied globally!`);
-    } else {
-      let createdId = `t-${Date.now()}`;
-      try {
-        const created = await api.post<{ id: string; name: string }>('/towns', { name, isOffice });
-        if (created?.id) createdId = created.id;
-      } catch {}
-
-      const newTown: TownNetworkItem = {
-        id: createdId,
-        name,
-        standing: formStanding,
-        isOffice,
-        donorsCount: 0,
-        volunteersCount: 0,
-        childrenCount: 0,
-        openRequests: 0,
-        lastStockUpdate: formStockUpdate,
-        officeAddress: formAddress.trim(),
-        managerName: formManager.trim(),
-      };
-
-      const next = [...towns, newTown];
-      setTowns(next);
-      saveNetworkTowns(next);
-      showToast(`Added new town "${newTown.name}" to PBB Network! Dropdowns updated everywhere.`);
+    try {
+      if (editingItem) {
+        // Only send columns that actually changed. name/is_office are head-only (0013 trigger);
+        // address is editable by head (any town) or a manager (own town) via the 0006 grant.
+        const patch: { name?: string; isOffice?: boolean; address?: string | null } = {};
+        if (name !== editingItem.name) patch.name = name;
+        if (isOffice !== Boolean(editingItem.isOffice)) patch.isOffice = isOffice;
+        if (address !== (editingItem.officeAddress ?? null)) patch.address = address;
+        await updateTown(editingItem.id, patch);
+        showToast(`Updated details for town "${name}".`);
+      } else {
+        await createTown({ name, isOffice });
+        showToast(`Added new town "${name}" to the PBB network.`);
+      }
+      setIsModalOpen(false);
+      await loadNetworkData();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not save the town.');
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsModalOpen(false);
-    loadNetworkData();
   }
 
   const filteredTowns = towns.filter((t) => {
@@ -174,7 +133,6 @@ export default function AdminNetwork() {
   });
 
   const branchOfficesCount = towns.filter((t) => t.standing.includes('Branch') || t.standing.includes('Head office')).length;
-  const openTotal = towns.reduce((sum, t) => sum + (t.openRequests || 0), 0);
 
   const standingOptions = [
     { value: 'Head office', label: 'Head office (Central Hub)' },
@@ -187,22 +145,41 @@ export default function AdminNetwork() {
     { value: 'Served from Muslim Bagh', label: 'Served from Muslim Bagh' },
   ];
 
-  const topActions = (
+  // Adding / renaming towns is head office only (RLS + the 0013 trigger). Hide the control otherwise.
+  const topActions = isHead ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <button type="button" className="btn btn-p btn-s" onClick={openCreateModal}>
         <Icon name="plus" size={14} />
         <span style={{ marginLeft: '4px' }}>+ Add a Town</span>
       </button>
     </div>
-  );
+  ) : null;
 
   return (
     <AdminShell
       view="network"
       title="The Network &amp; Towns"
-      subtitle={`${towns.length} towns covered across Pashtoonkhwa`}
+      subtitle={isHead ? `${towns.length} towns covered across Pashtoonkhwa` : 'Your office'}
       actions={topActions}
     >
+      {error && (
+        <div
+          className="acard"
+          style={{
+            marginBottom: '18px',
+            padding: '14px 18px',
+            borderRadius: '14px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#EF4444',
+            fontSize: '13px',
+            fontWeight: 600,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       {/* KPI Stats Row */}
       <div className="akpi" style={{ marginBottom: '20px' }}>
         <div className="c">
@@ -218,15 +195,15 @@ export default function AdminNetwork() {
           </div>
         </div>
         <div className="c">
-          <div className="l">Donors Across Network</div>
+          <div className="l">Served Towns</div>
           <div className="n" style={{ color: '#3B82F6' }}>
-            {towns.reduce((sum, t) => sum + (t.donorsCount || 0), 0).toLocaleString()}
+            {towns.length - branchOfficesCount}
           </div>
         </div>
         <div className="c">
-          <div className="l">Open Requests</div>
-          <div className="n text-red" style={{ color: '#F87171' }}>
-            {openTotal} Urgent
+          <div className="l">Head Office</div>
+          <div className="n" style={{ color: '#F87171' }}>
+            {towns.some((t) => t.standing === 'Head office') ? 'Quetta' : '-'}
           </div>
         </div>
       </div>
@@ -332,7 +309,6 @@ export default function AdminNetwork() {
           </thead>
           <tbody>
             {filteredTowns.map((t) => {
-              const dCount = getTownDonorCount(t);
               const isBranch = t.standing.includes('Branch') || t.standing.includes('Head office');
               return (
                 <tr key={t.id} onClick={() => setSelectedTown(t)} style={{ cursor: 'pointer' }}>
@@ -367,20 +343,14 @@ export default function AdminNetwork() {
                   </td>
 
                   <td>
-                    <b style={{ fontSize: '13.5px', color: 'var(--txt1)' }}>{dCount.toLocaleString()}</b>
+                    <span className="sm" style={{ fontSize: '12px', color: 'var(--txt3)' }} title="Open the town to see its donors">—</span>
                   </td>
 
                   <td>
-                    {t.openRequests > 0 ? (
-                      <span className="tag r" style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(239, 68, 68, 0.15)', color: '#EF4444' }}>
-                        ⚠️ {t.openRequests} Urgent
-                      </span>
-                    ) : (
-                      <span className="sm" style={{ fontSize: '12px', color: 'var(--txt3)' }}>0 requests</span>
-                    )}
+                    <span className="sm" style={{ fontSize: '12px', color: 'var(--txt3)' }} title="Open the town to see its blood requests">—</span>
                   </td>
 
-                  <td style={{ fontSize: '12px', fontWeight: 600, color: /never|9 days/.test(t.lastStockUpdate) ? '#EF4444' : 'var(--txt2)' }}>
+                  <td style={{ fontSize: '12px', fontWeight: 600, color: 'var(--txt3)' }}>
                     {t.lastStockUpdate}
                   </td>
 
@@ -689,20 +659,9 @@ export default function AdminNetwork() {
                 />
               </div>
 
-              <div className="fgrp">
-                <label className="lb" style={{ fontWeight: 700 }}>Appointed Town Manager</label>
-                <input
-                  type="text"
-                  className="fld"
-                  placeholder="e.g. Hameed Ullah"
-                  value={formManager}
-                  onChange={(e) => setFormManager(e.target.value)}
-                />
-              </div>
-
               <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                <button type="submit" className="btn btn-p" style={{ flex: 1, borderRadius: '10px' }}>
-                  {editingItem ? 'Save Changes' : 'Add Town to Network'}
+                <button type="submit" disabled={isSaving} className="btn btn-p" style={{ flex: 1, borderRadius: '10px', opacity: isSaving ? 0.8 : 1, cursor: isSaving ? 'not-allowed' : 'pointer' }}>
+                  {isSaving ? 'Saving…' : editingItem ? 'Save Changes' : 'Add Town to Network'}
                 </button>
               </div>
             </form>

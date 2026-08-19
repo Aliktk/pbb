@@ -1,65 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { css } from '../../../lib/style';
+import { useState, useEffect, useMemo } from 'react';
 import { AdminShell } from '../../../components/admin/AdminShell';
-import { showToast } from '../../../lib/toast';
 import { CustomSelect } from '../../../components/CustomSelect';
-import { api } from '../../../lib/api';
+import { fetchAuditLog, type AuditEntry } from '../../../lib/audit';
 
-type SeverityLevel = 'high' | 'normal' | 'security';
-
-interface AuditLogEntry {
-  id: string;
-  timestamp: string;
-  date: string;
-  month: string;
-  who: string;
-  role: string;
-  what: string;
-  town: string;
-  severity: SeverityLevel;
-  reason?: string;
-  ip?: string;
-  hash?: string;
-}
-
-const MONTH_OPTIONS = [
-  { value: 'All', label: 'All Months' },
-  { value: 'August 2026', label: 'August 2026' },
-  { value: 'July 2026', label: 'July 2026' },
-  { value: 'June 2026', label: 'June 2026' },
-];
+type AuditLogEntry = AuditEntry;
 
 export default function AdminAudit() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [search, setSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [openEntry, setOpenEntry] = useState<AuditLogEntry | null>(null);
 
-  const loadAuditLogs = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get<{ data: AuditLogEntry[] }>('/audit-logs', {
-        params: { search, month: monthFilter !== 'All' ? monthFilter : undefined },
-      });
-      if (res && res.data) {
-        setLogs(res.data);
-      }
-    } catch {
-      showToast('Loaded system audit log ledger.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // The trail is read once from Supabase (RLS scopes it). Search + month are filtered client-side.
   useEffect(() => {
-    const handle = setTimeout(() => {
-      loadAuditLogs();
-    }, 250);
-    return () => clearTimeout(handle);
-  }, [search, monthFilter]);
+    let alive = true;
+    setLoading(true);
+    fetchAuditLog()
+      .then((rows) => {
+        if (!alive) return;
+        setLogs(rows);
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : 'Could not load the audit log.');
+        setLogs([]);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Month options are built from the real data, so the filter never lists empty months.
+  const monthOptions = useMemo(() => {
+    const seen: string[] = [];
+    for (const l of logs) {
+      if (l.month && !seen.includes(l.month)) seen.push(l.month);
+    }
+    return [{ value: 'All', label: 'All Months' }, ...seen.map((m) => ({ value: m, label: m }))];
+  }, [logs]);
 
   const filteredLogs = logs.filter((log) => {
     const matchesSearch =
@@ -102,7 +88,7 @@ export default function AdminAudit() {
         <div style={{ width: '220px' }}>
           <CustomSelect
             name="monthFilter"
-            options={MONTH_OPTIONS}
+            options={monthOptions}
             value={monthFilter}
             onChange={(val) => setMonthFilter(val)}
             direction="down"
@@ -142,10 +128,18 @@ export default function AdminAudit() {
                     <div style={{ marginTop: '10px', fontSize: '13px', fontWeight: 600 }}>Loading Audit Ledger...</div>
                   </td>
                 </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--p)', fontSize: '13.5px', fontWeight: 600 }}>
+                    Could not load the audit log: {error}
+                  </td>
+                </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--txt3)', fontSize: '13.5px' }}>
-                    No audit log entries matching criteria.
+                    {logs.length === 0
+                      ? 'No audit entries have been recorded yet.'
+                      : 'No audit log entries match your search.'}
                   </td>
                 </tr>
               ) : (
@@ -288,10 +282,15 @@ export default function AdminAudit() {
               )}
 
               <div style={{ background: 'var(--bg)', borderRadius: '12px', padding: '12px 14px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--txt3)', fontWeight: 700 }}>Security Verification</div>
+                <div style={{ fontSize: '11px', color: 'var(--txt3)', fontWeight: 700 }}>When</div>
                 <div style={{ fontSize: '12px', color: 'var(--txt2)', fontFamily: 'monospace', marginTop: '4px' }}>
-                  IP: {openEntry.ip || '182.185.10.1'}<br />
-                  Hash: {openEntry.hash}
+                  {openEntry.date} · {openEntry.timestamp}
+                  {openEntry.ip ? (
+                    <>
+                      <br />
+                      IP: {openEntry.ip}
+                    </>
+                  ) : null}
                 </div>
               </div>
             </div>
