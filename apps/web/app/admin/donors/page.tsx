@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
-import { showToast } from '../../../lib/toast';
 import { fetchDonors } from '../../../lib/donors';
 import { fetchTowns, type Town } from '../../../lib/towns';
 import { splitGroup } from '../../../lib/bloodGroup';
 import { BLOOD_GROUPS } from '../../../lib/nav';
+import { AddDonorModal } from '../../../components/admin/AddDonorModal';
+import { EditDonorModal } from '../../../components/admin/EditDonorModal';
 import type { DonorRow } from '../../../lib/apiTypes';
 
 const ELIGIBILITY: Record<string, { lab: string; tag: string }> = {
@@ -36,6 +37,9 @@ export default function AdminDonors() {
   const [rows, setRows] = useState<DonorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [editDonor, setEditDonor] = useState<DonorRow | null>(null);
+  const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
     fetchTowns().then(setTowns).catch(() => setTowns([]));
@@ -53,12 +57,12 @@ export default function AdminDonors() {
         .finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(handle);
-  }, [q, group, town]);
+  }, [q, group, town, refresh]);
 
   const actions = (
     <>
       <span style={css('margin-left:auto')} />
-      <button type="button" className="btn btn-p btn-s" onClick={() => showToast('Add donor wires to POST /donors')}>+ Add donor</button>
+      <button type="button" className="btn btn-p btn-s" onClick={() => setAddOpen(true)}>+ Add donor</button>
     </>
   );
 
@@ -95,7 +99,7 @@ export default function AdminDonors() {
                   const n = daysSince(d.lastDonatedAt);
                   const e = ELIGIBILITY[d.eligibility] ?? { lab: d.eligibility, tag: 'gy' };
                   return (
-                    <tr key={d.id}>
+                    <tr key={d.id} onClick={() => setEditDonor(d)} style={css('cursor:pointer')}>
                       <td className="mono2 m1">{d.mrNo || '-'}</td>
                       <td className="m2"><div className="nm">{d.name}</div><div className="sm">{d.mrNo || d.town} · {d.phone ?? 'no phone'}</div></td>
                       <td>{bgTag(d.group)}</td>
@@ -118,6 +122,9 @@ export default function AdminDonors() {
         Whether somebody can give <b>today</b> is worked out by the database eligibility view, not by hand,
         so this register, the record sheet and the search can never disagree.
       </p>
+
+      <AddDonorModal isOpen={addOpen} onClose={() => setAddOpen(false)} onSuccess={() => setRefresh((r) => r + 1)} towns={towns} />
+      <EditDonorModal donor={editDonor} isOpen={editDonor !== null} onClose={() => setEditDonor(null)} onSuccess={() => setRefresh((r) => r + 1)} towns={towns} />
     </AdminShell>
   );
 }

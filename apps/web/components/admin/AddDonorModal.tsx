@@ -2,17 +2,13 @@
 
 import { useState, useEffect, type FormEvent } from 'react';
 import { css } from '../../lib/style';
-import { api, ApiError } from '../../lib/api';
+import { createDonor } from '../../lib/donors';
 import { showToast } from '../../lib/toast';
 import { splitGroup } from '../../lib/bloodGroup';
 import { BLOOD_GROUPS } from '../../lib/nav';
 import { CustomSelect } from '../CustomSelect';
+import type { Town } from '../../lib/towns';
 import type { DonorRow } from '../../lib/apiTypes';
-
-interface Town {
-  id: string;
-  name: string;
-}
 
 interface AddDonorModalProps {
   isOpen: boolean;
@@ -62,45 +58,23 @@ export function AddDonorModal({ isOpen, onClose, onSuccess, towns }: AddDonorMod
 
     setSubmitting(true);
     const { bloodGroup, rhFactor } = splitGroup(group);
-    const selectedTown = towns.find((t) => t.id === townId);
-
-    const payload = {
-      mrNo: mrNo.trim() || `MR-${Math.floor(100000 + Math.random() * 900000)}`,
-      name: name.trim(),
-      bloodGroup,
-      rhFactor,
-      dateOfBirth: new Date(dob).toISOString(),
-      phone: phone.trim() || undefined,
-      townId,
-      branchId: townId,
-      consentToCall,
-    };
 
     try {
-      const created = await api.post<DonorRow>('/donors', payload);
+      const created = await createDonor({
+        mrNo: mrNo.trim() || undefined,
+        name: name.trim(),
+        bloodGroup,
+        rhFactor,
+        dateOfBirth: new Date(dob).toISOString(),
+        phone: phone.trim() || null,
+        townId,
+        consentToCall,
+      });
       showToast(`Donor ${created.name} (${created.mrNo}) registered successfully.`);
       onSuccess(created);
       onClose();
     } catch (err) {
-      // Robust fallback if API is in demo mode or offline
-      const mockDonor: DonorRow = {
-        id: `donor-${Date.now()}`,
-        mrNo: payload.mrNo,
-        name: payload.name,
-        group,
-        bloodGroup,
-        rhFactor,
-        phone: payload.phone || null,
-        town: selectedTown?.name || 'Quetta',
-        townId: payload.townId,
-        lastDonatedAt: null,
-        timesDonated: 0,
-        consentToCall: payload.consentToCall,
-        eligibility: 'ELIGIBLE',
-      };
-      showToast(`Donor ${mockDonor.name} (${mockDonor.mrNo}) added to register.`);
-      onSuccess(mockDonor);
-      onClose();
+      showToast(err instanceof Error ? err.message : 'Could not register the donor.');
     } finally {
       setSubmitting(false);
     }
