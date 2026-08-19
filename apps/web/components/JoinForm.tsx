@@ -7,7 +7,9 @@ import { TOWNS, BLOOD_GROUPS } from '../lib/nav';
 import { getTownNamesList } from '../lib/towns';
 import { FORM_FIELDS, NEED_GROUP, SUCCESS, type JoinKind } from '../lib/join';
 import { showToast } from '../lib/toast';
-import { api, ApiError } from '../lib/api';
+import { fetchTowns } from '../lib/towns';
+import { submitPublicRequest } from '../lib/requests';
+import { submitContactMessage, type MessageKind } from '../lib/messages';
 import { splitGroup } from '../lib/bloodGroup';
 import { CustomSelect } from './CustomSelect';
 
@@ -44,9 +46,8 @@ export function JoinForm({ kind }: JoinFormProps) {
   const success = SUCCESS[kind];
 
   useEffect(() => {
-    api
-      .get<{ data: Town[] }>('/towns', { auth: false })
-      .then((res) => setTowns(res.data))
+    fetchTowns()
+      .then((res) => setTowns(res))
       .catch(() => setTowns([]));
   }, []);
 
@@ -69,7 +70,7 @@ export function JoinForm({ kind }: JoinFormProps) {
       .filter(Boolean)
       .join(' · ');
 
-    const payload = {
+    const res = await submitPublicRequest({
       patientName: String(fd.get('patient') ?? '').trim() || undefined,
       hospital: String(fd.get('hospital') ?? '').trim(),
       townId: String(fd.get('city') ?? ''),
@@ -82,9 +83,7 @@ export function JoinForm({ kind }: JoinFormProps) {
       transportAvailable: String(fd.get('transport') ?? '').startsWith('Yes'),
       exchangePossible: String(fd.get('exchange') ?? '') === 'Yes',
       caseNotes: notes || undefined,
-    };
-
-    const res = await api.post<{ reference: string; status: string }>('/requests', payload, { auth: false });
+    });
     setRef(res.reference);
     setSubmitted(true);
   }

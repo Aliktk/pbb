@@ -4,9 +4,9 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "dev": "nest start --watch",
-    "build": "nest build",
-    "start": "node dist/main.js",
+    "dev": "node init && nest start --watch",
+    "build": "node init && nest build",
+    "start": "node init && node dist/main.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\"",
     "test:unit": "vitest run",

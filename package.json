@@ -9,8 +9,8 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "dev": "pnpm -r --parallel dev",
-    "build": "pnpm -r build",
+    "dev": "node init && pnpm -r --parallel dev",
+    "build": "node init && pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "test:unit": "pnpm -r test:unit",

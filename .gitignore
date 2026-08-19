@@ -10,6 +10,7 @@ coverage/
 !.env.example
 .DS_Store
 Thumbs.db
+temp_auto_push.bat
 .turbo/
 playwright-report/
 test-results/
@@ -23,3 +24,5 @@ Modernist-handoff.zip
 
 # compiled seed artifact (source is seed.ts, run via tsx)
 apps/api/prisma/seed.js
+.gitignore
+branch_structure.json

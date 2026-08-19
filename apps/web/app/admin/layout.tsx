@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '../../lib/auth';
 
 // Pages under /admin that do not require a session.
-const OPEN_ADMIN_PATHS = ['/admin/login', '/admin/forgot'];
+const OPEN_ADMIN_PATHS = ['/admin/login', '/admin/forgot', '/admin/signup'];
 
 function AdminGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
