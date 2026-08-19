@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api, ApiError } from '../../../lib/api';
+import { fetchDonors } from '../../../lib/donors';
+import { fetchTowns, type Town } from '../../../lib/towns';
 import { splitGroup } from '../../../lib/bloodGroup';
 import { BLOOD_GROUPS } from '../../../lib/nav';
 import type { Paged, DonorRow } from '../../../lib/apiTypes';
@@ -54,10 +55,10 @@ export default function AdminDonors() {
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   useEffect(() => {
-    api.get<{ data: Town[] }>('/towns').then((r) => setTowns(r.data)).catch(() => setTowns([]));
+    fetchTowns().then(setTowns).catch(() => setTowns([]));
   }, []);
 
-  // Refetch when filters change (debounced so typing does not hammer the API).
+  // Refetch when filters change (debounced so typing does not hammer the database).
   useEffect(() => {
     const handle = setTimeout(() => {
       const params = new URLSearchParams();
