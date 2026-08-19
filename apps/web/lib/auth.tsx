@@ -10,6 +10,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refetchUser: () => Promise<void>;
   /** Does the signed-in user's role grant `resource:action`? Presentation only; the server enforces. */
   can: (resource: string, action: string) => boolean;
 }
@@ -19,6 +20,16 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const refetchUser = useCallback(async () => {
+    if (!tokenStore.access) return;
+    try {
+      const me = await api.get<PublicUser>('/auth/me');
+      setUser(me);
+    } catch {
+      // Keep existing user on error
+    }
+  }, []);
 
   // On first load, if we have a token, ask the server who we are. A bad/expired token clears.
   useEffect(() => {
@@ -73,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
-  return <AuthContext.Provider value={{ user, loading, login, logout, can }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, logout, refetchUser, can }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

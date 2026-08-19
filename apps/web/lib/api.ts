@@ -23,6 +23,7 @@ interface RequestOptions {
   body?: unknown;
   auth?: boolean; // attach the access token (default true)
   retry?: boolean; // allow one refresh-and-retry on 401 (default true)
+  params?: Record<string, string | number | boolean | undefined>;
 }
 
 async function tryRefresh(): Promise<boolean> {
@@ -44,12 +45,26 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, auth = true, retry = true } = options;
+  const { method = 'GET', body, auth = true, retry = true, params } = options;
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (auth && tokenStore.access) headers.Authorization = `Bearer ${tokenStore.access}`;
 
-  const res = await fetch(`${BASE}${path}`, {
+  let fullPath = path;
+  if (params) {
+    const qp = new URLSearchParams();
+    for (const [key, val] of Object.entries(params)) {
+      if (val !== undefined && val !== null && val !== '') {
+        qp.append(key, String(val));
+      }
+    }
+    const qStr = qp.toString();
+    if (qStr) {
+      fullPath += (fullPath.includes('?') ? '&' : '?') + qStr;
+    }
+  }
+
+  const res = await fetch(`${BASE}${fullPath}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -63,8 +78,16 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const json = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    const message = json?.error?.message ?? res.statusText ?? 'Request failed';
-    throw new ApiError(res.status, message, json?.error?.code);
+    let rawMsg = json?.error?.message ?? res.statusText ?? 'Request failed';
+    if (
+      rawMsg.toLowerCase().includes("can't reach database") ||
+      rawMsg.toLowerCase().includes('prisma') ||
+      rawMsg.toLowerCase().includes('invocation in') ||
+      rawMsg.toLowerCase().includes('econnrefused')
+    ) {
+      rawMsg = 'Unable to connect to the database server. Please check database connectivity and try again.';
+    }
+    throw new ApiError(res.status, rawMsg, json?.error?.code);
   }
   return json as T;
 }
@@ -73,4 +96,5 @@ export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'GET' }),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'POST', body }),
   patch: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'PATCH', body }),
+  delete: <T>(path: string, opts?: RequestOptions) => request<T>(path, { ...opts, method: 'DELETE' }),
 };

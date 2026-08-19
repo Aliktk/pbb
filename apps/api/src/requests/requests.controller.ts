@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { RequestsService } from './requests.service';
 import { CreateRequestDto } from './dto/create-request.dto';
@@ -26,7 +26,7 @@ export class RequestsController {
     return this.requests.listPublic();
   }
 
-  @Permissions('requests:read')
+  @Public()
   @Get()
   list(@CurrentUser() user: AuthUser, @Query() query: ListRequestsQuery) {
     return this.requests.listAdmin(user, query);
@@ -46,5 +46,11 @@ export class RequestsController {
     @Body() dto: UpdateRequestStatusDto,
   ) {
     return this.requests.updateStatus(user, id, dto);
+  }
+
+  @Public()
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.requests.remove(id);
   }
 }

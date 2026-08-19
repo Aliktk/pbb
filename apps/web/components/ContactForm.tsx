@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { CustomSelect } from './CustomSelect';
 import { TOWNS } from '../lib/nav';
+import { api } from '../lib/api';
 
 const MODES = ['General', 'Volunteer', 'Hospital or partner', 'Press'];
 const SKILLS = ['Camps', 'Outreach', 'Driving', 'Office work', 'Design'];
@@ -14,14 +15,42 @@ export function ContactForm() {
   const [town, setTown] = useState<string>(TOWNS[0]);
   const [skills, setSkills] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const toggleSkill = (s: string) =>
     setSkills((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const name = (formData.get('name') as string) || '';
+    const phone = (formData.get('phone') as string) || '';
+    const email = (formData.get('email') as string) || '';
+    const msg = (formData.get('msg') as string) || '';
+
+    let fullBody = msg;
+    if (email) fullBody += `\n\nEmail: ${email}`;
+    if (mode === 'Volunteer') {
+      fullBody += `\nTown: ${town}`;
+      if (skills.length > 0) fullBody += `\nSkills: ${skills.join(', ')}`;
+    }
+
+    try {
+      await api.post('/messages', {
+        fromName: name,
+        fromPhone: phone,
+        subject: mode,
+        body: fullBody,
+      });
+    } catch {
+      // Proceed gracefully
+    } finally {
+      setSubmitting(false);
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 
   if (submitted) {

@@ -234,7 +234,7 @@ export function AddDonorModal({ isOpen, onClose, onSuccess, towns }: AddDonorMod
                 value={townId}
                 onChange={(val) => setTownId(val)}
                 placeholder="Select town..."
-                direction="down"
+                direction="up"
               />
             </div>
             <div className="fgrp">

@@ -24,6 +24,8 @@ const manager: AuthUser = {
   id: 'u1',
   name: 'Branch Manager',
   email: 'm@pbb.org',
+  phone: null,
+  avatarUrl: null,
   roleId: 'role-manager',
   roleName: 'Branch Manager',
   level: 2,

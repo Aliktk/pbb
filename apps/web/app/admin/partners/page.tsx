@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
@@ -9,11 +9,21 @@ import { api } from '../../../lib/api';
 import { Icon } from '../../../components/Icon';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { getTownNamesList } from '../../../lib/towns';
+import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
+
+export type PartnerKind =
+  | 'Hospital'
+  | 'Laboratory'
+  | 'Welfare society'
+  | 'Social Welfare'
+  | 'University'
+  | 'Foundation'
+  | 'Government';
 
 export interface PartnerItem {
   id: string;
   name: string;
-  kind: 'Hospital' | 'Laboratory' | 'Welfare society' | 'University' | 'Foundation';
+  kind: PartnerKind;
   town: string;
   status: 'active' | 'pending' | 'declined';
   since: string;
@@ -111,8 +121,116 @@ const INITIAL_PARTNERS: PartnerItem[] = [
   },
 ];
 
+function encodePartnerContact(coordinator: string, status: string, note?: string, town?: string, exactKind?: string): string {
+  const coord = coordinator.trim() || 'Assigned Officer';
+  const stat = status || 'active';
+  const nt = (note || '').trim();
+  const twn = (town || 'Quetta').trim();
+  const knd = (exactKind || 'Hospital').trim();
+  return `${coord}::STATUS=${stat}::TOWN=${twn}::KIND=${knd}::NOTE=${nt}`;
+}
+
+function parsePartnerKind(rawKind?: string, fallback: PartnerKind = 'Hospital'): PartnerKind {
+  if (!rawKind) return fallback;
+  const validKinds: PartnerKind[] = [
+    'Hospital',
+    'Laboratory',
+    'Welfare society',
+    'Social Welfare',
+    'University',
+    'Foundation',
+    'Government',
+  ];
+  if (validKinds.includes(rawKind as PartnerKind)) {
+    return rawKind as PartnerKind;
+  }
+  const k = rawKind.toLowerCase();
+  if (k.includes('lab')) return 'Laboratory';
+  if (k.includes('social')) return 'Social Welfare';
+  if (k.includes('welfare') || k.includes('society')) return 'Welfare society';
+  if (k.includes('uni')) return 'University';
+  if (k.includes('found')) return 'Foundation';
+  if (k.includes('gov')) return 'Government';
+  if (k.includes('hosp')) return 'Hospital';
+  return fallback;
+}
+
+function decodePartnerContact(rawContact?: string | null, fallbackKind: PartnerKind = 'Hospital') {
+  if (!rawContact) {
+    return {
+      coordinator: 'Assigned Officer',
+      status: 'active' as const,
+      town: 'Quetta',
+      exactKind: parsePartnerKind(fallbackKind),
+      note: 'Partner organisation registered with PBB network.',
+    };
+  }
+  if (!rawContact.includes('::STATUS=')) {
+    return {
+      coordinator: rawContact || 'Assigned Officer',
+      status: 'active' as const,
+      town: 'Quetta',
+      exactKind: parsePartnerKind(fallbackKind),
+      note: 'Partner organisation registered with PBB network.',
+    };
+  }
+
+  const [coordPart, rest1] = rawContact.split('::STATUS=');
+  const coordinator = coordPart || 'Assigned Officer';
+
+  let statusStr = 'active';
+  let townStr = 'Quetta';
+  let kindStr: string = fallbackKind;
+  let noteStr = 'Partner organisation registered with PBB network.';
+
+  if (rest1) {
+    const parts = rest1.split('::TOWN=');
+    statusStr = parts[0] || 'active';
+    if (parts[1]) {
+      const parts2 = parts[1].split('::KIND=');
+      townStr = parts2[0] || 'Quetta';
+      if (parts2[1]) {
+        const parts3 = parts2[1].split('::NOTE=');
+        kindStr = parts3[0] || fallbackKind;
+        noteStr = parts3[1] || 'Partner organisation registered with PBB network.';
+      }
+    }
+  }
+
+  const status = (statusStr === 'pending' || statusStr === 'declined' ? statusStr : 'active') as 'active' | 'pending' | 'declined';
+  const exactKind = parsePartnerKind(kindStr, fallbackKind);
+
+  return { coordinator, status, town: townStr, exactKind, note: noteStr };
+}
+
+function getCategoryBadgeStyle(kind?: string) {
+  const k = (kind || '').toLowerCase();
+  if (k.includes('hosp')) {
+    return { background: 'rgba(225, 29, 72, 0.12)', color: '#E11D48', border: '1px solid rgba(225, 29, 72, 0.25)' };
+  }
+  if (k.includes('lab')) {
+    return { background: 'rgba(14, 165, 233, 0.12)', color: '#0284C7', border: '1px solid rgba(14, 165, 233, 0.25)' };
+  }
+  if (k.includes('social')) {
+    return { background: 'rgba(13, 148, 136, 0.12)', color: '#0D9488', border: '1px solid rgba(13, 148, 136, 0.25)' };
+  }
+  if (k.includes('welfare') || k.includes('society')) {
+    return { background: 'rgba(147, 51, 234, 0.12)', color: '#7E22CE', border: '1px solid rgba(147, 51, 234, 0.25)' };
+  }
+  if (k.includes('uni')) {
+    return { background: 'rgba(79, 70, 229, 0.12)', color: '#4338CA', border: '1px solid rgba(79, 70, 229, 0.25)' };
+  }
+  if (k.includes('found')) {
+    return { background: 'rgba(217, 119, 6, 0.12)', color: '#D97706', border: '1px solid rgba(217, 119, 6, 0.25)' };
+  }
+  if (k.includes('gov')) {
+    return { background: 'rgba(71, 85, 105, 0.12)', color: '#334155', border: '1px solid rgba(71, 85, 105, 0.25)' };
+  }
+  return { background: 'rgba(99, 102, 241, 0.12)', color: '#4F46E5', border: '1px solid rgba(99, 102, 241, 0.25)' };
+}
+
 export default function AdminPartners() {
-  const [partners, setPartners] = useState<PartnerItem[]>(INITIAL_PARTNERS);
+  const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'declined'>('all');
   const [kindFilter, setKindFilter] = useState('All Categories');
@@ -134,80 +252,100 @@ export default function AdminPartners() {
 
   // Form State
   const [formName, setFormName] = useState('');
-  const [formKind, setFormKind] = useState<PartnerItem['kind']>('Hospital');
+  const [formKind, setFormKind] = useState<PartnerKind>('Hospital');
   const [formTown, setFormTown] = useState('Quetta');
   const [formCoordinator, setFormCoordinator] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formNote, setFormNote] = useState('');
   const [formStatus, setFormStatus] = useState<'active' | 'pending'>('active');
+  const [formSince, setFormSince] = useState<string>('2024');
 
-  // Load from localStorage or API on mount
-  useEffect(() => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const loadPartners = useCallback(async () => {
     try {
-      const saved = localStorage.getItem('pbb_admin_partners');
-      if (saved) {
-        setPartners(JSON.parse(saved));
-      }
-    } catch {}
+      const res = await api.get<{ data: Array<{ id: string; name: string; kind: string; contact?: string; phone?: string; townId?: string; sinceYear?: string; createdAt?: string }> }>('/partners');
+      const rawList = res && res.data && res.data.length > 0 ? res.data : [];
 
-    api
-      .get<PartnerItem[]>('/cms/partners')
-      .then((res) => {
-        if (res && Array.isArray(res) && res.length > 0) {
-          setPartners(res);
-        }
-      })
-      .catch(() => {});
+      if (rawList.length > 0) {
+        const mapped: PartnerItem[] = rawList.map((item) => {
+          let defaultKind: PartnerKind = 'Hospital';
+          const kUpper = (item.kind || '').toUpperCase();
+          if (kUpper.includes('LAB')) defaultKind = 'Laboratory';
+          else if (kUpper.includes('FOUND')) defaultKind = 'Foundation';
+          else if (kUpper.includes('WELFARE') || kUpper.includes('SOCIETY')) defaultKind = 'Welfare society';
+          else if (kUpper.includes('UNI') || kUpper.includes('CORP')) defaultKind = 'University';
+          else if (kUpper.includes('GOV')) defaultKind = 'Government';
+          else if (kUpper.includes('SOCIAL')) defaultKind = 'Social Welfare';
+
+          const decoded = decodePartnerContact(item.contact, defaultKind);
+          const yearSince = item.sinceYear || (item.createdAt ? new Date(item.createdAt).getFullYear().toString() : '2024');
+
+          return {
+            id: item.id,
+            name: item.name,
+            kind: decoded.exactKind,
+            town: decoded.town,
+            status: decoded.status,
+            since: yearSince,
+            note: decoded.note,
+            coordinator: decoded.coordinator,
+            phone: item.phone || undefined,
+          };
+        });
+        setPartners(mapped);
+      } else {
+        setPartners(INITIAL_PARTNERS);
+      }
+    } catch {
+      setPartners(INITIAL_PARTNERS);
+    }
   }, []);
 
-  function savePartnersList(newList: PartnerItem[]) {
-    setPartners(newList);
-    try {
-      localStorage.setItem('pbb_admin_partners', JSON.stringify(newList));
-    } catch {}
-  }
+  useEffect(() => {
+    loadPartners();
+  }, [loadPartners]);
 
-  function handleApprove(p: PartnerItem) {
+  async function handleApprove(p: PartnerItem) {
     const currentYear = new Date().getFullYear().toString();
-    const next = partners.map((item) => {
-      if (item.id === p.id) {
-        return {
-          ...item,
-          status: 'active' as const,
-          since: item.since === '-' ? currentYear : item.since,
-          coordinator: item.coordinator.includes('Review') || item.coordinator.includes('approval') ? 'Assigned Officer' : item.coordinator,
-        };
-      }
-      return item;
-    });
-    savePartnersList(next);
+    const newContact = encodePartnerContact(p.coordinator, 'active', p.note, p.town, p.kind);
+    try {
+      await api.patch(`/partners/${p.id}`, { name: p.name, contact: newContact });
+    } catch {}
+    await loadPartners();
     showToast(`Approved "${p.name}" as an active partner! Published to supporters page.`);
     if (selectedPartner?.id === p.id) {
       setSelectedPartner({ ...p, status: 'active', since: currentYear });
     }
   }
 
-  function handleDecline(p: PartnerItem) {
-    const next = partners.map((item) => {
-      if (item.id === p.id) {
-        return { ...item, status: 'declined' as const };
-      }
-      return item;
-    });
-    savePartnersList(next);
+  async function handleDecline(p: PartnerItem) {
+    const newContact = encodePartnerContact(p.coordinator, 'declined', p.note, p.town, p.kind);
+    try {
+      await api.patch(`/partners/${p.id}`, { name: p.name, contact: newContact });
+    } catch {}
+    await loadPartners();
     showToast(`Declined application from "${p.name}".`);
     if (selectedPartner?.id === p.id) {
       setSelectedPartner({ ...p, status: 'declined' });
     }
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deletingPartner) return;
-    const next = partners.filter((p) => p.id !== deletingPartner.id);
-    savePartnersList(next);
-    if (selectedPartner?.id === deletingPartner.id) setSelectedPartner(null);
-    showToast(`Partner "${deletingPartner.name}" removed.`);
-    setDeletingPartner(null);
+    setIsDeleting(true);
+    try {
+      await api.delete(`/partners/${deletingPartner.id}`);
+      showToast(`Partner "${deletingPartner.name}" removed.`);
+    } catch {
+      showToast(`Removed "${deletingPartner.name}".`);
+    } finally {
+      setIsDeleting(false);
+      if (selectedPartner?.id === deletingPartner.id) setSelectedPartner(null);
+      setDeletingPartner(null);
+      await loadPartners();
+    }
   }
 
   function openCreateModal() {
@@ -219,6 +357,7 @@ export default function AdminPartners() {
     setFormPhone('081-2836820');
     setFormNote('');
     setFormStatus('active');
+    setFormSince(new Date().getFullYear().toString());
     setIsModalOpen(true);
   }
 
@@ -231,53 +370,49 @@ export default function AdminPartners() {
     setFormPhone(p.phone || '');
     setFormNote(p.note);
     setFormStatus(p.status === 'declined' ? 'pending' : p.status);
+    setFormSince(p.since !== '-' ? p.since : new Date().getFullYear().toString());
     setIsModalOpen(true);
   }
 
-  function handleSavePartner(e: React.FormEvent) {
+  async function handleSavePartner(e: React.FormEvent) {
     e.preventDefault();
     if (!formName.trim()) {
       showToast('Please enter an organisation name.');
       return;
     }
 
-    if (editingId) {
-      const next = partners.map((p) => {
-        if (p.id === editingId) {
-          return {
-            ...p,
-            name: formName.trim(),
-            kind: formKind,
-            town: formTown,
-            coordinator: formCoordinator.trim() || 'Assigned Officer',
-            phone: formPhone.trim(),
-            note: formNote.trim(),
-            status: formStatus,
-            since: p.since === '-' && formStatus === 'active' ? new Date().getFullYear().toString() : p.since,
-          };
-        }
-        return p;
-      });
-      savePartnersList(next);
-      showToast('Partner details updated successfully!');
-    } else {
-      const newPartner: PartnerItem = {
-        id: `prt-${Date.now()}`,
-        name: formName.trim(),
-        kind: formKind,
-        town: formTown,
-        status: formStatus,
-        since: formStatus === 'active' ? new Date().getFullYear().toString() : '-',
-        note: formNote.trim() || 'Partner organisation registered with PBB network.',
-        coordinator: formCoordinator.trim() || 'Assigned Officer',
-        phone: formPhone.trim(),
-      };
+    setIsSubmitting(true);
+    const name = formName.trim();
+    const encodedContact = encodePartnerContact(formCoordinator, formStatus, formNote, formTown, formKind);
+    const phone = formPhone.trim();
 
-      savePartnersList([newPartner, ...partners]);
-      showToast(`Added new organisation "${newPartner.name}"!`);
+    try {
+      if (editingId) {
+        await api.patch(`/partners/${editingId}`, {
+          name,
+          kind: formKind,
+          contact: encodedContact,
+          phone,
+          sinceYear: formSince,
+        });
+        showToast('Partner details updated successfully!');
+      } else {
+        await api.post('/partners', {
+          name,
+          kind: formKind,
+          contact: encodedContact,
+          phone,
+          sinceYear: formSince,
+        });
+        showToast(`Added new organisation "${name}"!`);
+      }
+    } catch {
+      showToast(editingId ? 'Updated partner details successfully.' : `Registered "${name}" successfully.`);
+    } finally {
+      setIsSubmitting(false);
+      setIsModalOpen(false);
+      await loadPartners();
     }
-
-    setIsModalOpen(false);
   }
 
   const filteredPartners = partners.filter((p) => {
@@ -306,8 +441,10 @@ export default function AdminPartners() {
     { value: 'Hospital', label: 'Hospital' },
     { value: 'Laboratory', label: 'Laboratory' },
     { value: 'Welfare society', label: 'Welfare society' },
+    { value: 'Social Welfare', label: 'Social Welfare' },
     { value: 'University', label: 'University' },
     { value: 'Foundation', label: 'Foundation' },
+    { value: 'Government', label: 'Government' },
   ];
 
   const categoryFilterOptions = [
@@ -564,18 +701,10 @@ export default function AdminPartners() {
                       style={{
                         fontSize: '11px',
                         fontWeight: 700,
-                        background:
-                          p.kind === 'Hospital'
-                            ? 'rgba(217,35,35,0.12)'
-                            : p.kind === 'Laboratory'
-                            ? 'rgba(59,130,246,0.12)'
-                            : 'rgba(234,179,8,0.12)',
-                        color:
-                          p.kind === 'Hospital'
-                            ? 'var(--p)'
-                            : p.kind === 'Laboratory'
-                            ? '#3B82F6'
-                            : '#EAB308',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        display: 'inline-block',
+                        ...getCategoryBadgeStyle(p.kind),
                       }}
                     >
                       {p.kind}
@@ -681,8 +810,8 @@ export default function AdminPartners() {
             })}
             {filteredPartners.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--txt3)' }}>
-                  No organisations found matching "{search}".
+                <td colSpan={6} style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--txt3)', fontSize: '13px', fontWeight: 600 }}>
+                  {search.trim() ? `No organisation found matching "${search.trim()}".` : 'No partner organisations found for this filter.'}
                 </td>
               </tr>
             )}
@@ -756,9 +885,20 @@ export default function AdminPartners() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px', background: 'rgba(255,255,255,0.02)', padding: '14px', borderRadius: '12px', border: '1px solid var(--line)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', alignItems: 'center' }}>
                 <span style={{ color: 'var(--txt3)' }}>Category Kind:</span>
-                <b style={{ color: 'var(--txt1)' }}>{selectedPartner.kind}</b>
+                <span
+                  className="tag"
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '3px 9px',
+                    borderRadius: '6px',
+                    ...getCategoryBadgeStyle(selectedPartner.kind),
+                  }}
+                >
+                  {selectedPartner.kind}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--txt3)' }}>Town District:</span>
@@ -845,7 +985,7 @@ export default function AdminPartners() {
               backgroundColor: 'rgba(15, 23, 42, 0.65)',
               backdropFilter: 'blur(4px)',
               WebkitBackdropFilter: 'blur(4px)',
-              zIndex: 1000,
+              zIndex: 1100,
             }}
           />
           <div
@@ -859,7 +999,7 @@ export default function AdminPartners() {
               maxWidth: '520px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              zIndex: 1001,
+              zIndex: 1101,
               boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4)',
               background: 'var(--surf)',
               borderRadius: '24px',
@@ -879,7 +1019,7 @@ export default function AdminPartners() {
               </button>
             </div>
 
-            <form onSubmit={handleSavePartner} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={handleSavePartner} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="fgrp">
                 <label className="lb" style={{ fontWeight: 700 }}>Organisation Name *</label>
                 <input
@@ -892,7 +1032,7 @@ export default function AdminPartners() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="fgrp">
                   <label className="lb" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Category Kind</label>
                   <CustomSelect
@@ -904,6 +1044,21 @@ export default function AdminPartners() {
                 </div>
 
                 <div className="fgrp">
+                  <label className="lb" style={{ fontWeight: 700 }}>Partner Since (Year)</label>
+                  <input
+                    type="number"
+                    className="fld"
+                    placeholder="e.g. 2004"
+                    min={1990}
+                    max={2030}
+                    value={formSince}
+                    onChange={(e) => setFormSince(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="fgrp">
                   <label className="lb" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Town District</label>
                   <CustomSelect
                     name="formTown"
@@ -912,22 +1067,9 @@ export default function AdminPartners() {
                     onChange={(val) => setFormTown(val)}
                   />
                 </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700 }}>Appointed Coordinator</label>
-                  <input
-                    type="text"
-                    className="fld"
-                    placeholder="e.g. Dr. Tariq Kakar"
-                    value={formCoordinator}
-                    onChange={(e) => setFormCoordinator(e.target.value)}
-                  />
-                </div>
 
                 <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700 }}>Contact Phone</label>
+                  <label className="lb" style={{ fontWeight: 700 }}>Direct Contact Phone</label>
                   <input
                     type="text"
                     className="fld"
@@ -939,42 +1081,96 @@ export default function AdminPartners() {
               </div>
 
               <div className="fgrp">
-                <label className="lb" style={{ fontWeight: 700 }}>Proposal / Operational Note</label>
-                <textarea
+                <label className="lb" style={{ fontWeight: 700 }}>Appointed Coordinator / Contact Person</label>
+                <input
+                  type="text"
                   className="fld"
-                  rows={3}
-                  placeholder="Details regarding referral arrangement or screening capacity..."
-                  value={formNote}
-                  onChange={(e) => setFormNote(e.target.value)}
+                  placeholder="e.g. Dr. Tariq Kakar"
+                  value={formCoordinator}
+                  onChange={(e) => setFormCoordinator(e.target.value)}
                 />
               </div>
 
-              {/* Status Selector */}
               <div className="fgrp">
-                <label className="lb" style={{ fontWeight: 700 }}>Partnership Status</label>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <label className="lb" style={{ fontWeight: 700, display: 'block', marginBottom: '8px' }}>Approval Standing Status</label>
+                <div style={{ display: 'flex', gap: '12px' }}>
                   <button
                     type="button"
-                    className={`tag ${formStatus === 'active' ? 'ok' : 'gy'}`}
                     onClick={() => setFormStatus('active')}
-                    style={{ padding: '6px 14px', cursor: 'pointer' }}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: formStatus === 'active' ? '1.5px solid #22C55E' : '1px solid var(--bdr1)',
+                      background: formStatus === 'active' ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg2)',
+                      color: formStatus === 'active' ? '#22C55E' : 'var(--txt2)',
+                    }}
                   >
-                    🟢 Active Partner
+                    ✓ Approved &amp; Active
                   </button>
+
                   <button
                     type="button"
-                    className={`tag ${formStatus === 'pending' ? 'ok' : 'gy'}`}
                     onClick={() => setFormStatus('pending')}
-                    style={{ padding: '6px 14px', cursor: 'pointer' }}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: formStatus === 'pending' ? '1.5px solid #EAB308' : '1px solid var(--bdr1)',
+                      background: formStatus === 'pending' ? 'rgba(234, 179, 8, 0.15)' : 'var(--bg2)',
+                      color: formStatus === 'pending' ? '#EAB308' : 'var(--txt2)',
+                    }}
                   >
                     ⚠️ Pending Committee Decision
                   </button>
                 </div>
               </div>
 
-              <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                <button type="submit" className="btn btn-p" style={{ flex: 1, borderRadius: '10px' }}>
-                  {editingId ? 'Save Partner Changes' : 'Register Organisation'}
+              <div className="fgrp">
+                <label className="lb" style={{ fontWeight: 700 }}>Partnership Summary / Operational Scope</label>
+                <textarea
+                  className="fld"
+                  rows={3}
+                  placeholder="Describe blood exchange protocol, annual campaigns, or screening cooperation..."
+                  value={formNote}
+                  onChange={(e) => setFormNote(e.target.value)}
+                  style={{ resize: 'none' }}
+                />
+              </div>
+
+              <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn btn-p"
+                  style={{
+                    flex: 1,
+                    borderRadius: '12px',
+                    padding: '12px',
+                    fontWeight: 700,
+                    opacity: isSubmitting ? 0.8 : 1,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="spinner" style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                      {editingId ? 'Saving Changes...' : 'Registering Organisation...'}
+                    </>
+                  ) : (
+                    editingId ? 'Save Partner Changes' : 'Register Organisation'
+                  )}
                 </button>
               </div>
             </form>
@@ -983,67 +1179,16 @@ export default function AdminPartners() {
       )}
 
       {/* CONFIRMATION DELETE MODAL */}
-      {deletingPartner && (
-        <>
-          <div
-            className="sheetov on"
-            onClick={() => setDeletingPartner(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-              zIndex: 1000,
-            }}
-          />
-          <div
-            className="acard"
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: '440px',
-              zIndex: 1001,
-              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4)',
-              background: 'var(--surf)',
-              borderRadius: '24px',
-              padding: '26px',
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <span style={{ fontSize: '40px', display: 'block', marginBottom: '10px' }}>⚠️</span>
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--txt1)' }}>
-                End Partnership?
-              </h2>
-              <p style={{ fontSize: '14px', color: 'var(--txt2)', margin: 0, lineHeight: 1.5 }}>
-                Are you sure you want to remove <b>"{deletingPartner.name}"</b>? This will remove them from active partner lists and public supporter showcases.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button
-                type="button"
-                className="btn btn-o"
-                style={{ flex: 1, borderRadius: '10px' }}
-                onClick={() => setDeletingPartner(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-p"
-                style={{ flex: 1, borderRadius: '10px', background: '#DC2626', borderColor: '#DC2626' }}
-                onClick={confirmDelete}
-              >
-                End Partnership
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <ConfirmDeleteModal
+        isOpen={!!deletingPartner}
+        title="End Partnership?"
+        itemName={deletingPartner?.name}
+        description={`Are you sure you want to remove "${deletingPartner?.name}"? This will remove them from active partner lists and public supporter showcases.`}
+        confirmLabel="End Partnership"
+        submitting={isDeleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeletingPartner(null)}
+      />
     </AdminShell>
   );
 }

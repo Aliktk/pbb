@@ -27,14 +27,62 @@ export const ALLOW: Record<RoleKey, string[] | null> = {
 
 export const LANDING: Record<RoleKey, string> = { head: 'overview', mgr: 'overview', emp: 'requests' };
 
-// Sidebar groups: [group title, [ [view, label], … ] ]. Ported from AGROUPS.
+// Sidebar groups: [group title, [ [view, label], … ] ].
 export const ADMIN_GROUPS: [string, [string, string][]][] = [
-  ['Operations', [['overview', 'Overview'], ['requests', 'Blood requests'], ['find', 'Find donors'], ['inventory', 'Inventory'], ['inbox', 'Inbox']]],
-  ['Registry', [['donors', 'Donors'], ['volunteers', 'Volunteers'], ['thalassemia', 'Thalassemia'], ['ledger', 'Donations ledger'], ['record', 'Record a donation']]],
-  ['Content', [['homepage', 'Homepage'], ['pages', 'Pages'], ['announcements', 'Announcements'], ['events', 'Events'], ['media', 'Media']]],
-  ['Network', [['network', 'All towns'], ['partners', 'Partners & organisations'], ['reports', 'Reports']]],
-  ['Organisation', [['branches', 'Branches'], ['settings', 'Site settings'], ['accounts', 'Accounts & hierarchy'], ['roles', 'Roles & access'], ['data', 'Data'], ['audit', 'Log']]],
-  ['You', [['profile', 'Your account']]],
+  [
+    'Operations',
+    [
+      ['overview', 'Overview'],
+      ['requests', 'Blood requests'],
+      ['find', 'Find donors'],
+      ['inbox', 'Inbox'],
+      ['inventory', 'Inventory'],
+    ],
+  ],
+  [
+    'People',
+    [
+      ['donors', 'Donors'],
+      ['thalassemia', 'Thalassemia'],
+      ['volunteers', 'Volunteers'],
+    ],
+  ],
+  [
+    'Donations',
+    [
+      ['ledger', 'Donations ledger'],
+      ['record', 'Record a donation'],
+    ],
+  ],
+  [
+    'Network',
+    [
+      ['network', 'All towns'],
+      ['branches', 'Branches'],
+      ['partners', 'Partners & organisations'],
+    ],
+  ],
+  [
+    'Insight',
+    [
+      ['reports', 'Reports'],
+      ['audit', 'Log'],
+      ['data', 'Data'],
+    ],
+  ],
+  [
+    'Settings & access',
+    [
+      ['accounts', 'Accounts & hierarchy'],
+      ['roles', 'Roles & access'],
+    ],
+  ],
+  [
+    'You',
+    [
+      ['profile', 'Your account'],
+    ],
+  ],
 ];
 
 // Mobile bottom-bar items: [view, label, glyph]. Ported from ANAV.
@@ -71,13 +119,92 @@ export interface Eligibility { ok: 0 | 1; tag: 'ok' | 'no' | 'gy' | 'wt'; lab: s
  * (which reads the view) and this function - the only place 90/180 appear in the web - is
  * deleted. Tracked by INV-5-web in scripts/invariants/run.mjs until then.
  */
-export function elig(d: Donor): Eligibility {
-  if (d.defer) return { ok: 0, tag: 'no', lab: 'Deferred', why: 'Deferred - ' + d.defer };
-  if (!d.tests) return { ok: 0, tag: 'gy', lab: 'Not screened', why: 'Not screened - the five tests must be done first' };
-  if (!allNegative(d.tests)) return { ok: 0, tag: 'no', lab: 'Reactive', why: 'A screening result was reactive. Do not call.' };
-  const sd = daysSince(d.tested);
-  if (sd !== null && sd > 180) return { ok: 0, tag: 'wt', lab: 'Screen again', why: 'Screened ' + sd + ' days ago. Repeat before issuing.' };
-  const n = daysSince(d.last);
-  if (n !== null && n < 90) return { ok: 0, tag: 'wt', lab: 90 - n + ' days to wait', why: 'Can give again in ' + (90 - n) + ' days' };
-  return { ok: 1, tag: 'ok', lab: 'Can give', why: 'Yes, today' };
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
+  'Head Office Admin': ['overview', 'requests', 'find', 'inventory', 'inbox', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'network', 'partners', 'reports', 'branches', 'accounts', 'roles', 'data', 'audit', 'profile'],
+  'Super Admin': ['overview', 'requests', 'find', 'inventory', 'inbox', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'network', 'partners', 'reports', 'branches', 'accounts', 'roles', 'data', 'audit', 'profile'],
+  'Superadmin': ['overview', 'requests', 'find', 'inventory', 'inbox', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'network', 'partners', 'reports', 'branches', 'accounts', 'roles', 'data', 'audit', 'profile'],
+  'Olus Yar': ['overview', 'requests', 'find', 'inventory', 'inbox', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'network', 'partners', 'reports', 'branches', 'accounts', 'roles', 'data', 'audit', 'profile'],
+  'Executive': ['overview', 'requests', 'find', 'inventory', 'inbox', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'network', 'partners', 'reports', 'branches', 'accounts', 'roles', 'data', 'audit', 'profile'],
+  'Executive Committee': ['overview', 'requests', 'find', 'inventory', 'inbox', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'network', 'partners', 'reports', 'branches', 'accounts', 'roles', 'data', 'audit', 'profile'],
+  'Head Office Staff': ['overview', 'requests', 'find', 'inventory', 'donors', 'reports', 'accounts', 'profile'],
+  'Branch Manager': ['overview', 'requests', 'find', 'inventory', 'donors', 'volunteers', 'record', 'branches', 'profile'],
+  'Town Coordinator': ['overview', 'requests', 'find', 'inventory', 'donors', 'profile'],
+  'Coordinator': ['overview', 'requests', 'find', 'inventory', 'donors', 'profile'],
+  'Data Entry': ['overview', 'requests', 'find', 'donors', 'record', 'profile'],
+  'Data Entry Clerk': ['overview', 'requests', 'find', 'donors', 'record', 'profile'],
+  'Data Entry Officer': ['overview', 'requests', 'find', 'donors', 'record', 'profile'],
+  'Accounts': ['overview', 'ledger', 'reports', 'audit', 'profile'],
+  'Verifier': ['overview', 'requests', 'find', 'inventory', 'donors', 'volunteers', 'thalassemia', 'ledger', 'record', 'audit', 'profile'],
+  'Volunteer Lead': ['overview', 'volunteers', 'profile'],
+  'Medical / Lab Officer': ['overview', 'donors', 'record', 'profile'],
+  'Content Editor': ['overview', 'reports', 'profile'],
+  'Read Only': ['overview', 'requests', 'donors', 'reports', 'profile'],
+};
+
+export function isViewAllowedForRole(
+  roleName: string | undefined,
+  viewName: string,
+  customMatrix?: Record<string, Record<string, string[]> | string[]>,
+  userPermissions?: Record<string, string[]>
+): boolean {
+  if (!roleName) return false;
+  const normalized = roleName.trim();
+
+  // Top Admin Roles & Wildcard permissions have unrestricted access
+  if (
+    normalized === 'Head Office Admin' ||
+    normalized === 'Super Admin' ||
+    normalized === 'Superadmin' ||
+    normalized === 'Olus Yar' ||
+    normalized === 'Executive' ||
+    (userPermissions && (userPermissions['*']?.includes('*') || userPermissions['*']?.includes('read')))
+  ) {
+    return true;
+  }
+
+  // Every signed-in user can view profile and overview
+  if (viewName === 'profile' || viewName === 'overview') {
+    return true;
+  }
+
+  // 1. Evaluate logged-in user's direct permissions matrix from auth session if provided
+  if (userPermissions && typeof userPermissions === 'object') {
+    const modPerms = userPermissions[viewName];
+    if (Array.isArray(modPerms) && modPerms.length > 0) {
+      return true;
+    }
+  }
+
+  // 2. Evaluate custom matrix (passed as param or loaded from localStorage)
+  let activeMatrix = customMatrix;
+  if (!activeMatrix && typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('pbb_custom_role_matrix');
+      if (saved) activeMatrix = JSON.parse(saved);
+    } catch {}
+  }
+
+  if (activeMatrix) {
+    const roleEntry = activeMatrix[normalized] || activeMatrix[roleName];
+    if (roleEntry) {
+      if (Array.isArray(roleEntry)) {
+        if (roleEntry.includes(viewName)) return true;
+      } else {
+        const modulePerms = roleEntry[viewName];
+        if (Array.isArray(modulePerms) && modulePerms.length > 0) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // 3. Fall back to exact role permission mapping
+  const allowedViews = DEFAULT_ROLE_PERMISSIONS[normalized];
+  if (allowedViews) {
+    return allowedViews.includes(viewName);
+  }
+
+  // 4. For any unmapped custom role, restrict access to essential operational views
+  const restrictedFallback = ['overview', 'requests', 'find', 'donors', 'profile'];
+  return restrictedFallback.includes(viewName);
 }

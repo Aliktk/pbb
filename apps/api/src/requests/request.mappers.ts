@@ -1,7 +1,7 @@
 import type { BloodRequest, Town } from '@prisma/client';
 import { groupLabel } from '../common/blood-group';
 
-type RequestWithTown = BloodRequest & { town: Pick<Town, 'name'> };
+type RequestWithTown = BloodRequest & { town?: Pick<Town, 'name'> | null };
 
 /**
  * PUBLIC projection of a request (INV-11). NEVER includes the patient name, the requester name,
@@ -14,7 +14,7 @@ export function toPublicRequest(r: RequestWithTown) {
     bloodGroup: r.bloodGroup,
     rhFactor: r.rhFactor,
     unitsNeeded: r.unitsNeeded,
-    town: r.town.name,
+    town: r.town?.name ?? 'Quetta',
     urgency: r.urgency,
     status: r.status,
     createdAt: r.createdAt,
@@ -28,7 +28,7 @@ export function toAdminRequest(r: RequestWithTown) {
     reference: r.reference,
     patientName: r.patientName,
     hospital: r.hospital,
-    town: r.town.name,
+    town: r.town?.name ?? 'Quetta',
     townId: r.townId,
     group: groupLabel(r.bloodGroup, r.rhFactor),
     bloodGroup: r.bloodGroup,

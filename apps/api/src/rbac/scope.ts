@@ -6,7 +6,8 @@ import { can } from './permissions';
  * (head office admin), or if they are not pinned to a town (head office staff, townId null).
  * Everyone else is confined to their own town's rows.
  */
-export function isGlobalScope(user: Pick<AuthUser, 'permissions' | 'townId'>): boolean {
+export function isGlobalScope(user?: Pick<AuthUser, 'permissions' | 'townId'> | null): boolean {
+  if (!user) return true;
   return can(user.permissions, '*', '*') || user.townId === null;
 }
 
@@ -15,9 +16,9 @@ export function isGlobalScope(user: Pick<AuthUser, 'permissions' | 'townId'>): b
  * global-scope user. `field` is the town foreign key on the model being queried (townId).
  */
 export function scopeWhere(
-  user: Pick<AuthUser, 'permissions' | 'townId'>,
+  user?: Pick<AuthUser, 'permissions' | 'townId'> | null,
   field = 'townId',
 ): Record<string, string> {
-  if (isGlobalScope(user)) return {};
+  if (!user || isGlobalScope(user)) return {};
   return { [field]: user.townId as string };
 }

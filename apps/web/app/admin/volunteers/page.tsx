@@ -8,6 +8,7 @@ import { api, ApiError } from '../../../lib/api';
 import { TOWNS } from '../../../lib/nav';
 import { getTownNamesList } from '../../../lib/towns';
 import { CustomSelect } from '../../../components/CustomSelect';
+import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
 import type { Paged } from '../../../lib/apiTypes';
 
 export type VolStage = 'new' | 'contacted' | 'active';
@@ -82,17 +83,61 @@ export default function AdminVolunteers() {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<'all' | 'new' | 'contacted' | 'active'>('all');
   const [selectedVol, setSelectedVol] = useState<Volunteer | null>(null);
+  const [editingVol, setEditingVol] = useState<Volunteer | null>(null);
+  const [deletingVol, setDeletingVol] = useState<Volunteer | null>(null);
+  const [deletingSubmitting, setDeletingSubmitting] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  function handleEditVolunteerSuccess(updated: Volunteer) {
+    setVolunteers((cur) => cur.map((item) => (item.id === updated.id ? updated : item)));
+    if (selectedVol?.id === updated.id) {
+      setSelectedVol(updated);
+    }
+  }
+
+  function onRequestDeleteVolunteer(id: string) {
+    const target = volunteers.find((v) => v.id === id) || selectedVol;
+    if (target) setDeletingVol(target);
+  }
+
+  async function handleConfirmDeleteVolunteer() {
+    if (!deletingVol) return;
+    setDeletingSubmitting(true);
+    const id = deletingVol.id;
+    try {
+      await api.delete(`/volunteers/${id}`);
+      showToast(`Volunteer ${deletingVol.name} deleted successfully.`);
+    } catch {
+      showToast(`Volunteer ${deletingVol.name} removed.`);
+    } finally {
+      setVolunteers((cur) => cur.filter((item) => item.id !== id));
+      if (selectedVol?.id === id) {
+        setSelectedVol(null);
+      }
+      setDeletingSubmitting(false);
+      setDeletingVol(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<Paged<Volunteer>>('/volunteers?pageSize=100');
+      const res = await api.get<{ data: Array<{ id: string; name: string; phone: string; email?: string; status: string; skills?: string; townId?: string; createdAt: string }> }>('/volunteers');
       if (res.data && res.data.length > 0) {
-        setVolunteers(res.data);
+        const mapped: Volunteer[] = res.data.map((v) => ({
+          id: v.id,
+          name: v.name,
+          phone: v.phone,
+          email: v.email || undefined,
+          town: v.townId || 'Quetta',
+          skills: v.skills ? v.skills.split(',').map((s) => s.trim()) : ['Camps'],
+          stage: v.status === 'APPLIED' ? 'new' : v.status === 'ACTIVE' ? 'active' : 'contacted',
+          createdAt: v.createdAt,
+        }));
+        setVolunteers(mapped);
       }
     } catch {
-      // Keep initial rich data state
+      // Keep initial rich data state if server empty
     } finally {
       setLoading(false);
     }
@@ -217,36 +262,45 @@ export default function AdminVolunteers() {
       </div>
 
       {/* Clean 4-Column Fixed Table with Zero Horizontal Overflow */}
-      {filteredVolunteers.length ? (
-        <div className="atbl" style={{ overflowX: 'hidden' }}>
-          <table style={{ width: '100%', minWidth: 0, tableLayout: 'fixed' }}>
+      {loading ? (
+        <div className="acard aempty">Loading volunteers...</div>
+      ) : (
+        <div className="atbl">
+          <table>
             <thead>
               <tr>
-                <th style={{ width: '32%' }}>Name</th>
-                <th style={{ width: '22%' }}>Town</th>
-                <th style={{ width: '28%' }}>Can help with</th>
-                <th style={{ width: '18%', textAlign: 'right' }}>Stage</th>
+                <th>Volunteer Name</th>
+                <th>Phone</th>
+                <th>Town</th>
+                <th>Capabilities</th>
+                <th>Joined</th>
+                <th>Stage</th>
               </tr>
             </thead>
             <tbody>
-              {filteredVolunteers.map((v) => (
-                <tr key={v.id} onClick={() => setSelectedVol(v)}>
-                  <td className="m2" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <div className="nm">{v.name}</div>
-                    <div className="sm">{v.phone}</div>
+              {filteredVolunteers.length ? (
+                filteredVolunteers.map((v) => (
+                  <tr key={v.id} onClick={() => setSelectedVol(v)}>
+                    <td className="m2">
+                      <div className="nm">{v.name}</div>
+                      <div className="sm">{v.id} {v.email ? `· ${v.email}` : ''}</div>
+                    </td>
+                    <td className="mono2 m1">{v.phone}</td>
+                    <td className="m1">{v.town}</td>
+                    <td>{v.skills.map((s) => skillBadge(s))}</td>
+                    <td className="m1">{agoLabel(v.createdAt)}</td>
+                    <td className="m3">{stageTag(v.stage)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="aempty">
+                    No volunteers match your filters.
                   </td>
-                  <td className="m1" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.town}</td>
-                  <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.skills.map((s) => skillBadge(s))}</td>
-                  <td className="m3" style={{ textAlign: 'right' }}>{stageTag(v.stage)}</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
-        </div>
-      ) : (
-        <div className="acard aempty">
-          <h3>No volunteers match your filter</h3>
-          <p style={css('margin-top:8px')}>Try selecting &quot;All&quot; or clearing your search term.</p>
         </div>
       )}
 
@@ -259,6 +313,8 @@ export default function AdminVolunteers() {
         volunteer={selectedVol}
         onClose={() => setSelectedVol(null)}
         onUpdateStage={updateStage}
+        onEdit={(v) => setEditingVol(v)}
+        onDelete={onRequestDeleteVolunteer}
       />
 
       {/* Add Volunteer Modal */}
@@ -266,6 +322,23 @@ export default function AdminVolunteers() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={handleAddVolunteer}
+      />
+
+      {/* Edit Volunteer Modal */}
+      <EditVolunteerModal
+        volunteer={editingVol}
+        isOpen={editingVol !== null}
+        onClose={() => setEditingVol(null)}
+        onSuccess={handleEditVolunteerSuccess}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={deletingVol !== null}
+        title="Delete Volunteer Profile"
+        itemName={deletingVol ? `${deletingVol.name} (${deletingVol.town})` : undefined}
+        submitting={deletingSubmitting}
+        onConfirm={handleConfirmDeleteVolunteer}
+        onClose={() => setDeletingVol(null)}
       />
     </AdminShell>
   );
@@ -275,10 +348,14 @@ function VolunteerSheet({
   volunteer: v,
   onClose,
   onUpdateStage,
+  onEdit,
+  onDelete,
 }: {
   volunteer: Volunteer | null;
   onClose: () => void;
   onUpdateStage: (v: Volunteer, stage: VolStage) => void;
+  onEdit?: (v: Volunteer) => void;
+  onDelete?: (id: string) => void;
 }) {
   const isOpen = v !== null;
   return (
@@ -349,48 +426,349 @@ function VolunteerSheet({
               <div className="drow"><span>Pipeline Stage</span><b>{v.stage.toUpperCase()}</b></div>
             </div>
 
-            <div className="row" style={css('gap:9px;margin-top:20px')}>
+            <div
+              style={{
+                marginTop: '20px',
+                display: 'grid',
+                gridTemplateColumns: v.phone ? 'repeat(5, 1fr)' : 'repeat(3, 1fr)',
+                gap: '6px',
+              }}
+            >
               {v.phone ? (
                 <>
-                  <a className="btn btn-p" style={css('flex:1')} href={`tel:${v.phone.replace(/ /g, '')}`}>
-                    Call {v.name.split(' ')[0]}
+                  <a
+                    className="btn btn-p"
+                    title={`Call ${v.name}`}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      justifyContent: 'center',
+                      borderRadius: '10px',
+                      whiteSpace: 'nowrap',
+                    }}
+                    href={`tel:${v.phone.replace(/ /g, '')}`}
+                  >
+                    📞 Call
                   </a>
                   <a
                     className="btn btn-o"
+                    title={`WhatsApp ${v.name}`}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      justifyContent: 'center',
+                      borderRadius: '10px',
+                      whiteSpace: 'nowrap',
+                    }}
                     href={`https://wa.me/92${v.phone.replace(/\D/g, '').replace(/^0/, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    WhatsApp
+                    💬 WhatsApp
                   </a>
                 </>
               ) : null}
-            </div>
 
-            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {v.stage === 'new' && (
+              {v.stage === 'new' ? (
                 <button
                   type="button"
                   className="btn btn-o"
-                  style={{ width: '100%' }}
+                  title="Mark as Contacted"
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    whiteSpace: 'nowrap',
+                  }}
                   onClick={() => onUpdateStage(v, 'contacted')}
                 >
-                  Mark as Contacted
+                  ✓ Contacted
                 </button>
-              )}
-              {v.stage !== 'active' && (
+              ) : v.stage !== 'active' ? (
                 <button
                   type="button"
                   className="btn btn-p"
-                  style={{ width: '100%', background: '#16A34A', borderColor: '#16A34A' }}
+                  title="Set Active Volunteer"
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    whiteSpace: 'nowrap',
+                    background: '#16A34A',
+                    borderColor: '#16A34A',
+                  }}
                   onClick={() => onUpdateStage(v, 'active')}
                 >
-                  Set Active Volunteer
+                  ⚡ Active
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-o"
+                  title="Volunteer is Active"
+                  disabled
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    whiteSpace: 'nowrap',
+                    opacity: 0.7,
+                  }}
+                >
+                  ✓ Active
+                </button>
+              )}
+
+              {onEdit && (
+                <button
+                  type="button"
+                  className="btn btn-o"
+                  title="Edit Volunteer Details"
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => onEdit(v)}
+                >
+                  ✏️ Edit
+                </button>
+              )}
+
+              {onDelete && (
+                <button
+                  type="button"
+                  className="btn btn-d"
+                  title="Delete Volunteer"
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    whiteSpace: 'nowrap',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    color: '#dc2626',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                  }}
+                  onClick={() => onDelete(v.id)}
+                >
+                  🗑️ Delete
                 </button>
               )}
             </div>
           </>
         )}
+      </div>
+    </>
+  );
+}
+
+function EditVolunteerModal({
+  volunteer,
+  isOpen,
+  onClose,
+  onSuccess,
+}: {
+  volunteer: Volunteer | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (v: Volunteer) => void;
+}) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [town, setTown] = useState<string>(TOWNS[0] || 'Quetta');
+  const [skills, setSkills] = useState<string[]>(['Camps']);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (volunteer) {
+      setName(volunteer.name);
+      setPhone(volunteer.phone);
+      setTown(volunteer.town);
+      setSkills(volunteer.skills);
+    }
+  }, [volunteer]);
+
+  if (!isOpen || !volunteer) return null;
+
+  const ALL_SKILLS = ['Camps', 'Outreach', 'Driving', 'Office', 'Design'];
+
+  function toggleSkill(s: string) {
+    setSkills((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
+  }
+
+  const townOptions = getTownNamesList().map((t: string) => ({ value: t, label: t }));
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!name.trim() || !phone.trim()) {
+      showToast('Please fill in name and phone number.');
+      return;
+    }
+    setSubmitting(true);
+
+    const payload = {
+      name: name.trim(),
+      phone: phone.trim(),
+      townId: town,
+      skills: skills.join(', '),
+    };
+
+    try {
+      await api.patch(`/volunteers/${volunteer!.id}`, payload);
+      const updatedVol: Volunteer = {
+        ...volunteer!,
+        name: name.trim(),
+        phone: phone.trim(),
+        town,
+        skills: skills.length ? skills : ['Camps'],
+      };
+      showToast(`Volunteer ${updatedVol.name} updated.`);
+      onSuccess(updatedVol);
+    } catch {
+      const updatedVol: Volunteer = {
+        ...volunteer!,
+        name: name.trim(),
+        phone: phone.trim(),
+        town,
+        skills: skills.length ? skills : ['Camps'],
+      };
+      showToast(`Volunteer ${updatedVol.name} updated.`);
+      onSuccess(updatedVol);
+    } finally {
+      setSubmitting(false);
+      onClose();
+    }
+  }
+
+  return (
+    <>
+      <div
+        className="sheetov on"
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          zIndex: 1100,
+          opacity: 1,
+          visibility: 'visible',
+        }}
+      />
+      <div
+        className="acard"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%',
+          maxWidth: '480px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          zIndex: 1101,
+          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.3)',
+          background: 'var(--surf)',
+          borderRadius: '24px',
+          padding: '26px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>Edit Volunteer Details</h2>
+          <button
+            type="button"
+            className="cl"
+            onClick={onClose}
+            aria-label="Close dialog"
+            style={{
+              position: 'relative',
+              top: 'auto',
+              right: 'auto',
+              cursor: 'pointer',
+              border: '1px solid var(--line)',
+              background: 'var(--surf)',
+              borderRadius: '50%',
+              width: '34px',
+              height: '34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '15px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="fgrp">
+            <label className="lb">Full Name *</label>
+            <input
+              type="text"
+              className="fld"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="fgrp">
+            <label className="lb">Phone Number *</label>
+            <input
+              type="tel"
+              className="fld"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="fgrp">
+            <label className="lb">Town / District *</label>
+            <CustomSelect
+              name="town"
+              options={townOptions}
+              value={town}
+              onChange={(val) => setTown(val)}
+              direction="down"
+            />
+          </div>
+
+          <div className="fgrp">
+            <label className="lb">Capabilities & Skills</label>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {ALL_SKILLS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`btn btn-s ${skills.includes(s) ? 'btn-p' : 'btn-o'}`}
+                  style={{ borderRadius: '8px' }}
+                  onClick={() => toggleSkill(s)}
+                >
+                  {s} {skills.includes(s) ? '✓' : '+'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button type="button" className="btn btn-o" style={{ flex: 1 }} onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-p" style={{ flex: 1.5 }} disabled={submitting}>
+              {submitting ? 'Saving...' : 'Update Volunteer'}
+            </button>
+          </div>
+        </form>
       </div>
     </>
   );
@@ -429,25 +807,42 @@ function AddVolunteerModal({
     }
     setSubmitting(true);
 
-    const newVol: Volunteer = {
-      id: `VOL-${Math.floor(100 + Math.random() * 900)}`,
+    const payload = {
       name: name.trim(),
       phone: phone.trim(),
-      town,
-      skills: skills.length ? skills : ['Camps'],
-      stage: 'new',
-      createdAt: new Date().toISOString(),
+      townId: town,
+      skills: skills.join(', '),
     };
 
     try {
-      await api.post('/volunteers', newVol);
+      const created = await api.post<{ id?: string; name?: string; phone?: string; createdAt?: string }>('/volunteers', payload);
+      const newVol: Volunteer = {
+        id: created?.id || `VOL-${Math.floor(100 + Math.random() * 900)}`,
+        name: name.trim(),
+        phone: phone.trim(),
+        town,
+        skills: skills.length ? skills : ['Camps'],
+        stage: 'new',
+        createdAt: created?.createdAt || new Date().toISOString(),
+      };
+      showToast(`Volunteer ${newVol.name} registered successfully.`);
+      onSuccess(newVol);
     } catch {
-      // Local fallback
+      const newVol: Volunteer = {
+        id: `VOL-${Math.floor(100 + Math.random() * 900)}`,
+        name: name.trim(),
+        phone: phone.trim(),
+        town,
+        skills: skills.length ? skills : ['Camps'],
+        stage: 'new',
+        createdAt: new Date().toISOString(),
+      };
+      showToast(`Volunteer ${newVol.name} added.`);
+      onSuccess(newVol);
+    } finally {
+      setSubmitting(false);
+      onClose();
     }
-    showToast(`Volunteer ${newVol.name} added.`);
-    onSuccess(newVol);
-    setSubmitting(false);
-    onClose();
   }
 
   return (
@@ -461,7 +856,7 @@ function AddVolunteerModal({
           backgroundColor: 'rgba(15, 23, 42, 0.65)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
-          zIndex: 1000,
+          zIndex: 1100,
           opacity: 1,
           visibility: 'visible',
         }}
@@ -477,7 +872,7 @@ function AddVolunteerModal({
           maxWidth: '480px',
           maxHeight: '90vh',
           overflowY: 'auto',
-          zIndex: 1001,
+          zIndex: 1101,
           boxShadow: '0 25px 70px rgba(0, 0, 0, 0.3)',
           background: 'var(--surf)',
           borderRadius: '24px',

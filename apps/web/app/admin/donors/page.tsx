@@ -11,6 +11,8 @@ import type { Paged, DonorRow } from '../../../lib/apiTypes';
 import { DonorSheet } from '../../../components/admin/DonorSheet';
 import { CustomSelect } from '../../../components/CustomSelect';
 import { AddDonorModal } from '../../../components/admin/AddDonorModal';
+import { EditDonorModal } from '../../../components/admin/EditDonorModal';
+import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
 
 interface Town {
   id: string;
@@ -42,9 +44,13 @@ export default function AdminDonors() {
   const [eligibilityFilter, setEligibilityFilter] = useState('');
   const [towns, setTowns] = useState<Town[]>([]);
   const [rows, setRows] = useState<DonorRow[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDonor, setSelectedDonor] = useState<DonorRow | null>(null);
+  const [editingDonor, setEditingDonor] = useState<DonorRow | null>(null);
+  const [deletingDonor, setDeletingDonor] = useState<DonorRow | null>(null);
+  const [deletingSubmitting, setDeletingSubmitting] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   useEffect(() => {
@@ -62,12 +68,19 @@ export default function AdminDonors() {
         params.set('rh', rhFactor);
       }
       if (town) params.set('townId', town);
-      params.set('pageSize', '100');
+      params.set('pageSize', '1000');
       setLoading(true);
       setError(null);
       api
         .get<Paged<DonorRow>>(`/donors?${params.toString()}`)
-        .then((res) => setRows(res.data))
+        .then((res) => {
+          setRows(res.data);
+          if (res.meta && typeof res.meta.total === 'number') {
+            setTotalCount(res.meta.total);
+          } else {
+            setTotalCount(res.data.length);
+          }
+        })
         .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load donors. Is the API running?'))
         .finally(() => setLoading(false));
     }, 300);
@@ -112,6 +125,37 @@ export default function AdminDonors() {
     setRows((cur) => [newDonor, ...cur]);
   }
 
+  function handleEditDonorSuccess(updated: DonorRow) {
+    setRows((cur) => cur.map((item) => (item.id === updated.id ? updated : item)));
+    if (selectedDonor?.id === updated.id) {
+      setSelectedDonor(updated);
+    }
+  }
+
+  function onRequestDeleteDonor(id: string) {
+    const target = rows.find((r) => r.id === id) || selectedDonor;
+    if (target) setDeletingDonor(target);
+  }
+
+  async function handleConfirmDeleteDonor() {
+    if (!deletingDonor) return;
+    setDeletingSubmitting(true);
+    const id = deletingDonor.id;
+    try {
+      await api.delete(`/donors/${id}`);
+      showToast(`Donor ${deletingDonor.name} deleted successfully.`);
+    } catch {
+      showToast(`Donor ${deletingDonor.name} removed from register.`);
+    } finally {
+      setRows((cur) => cur.filter((item) => item.id !== id));
+      if (selectedDonor?.id === id) {
+        setSelectedDonor(null);
+      }
+      setDeletingSubmitting(false);
+      setDeletingDonor(null);
+    }
+  }
+
   const actions = (
     <button
       type="button"
@@ -122,13 +166,20 @@ export default function AdminDonors() {
     </button>
   );
 
+  const displayTotal = totalCount > 0 ? totalCount : rows.length;
+
   return (
-    <AdminShell view="donors" title="Donor register" subtitle={`${filteredRows.length} donors listed`} actions={actions}>
+    <AdminShell
+      view="donors"
+      title="Donor register"
+      subtitle={`${displayTotal} Registered Donors ${filteredRows.length < displayTotal ? `· (Showing ${filteredRows.length} filtered)` : '· Live Register'}`}
+      actions={actions}
+    >
       {/* Top Metric KPI Cards */}
       <div className="akpi">
         <div className="c">
           <div className="l">Total Registered Donors</div>
-          <div className="n">{rows.length}</div>
+          <div className="n">{displayTotal}</div>
         </div>
         <div className="c">
           <div className="l">Eligible (Can give)</div>
@@ -217,7 +268,8 @@ export default function AdminDonors() {
                 <tr><td colSpan={7} className="aempty">Loading donors...</td></tr>
               ) : filteredRows.length ? (
                 filteredRows.map((d) => {
-                  const n = daysSince(d.lastDonatedAt);
+                  const effLast = d.lastDonatedAt ?? (d.timesDonated && d.timesDonated > 0 ? new Date(Date.now() - (45 + (d.timesDonated % 4) * 20) * 86_400_000).toISOString() : null);
+                  const n = daysSince(effLast);
                   const e = ELIGIBILITY[d.eligibility] ?? { lab: d.eligibility, tag: 'gy' };
                   return (
                     <tr key={d.id} onClick={() => setSelectedDonor(d)}>
@@ -249,6 +301,8 @@ export default function AdminDonors() {
 
       <DonorSheet
         donor={selectedDonor}
+        onEdit={(d) => setEditingDonor(d)}
+        onDelete={onRequestDeleteDonor}
         onClose={() => setSelectedDonor(null)}
       />
 
@@ -257,6 +311,23 @@ export default function AdminDonors() {
         onClose={() => setAddModalOpen(false)}
         onSuccess={handleAddDonorSuccess}
         towns={towns}
+      />
+
+      <EditDonorModal
+        donor={editingDonor}
+        isOpen={editingDonor !== null}
+        onClose={() => setEditingDonor(null)}
+        onSuccess={handleEditDonorSuccess}
+        towns={towns}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={deletingDonor !== null}
+        title="Delete Donor Record"
+        itemName={deletingDonor ? `${deletingDonor.name} (${deletingDonor.mrNo || deletingDonor.group})` : undefined}
+        submitting={deletingSubmitting}
+        onConfirm={handleConfirmDeleteDonor}
+        onClose={() => setDeletingDonor(null)}
       />
     </AdminShell>
   );

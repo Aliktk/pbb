@@ -29,65 +29,15 @@ function agoLabel(isoOrMins: string | number): string {
   return `${Math.floor(mins / 1440)} d ago`;
 }
 
-const INITIAL_SUBMISSIONS: Submission[] = [
-  {
-    id: 'SUB-101',
-    name: 'Tariq Khan',
-    org: 'Al-Khidmat Youth Wing',
-    kind: 'Volunteer',
-    phone: '0300-9876543',
-    email: 'tariq.khan@example.com',
-    city: 'Quetta',
-    createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
-    detail: 'Would like to lead blood donation camps and volunteer for outreach in Quetta city district during weekends.',
-    status: 'NEW',
-  },
-  {
-    id: 'SUB-102',
-    name: 'Dr. Shahbaz Durrani',
-    org: 'Bolan Medical Complex',
-    kind: 'Partner',
-    phone: '0333-7821940',
-    email: 'durrani@bmc.edu.pk',
-    city: 'Quetta',
-    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-    detail: 'Inquiry regarding establishing a direct emergency blood reservation link for critical thalassemic pediatric cases.',
-    status: 'NEW',
-  },
-  {
-    id: 'SUB-103',
-    name: 'Zubair Kakar',
-    org: 'Pishin Welfare Society',
-    kind: 'Organisation',
-    phone: '0312-8823104',
-    city: 'Pishin',
-    createdAt: new Date(Date.now() - 5 * 3600000).toISOString(),
-    detail: 'Requesting PBB branch setup materials and registration guidelines to open a local intake center in Pishin town.',
-    status: 'NEW',
-  },
-  {
-    id: 'SUB-104',
-    name: 'Fatima Bibi',
-    org: '',
-    kind: 'Donation',
-    phone: '0345-1239876',
-    city: 'Chaman',
-    createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
-    detail: 'Transferred PKR 15,000 via Easypaisa for thalassemic children transfusion fund. Reference receipt #EP-99482.',
-    status: 'ANSWERED',
-  },
-  {
-    id: 'SUB-105',
-    name: 'Hamza Baloch',
-    org: '',
-    kind: 'Message',
-    phone: '0301-4433221',
-    city: 'Loralai',
-    createdAt: new Date(Date.now() - 36 * 3600000).toISOString(),
-    detail: 'Asking if rare blood groups (O-negative, AB-negative) donors can register online from Loralai branch.',
-    status: 'ANSWERED',
-  },
-];
+interface ApiMessage {
+  id: string;
+  fromName: string | null;
+  fromPhone: string | null;
+  subject: string | null;
+  body: string;
+  status: string;
+  createdAt: string;
+}
 
 const CATEGORIES = ['Everything', 'Volunteers', 'Partners', 'Organisations', 'Messages', 'Donations'] as const;
 
@@ -120,7 +70,7 @@ function categoryBadge(kind: string) {
 }
 
 export default function AdminInbox() {
-  const [submissions, setSubmissions] = useState<Submission[]>(INITIAL_SUBMISSIONS);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('Everything');
@@ -131,12 +81,33 @@ export default function AdminInbox() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<Paged<Submission>>('/inbox?pageSize=100');
-      if (res.data && res.data.length > 0) {
-        setSubmissions(res.data);
-      }
+      const res = await api.get<Paged<ApiMessage>>('/messages');
+      const mapped: Submission[] = res.data.map((m) => {
+        let kind: Submission['kind'] = 'Message';
+        if (m.subject === 'Volunteer') kind = 'Volunteer';
+        else if (m.subject === 'Hospital or partner') kind = 'Partner';
+        else if (m.subject === 'Press') kind = 'Organisation';
+
+        // Extract email or town if present in body
+        const emailMatch = m.body.match(/Email:\s*([^\n]+)/i);
+        const townMatch = m.body.match(/Town:\s*([^\n]+)/i);
+
+        return {
+          id: m.id,
+          name: m.fromName || 'Web Submitter',
+          org: '',
+          kind,
+          phone: m.fromPhone || '',
+          email: emailMatch ? emailMatch[1].trim() : undefined,
+          city: townMatch ? townMatch[1].trim() : 'Quetta',
+          createdAt: m.createdAt,
+          detail: m.body,
+          status: m.status === 'READ' ? 'ANSWERED' : 'NEW',
+        };
+      });
+      setSubmissions(mapped);
     } catch {
-      // API fallback - keep initial rich state
+      setSubmissions([]);
     } finally {
       setLoading(false);
     }
@@ -148,9 +119,9 @@ export default function AdminInbox() {
 
   async function markAnswered(sub: Submission) {
     try {
-      await api.patch(`/inbox/${sub.id}/status`, { status: 'ANSWERED' });
+      await api.patch(`/messages/${sub.id}/status`, { status: 'READ' });
     } catch {
-      // Local fallback sync
+      // Ignore fallback
     }
     setSubmissions((cur) =>
       cur.map((item) => (item.id === sub.id ? { ...item, status: 'ANSWERED' } : item)),
@@ -280,20 +251,15 @@ export default function AdminInbox() {
         </div>
       ) : (
         <div className="acard aempty">
-          <h3>Nothing matches this filter</h3>
+          <h3>No submissions in inbox</h3>
           <p style={css('margin-top:8px;max-width:46ch;margin-inline:auto')}>
-            Every form on the public website lands here - volunteers, partner organisations, foundations, messages and donation receipts.
-          </p>
-          <p style={css('margin-top:14px')}>
-            <Link href="/join/volunteer">
-              <b>Try it: fill in the volunteer form →</b>
-            </Link>
+            Every message submitted from the website arrives here directly in real time.
           </p>
         </div>
       )}
 
       <p className="ahint">
-        The old website had an unmoderated comment box. Everything now arrives here securely, where administrators can track and resolve every public inquiry.
+        All public form messages land directly in this inbox for administrator review and response.
       </p>
 
       {/* Side Drawer Detail Sheet */}

@@ -60,10 +60,16 @@ export class RequestsService {
   }
 
   /** Admin list - full records, town-scoped. */
-  async listAdmin(user: AuthUser, q: ListRequestsQuery) {
+  async listAdmin(user: AuthUser | null, q: ListRequestsQuery) {
     const scope = scopeWhere(user);
     const where: Prisma.BloodRequestWhereInput = { ...scope };
-    if (q.status) where.status = q.status;
+
+    if (q.status && q.status.toUpperCase() !== 'ALL') {
+      const stUpper = q.status.toUpperCase();
+      if (Object.values(RequestStatus).includes(stUpper as any)) {
+        where.status = stUpper as RequestStatus;
+      }
+    }
     if (!scope.townId && q.townId) where.townId = q.townId;
 
     const [total, rows] = await this.prisma.$transaction([
@@ -79,7 +85,7 @@ export class RequestsService {
     return { data: rows.map(toAdminRequest), meta: { total, page: q.page, pageSize: q.pageSize } };
   }
 
-  async getAdmin(user: AuthUser, id: string) {
+  async getAdmin(user: AuthUser | null, id: string) {
     const found = await this.prisma.bloodRequest.findFirst({
       where: { id, ...scopeWhere(user) },
       include: TOWN,
@@ -102,6 +108,14 @@ export class RequestsService {
     }
     const updated = await this.prisma.bloodRequest.update({ where: { id }, data, include: TOWN });
     return toAdminRequest(updated);
+  }
+
+  async remove(id: string) {
+    const existing = await this.prisma.bloodRequest.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Request not found');
+
+    await this.prisma.bloodRequest.delete({ where: { id } });
+    return { success: true, message: 'Blood request deleted successfully' };
   }
 
   /** Allocate a unique PBB-XXXXXX reference, retrying on the rare collision. */

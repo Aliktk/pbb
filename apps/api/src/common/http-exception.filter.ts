@@ -13,16 +13,48 @@ interface ErrorBody {
   error: { statusCode: number; message: string; code?: string; requestId?: string };
 }
 
+function sanitizeErrorMessage(status: number, rawMessage: string): string {
+  const lower = rawMessage.toLowerCase();
+
+  if (
+    lower.includes("can't reach database") ||
+    lower.includes('prisma') ||
+    lower.includes('invocation in') ||
+    lower.includes('econnrefused') ||
+    lower.includes('connection pool') ||
+    lower.includes('timed out') ||
+    lower.includes('socket closed') ||
+    lower.includes('denied for user')
+  ) {
+    return 'Unable to connect to the database server. Please verify database availability or try again in a few moments.';
+  }
+
+  if (status === 401) {
+    return rawMessage.includes('Invalid credentials') || rawMessage.includes('Invalid email') || rawMessage.includes('Unauthorized')
+      ? rawMessage
+      : 'Invalid email address or password.';
+  }
+
+  if (status === 403) {
+    return 'Access denied. You do not have permission to perform this action.';
+  }
+
+  if (status >= 500) {
+    return 'An unexpected server error occurred. Please try again later.';
+  }
+
+  return rawMessage;
+}
+
 /**
  * One error shape for the whole API (layer 12). Every failure becomes
- * { ok:false, error:{ statusCode, message, ... } } and is logged with the request id. In
- * production the body of an unexpected 500 is a generic message so internal details and stack
- * traces never reach a client; the full stack still goes to the server log.
+ * { ok:false, error:{ statusCode, message, ... } } and is logged with the request id.
+ * Internal details, SQL/Prisma traces, and stack traces are logged on the server
+ * but sanitized into clean, user-friendly messages for the client response.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger('Http');
-  private readonly isProd = process.env.NODE_ENV === 'production';
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -33,25 +65,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const isHttp = exception instanceof HttpException;
     const status = isHttp ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    let message = 'Internal server error';
+    let rawMessage = 'Internal server error';
     let code: string | undefined;
 
     if (isHttp) {
       const payload = exception.getResponse();
       if (typeof payload === 'string') {
-        message = payload;
+        rawMessage = payload;
       } else if (payload && typeof payload === 'object') {
         const obj = payload as { message?: string | string[]; error?: string };
-        message = Array.isArray(obj.message) ? obj.message.join('; ') : obj.message ?? exception.message;
+        rawMessage = Array.isArray(obj.message) ? obj.message.join('; ') : obj.message ?? exception.message;
         code = obj.error;
       }
-    } else if (!this.isProd && exception instanceof Error) {
-      message = exception.message;
+    } else if (exception instanceof Error) {
+      rawMessage = exception.message;
     }
+
+    const message = sanitizeErrorMessage(status, rawMessage);
 
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
-        `${req.method} ${req.originalUrl} ${status} [${requestId ?? '-'}]`,
+        `${req.method} ${req.originalUrl} ${status} [${requestId ?? '-'}] - Raw: ${rawMessage}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else {

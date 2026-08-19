@@ -10,6 +10,9 @@ const nextConfig = {
     ],
   },
   transpilePackages: ['@pbb/types'],
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

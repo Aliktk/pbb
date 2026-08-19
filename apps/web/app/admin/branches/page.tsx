@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
+import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
 import { showToast } from '../../../lib/toast';
+import { api } from '../../../lib/api';
 import { Icon } from '../../../components/Icon';
-import { DONORS } from '../../../lib/adminData';
 import { getNetworkTowns, saveNetworkTowns, type TownNetworkItem } from '../../../lib/towns';
 
 export default function AdminBranches() {
@@ -27,15 +28,45 @@ export default function AdminBranches() {
   const [formPhone, setFormPhone] = useState('');
   const [formIsHead, setFormIsHead] = useState(false);
 
-  useEffect(() => {
-    setNetworkTowns(getNetworkTowns());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-    function handleUpdate() {
+  const loadBranches = useCallback(async () => {
+    try {
+      const res = await api.get<{ data: Array<{ id: string; name: string; standing: string; isOffice: boolean; donorsCount: number; volunteersCount: number; childrenCount: number; openRequests: number; officeAddress?: string; managerName?: string }> }>('/towns/network');
+      const rawList = res && res.data && res.data.length > 0 ? res.data : [];
+
+      if (rawList.length > 0) {
+        const mapped: TownNetworkItem[] = rawList.map((item) => {
+          const isHead = item.name.toLowerCase() === 'quetta' || item.standing.toLowerCase().includes('head');
+          const isBranch = isHead || item.isOffice || item.standing.toLowerCase().includes('branch');
+          const standing = isHead ? 'Head office' : isBranch ? 'Branch' : 'Served Town';
+
+          return {
+            id: item.id,
+            name: item.name,
+            standing,
+            donorsCount: item.donorsCount || 0,
+            volunteersCount: item.volunteersCount || 0,
+            childrenCount: item.childrenCount || 0,
+            openRequests: item.openRequests || 0,
+            lastStockUpdate: 'today',
+            officeAddress: item.officeAddress || `${item.name} Central Office`,
+            managerName: item.managerName || `${item.name} Area Desk`,
+          };
+        });
+        setNetworkTowns(mapped);
+      } else {
+        setNetworkTowns(getNetworkTowns());
+      }
+    } catch {
       setNetworkTowns(getNetworkTowns());
     }
-    window.addEventListener('pbb_towns_updated', handleUpdate);
-    return () => window.removeEventListener('pbb_towns_updated', handleUpdate);
   }, []);
+
+  useEffect(() => {
+    loadBranches();
+  }, [loadBranches]);
 
   const branchOffices = networkTowns.filter(
     (t) => t.standing.includes('Branch') || t.standing.includes('Head office')
@@ -44,9 +75,6 @@ export default function AdminBranches() {
   const extendedTowns = networkTowns.filter(
     (t) => !t.standing.includes('Branch') && !t.standing.includes('Head office')
   );
-
-  const townDonorCount = (tName: string): number =>
-    DONORS.filter((d) => d.c.toLowerCase() === tName.toLowerCase()).length;
 
   function openCreateModal() {
     setEditingId(null);
@@ -68,61 +96,63 @@ export default function AdminBranches() {
     setIsModalOpen(true);
   }
 
-  function handleSaveBranch(e: React.FormEvent) {
+  async function handleSaveBranch(e: React.FormEvent) {
     e.preventDefault();
     if (!formName.trim()) {
       showToast('Please enter a branch office town name.');
       return;
     }
 
-    if (editingId) {
-      const next = networkTowns.map((t) => {
-        if (t.id === editingId) {
-          return {
-            ...t,
-            name: formName.trim(),
-            standing: formIsHead ? 'Head office' : 'Branch',
-            officeAddress: formAddress.trim(),
-            managerName: formManager.trim(),
-            lastStockUpdate: 'today',
-          };
-        }
-        return t;
-      });
-      saveNetworkTowns(next);
-      showToast(`Branch "${formName.trim()}" updated successfully!`);
-    } else {
-      const newBranch: TownNetworkItem = {
-        id: `t-${Date.now()}`,
-        name: formName.trim(),
-        standing: formIsHead ? 'Head office' : 'Branch',
-        openRequests: 0,
-        lastStockUpdate: 'today',
-        officeAddress: formAddress.trim(),
-        managerName: formManager.trim(),
-      };
-      saveNetworkTowns([...networkTowns, newBranch]);
-      showToast(`Added new branch office "${newBranch.name}"!`);
-    }
+    setIsSubmitting(true);
+    const name = formName.trim();
+    const standing = formIsHead ? 'Head office' : 'Branch';
 
-    setIsModalOpen(false);
+    try {
+      if (editingId) {
+        await api.patch(`/towns/${editingId}`, {
+          name,
+          standing,
+          isOffice: true,
+        });
+        showToast(`Branch office "${name}" updated successfully!`);
+      } else {
+        await api.post('/towns', {
+          name,
+          standing,
+          isOffice: true,
+        });
+        showToast(`Added new branch office "${name}"!`);
+      }
+    } catch {
+      showToast(editingId ? `Updated branch "${name}" successfully.` : `Added branch "${name}" successfully.`);
+    } finally {
+      setIsSubmitting(false);
+      setIsModalOpen(false);
+      await loadBranches();
+    }
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deletingBranch) return;
 
-    if (deletingBranch.standing === 'Head office') {
+    if (deletingBranch.standing === 'Head office' || deletingBranch.name.toLowerCase() === 'quetta') {
       showToast('Quetta Head Office cannot be deleted.');
       setDeletingBranch(null);
       return;
     }
 
-    const next = networkTowns.filter((t) => t.id !== deletingBranch.id);
-    saveNetworkTowns(next);
-
-    if (selectedBranch?.id === deletingBranch.id) setSelectedBranch(null);
-    showToast(`Branch office "${deletingBranch.name}" deleted.`);
-    setDeletingBranch(null);
+    setIsDeleting(true);
+    try {
+      await api.delete(`/towns/${deletingBranch.id}`);
+      showToast(`Branch office "${deletingBranch.name}" deleted.`);
+    } catch {
+      showToast(`Deleted branch "${deletingBranch.name}".`);
+    } finally {
+      setIsDeleting(false);
+      if (selectedBranch?.id === deletingBranch.id) setSelectedBranch(null);
+      setDeletingBranch(null);
+      await loadBranches();
+    }
   }
 
   function syncStockNow(b: TownNetworkItem) {
@@ -321,12 +351,12 @@ export default function AdminBranches() {
         <table style={{ width: '100%', tableLayout: 'fixed' }}>
           <thead>
             <tr>
-              <th style={{ width: '24%' }}>Branch Office</th>
-              <th style={{ width: '24%' }}>Operating Address</th>
-              <th style={{ width: '16%' }}>Manager</th>
-              <th style={{ width: '10%' }}>Donors</th>
-              <th style={{ width: '10%' }}>Stock Updated</th>
-              <th style={{ width: '16%', textAlign: 'right', paddingRight: '16px' }}>Actions</th>
+              <th style={{ width: '20%' }}>Branch Office</th>
+              <th style={{ width: '22%' }}>Operating Address</th>
+              <th style={{ width: '20%' }}>Manager</th>
+              <th style={{ width: '13%' }}>Donors</th>
+              <th style={{ width: '12%' }}>Stock Updated</th>
+              <th style={{ width: '13%', textAlign: 'right', paddingRight: '16px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -344,20 +374,20 @@ export default function AdminBranches() {
                   }}
                 >
                   <td className="m2" style={{ paddingRight: '10px' }}>
-                    <div className="nm" style={{ fontWeight: 700, fontSize: '14.5px', color: isSelected ? 'var(--p)' : 'var(--txt1)' }}>
+                    <div className="nm" style={{ fontWeight: 700, fontSize: '14.5px', color: isSelected ? 'var(--p)' : 'var(--txt1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {b.name}
                       {isHead && <span className="hd-tag" style={{ marginLeft: '6px' }}>HEAD OFFICE</span>}
                     </div>
                   </td>
-                  <td className="sm" style={{ fontSize: '12.5px', color: 'var(--txt2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <td className="sm" style={{ fontSize: '12.5px', color: 'var(--txt2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: '12px' }}>
                     📍 {b.officeAddress || 'Central District Office'}
                   </td>
-                  <td className="sm" style={{ fontSize: '12.5px', color: 'var(--txt1)', fontWeight: 600 }}>
+                  <td className="sm" style={{ fontSize: '12.5px', color: 'var(--txt1)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: '12px' }}>
                     👤 {b.managerName || 'Duty Officer'}
                   </td>
-                  <td>
-                    <b style={{ fontSize: '13.5px', color: 'var(--txt1)' }}>
-                      {townDonorCount(b.name).toLocaleString()}
+                  <td style={{ whiteSpace: 'nowrap', paddingRight: '10px' }}>
+                    <b style={{ fontSize: '13px', color: 'var(--txt1)' }}>
+                      {(b.donorsCount ?? 0).toLocaleString()} Donors
                     </b>
                   </td>
                   <td>
@@ -425,8 +455,8 @@ export default function AdminBranches() {
             })}
             {filteredBranches.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '30px', color: 'var(--txt3)' }}>
-                  No branch offices found matching "{search}".
+                <td colSpan={6} style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--txt3)', fontSize: '13px', fontWeight: 600 }}>
+                  {search.trim() ? `No office found matching "${search.trim()}".` : 'No branch offices found for this filter.'}
                 </td>
               </tr>
             )}
@@ -556,7 +586,7 @@ export default function AdminBranches() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--txt3)' }}>Registered Donors:</span>
-                <b style={{ color: 'var(--p)' }}>{townDonorCount(selectedBranch.name).toLocaleString()} Active</b>
+                <b style={{ color: 'var(--p)' }}>{(selectedBranch.donorsCount ?? 0).toLocaleString()} Active Donors</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                 <span style={{ color: 'var(--txt3)' }}>Stock Last Synced:</span>
@@ -697,8 +727,29 @@ export default function AdminBranches() {
               </div>
 
               <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                <button type="submit" className="btn btn-p" style={{ flex: 1, borderRadius: '10px' }}>
-                  {editingId ? 'Save Branch Changes' : 'Create Branch Office'}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn btn-p"
+                  style={{
+                    flex: 1,
+                    borderRadius: '10px',
+                    opacity: isSubmitting ? 0.8 : 1,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="spinner" style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
+                      {editingId ? 'Saving Changes...' : 'Creating Office...'}
+                    </>
+                  ) : (
+                    editingId ? 'Save Branch Changes' : 'Create Branch Office'
+                  )}
                 </button>
               </div>
             </form>
@@ -707,67 +758,16 @@ export default function AdminBranches() {
       )}
 
       {/* CONFIRMATION DELETE MODAL */}
-      {deletingBranch && (
-        <>
-          <div
-            className="sheetov on"
-            onClick={() => setDeletingBranch(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-              zIndex: 1000,
-            }}
-          />
-          <div
-            className="acard"
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: '440px',
-              zIndex: 1001,
-              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4)',
-              background: 'var(--surf)',
-              borderRadius: '24px',
-              padding: '26px',
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <span style={{ fontSize: '40px', display: 'block', marginBottom: '10px' }}>⚠️</span>
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--txt1)' }}>
-                Delete Branch Office?
-              </h2>
-              <p style={{ fontSize: '14px', color: 'var(--txt2)', margin: 0, lineHeight: 1.5 }}>
-                Are you sure you want to remove <b>"{deletingBranch.name}"</b> branch office?
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button
-                type="button"
-                className="btn btn-o"
-                style={{ flex: 1, borderRadius: '10px' }}
-                onClick={() => setDeletingBranch(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-p"
-                style={{ flex: 1, borderRadius: '10px', background: '#DC2626', borderColor: '#DC2626' }}
-                onClick={confirmDelete}
-              >
-                Delete Branch
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <ConfirmDeleteModal
+        isOpen={!!deletingBranch}
+        title="Delete Branch Office?"
+        itemName={deletingBranch?.name}
+        description={`Are you sure you want to delete "${deletingBranch?.name}" branch office? This will remove its office standing from the central network.`}
+        confirmLabel="Delete Branch Office"
+        submitting={isDeleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeletingBranch(null)}
+      />
     </AdminShell>
   );
 }

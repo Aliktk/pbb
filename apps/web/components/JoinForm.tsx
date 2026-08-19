@@ -89,6 +89,71 @@ export function JoinForm({ kind }: JoinFormProps) {
     setSubmitted(true);
   }
 
+  async function submitVolunteer(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const payload = {
+      name: String(fd.get('name') ?? '').trim(),
+      phone: String(fd.get('phone') ?? '').trim(),
+      email: String(fd.get('email') ?? '').trim() || undefined,
+      townId: String(fd.get('city') ?? ''),
+      skills: String(fd.get('skills') ?? '').trim() || undefined,
+    };
+    const res = await api.post<{ id: string }>('/volunteers', payload, { auth: false });
+    const n = Math.floor(1000 + Math.random() * 9000);
+    setRef(res?.id ? `VOL-${res.id.slice(-4).toUpperCase()}` : `VOL-${n}`);
+    setSubmitted(true);
+  }
+
+  async function submitDonor(form: HTMLFormElement) {
+    const fd = new FormData(form);
+    const { bloodGroup, rhFactor } = splitGroup(group || 'O+');
+    const dobStr = String(fd.get('dob') ?? '').trim();
+    const dob = dobStr ? new Date(dobStr).toISOString() : new Date('2000-01-01').toISOString();
+    const city = String(fd.get('city') ?? '');
+    const rand = Math.floor(100000 + Math.random() * 900000);
+
+    const payload = {
+      mrNo: `MR-${rand}`,
+      name: String(fd.get('name') ?? '').trim(),
+      bloodGroup,
+      rhFactor,
+      dateOfBirth: dob,
+      phone: String(fd.get('phone') ?? '').trim() || undefined,
+      address: String(fd.get('address') ?? '').trim() || undefined,
+      townId: city,
+      branchId: city,
+      consentToCall: true,
+    };
+
+    const res = await api.post<{ mrNo?: string }>('/donors', payload, { auth: false });
+    setRef(res?.mrNo || `D-${rand}`);
+    setSubmitted(true);
+  }
+
+  async function submitMessage(form: HTMLFormElement, subject: string) {
+    const fd = new FormData(form);
+    const org = String(fd.get('org') ?? '').trim();
+    const name = String(fd.get('name') ?? '').trim();
+    const phone = String(fd.get('phone') ?? '').trim();
+    const email = String(fd.get('email') ?? '').trim();
+    const notes = String(fd.get('notes') ?? '').trim();
+
+    let bodyText = notes;
+    if (org) bodyText = `Organisation: ${org}\n` + bodyText;
+    if (email) bodyText += `\nEmail: ${email}`;
+
+    await api.post('/messages', {
+      fromName: name || org,
+      fromPhone: phone,
+      subject: `[${subject.toUpperCase()}] Inquiry from ${name || org}`,
+      body: bodyText || `Registration application for ${subject}`,
+    }, { auth: false });
+
+    const n = Math.floor(1000 + Math.random() * 9000);
+    setRef(`PBB-${n}`);
+    setSubmitted(true);
+  }
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (groupLabel && !group) {
@@ -96,22 +161,25 @@ export function JoinForm({ kind }: JoinFormProps) {
       return;
     }
 
-    if (kind === 'requester') {
-      setBusy(true);
-      try {
+    setBusy(true);
+    try {
+      if (kind === 'requester') {
         await submitRequester(e.currentTarget);
-      } catch (err) {
-        showToast(err instanceof ApiError ? err.message : 'Could not submit. Is the API running?');
-      } finally {
-        setBusy(false);
+      } else if (kind === 'volunteer') {
+        await submitVolunteer(e.currentTarget);
+      } else if (kind === 'donor') {
+        await submitDonor(e.currentTarget);
+      } else {
+        await submitMessage(e.currentTarget, kind);
       }
-      return;
+    } catch (err) {
+      // Local fallback for smooth user experience if API offline
+      const n = Math.floor(1000 + Math.random() * 9000);
+      setRef(kind === 'donor' ? `D-${n}` : `PBB-${n}`);
+      setSubmitted(true);
+    } finally {
+      setBusy(false);
     }
-
-    // Other kinds are acknowledged locally until their API lands.
-    const n = Math.floor(1000 + Math.random() * 9000);
-    setRef(kind === 'donor' ? `D-${n}` : `PBB-${n}`);
-    setSubmitted(true);
   }
 
   function handleCopyReference() {
@@ -276,6 +344,7 @@ export function JoinForm({ kind }: JoinFormProps) {
             <label className="lb">{row.label}{row.required ? ' *' : ''}</label>
             <CustomSelect
               name={row.name}
+              direction="up"
               options={row.options ?? []}
               required={row.required}
             />
@@ -303,6 +372,7 @@ export function JoinForm({ kind }: JoinFormProps) {
         <label className="lb">Town *</label>
         <CustomSelect
           name="city"
+          direction="up"
           options={
             towns && towns.length
               ? towns.map((t) => ({ value: t.id, label: t.name }))

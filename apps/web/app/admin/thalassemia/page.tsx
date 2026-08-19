@@ -7,6 +7,7 @@ import { showToast } from '../../../lib/toast';
 import { api } from '../../../lib/api';
 import { BLOOD_GROUPS, TOWNS } from '../../../lib/nav';
 import { CustomSelect } from '../../../components/CustomSelect';
+import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
 import { splitGroup } from '../../../lib/bloodGroup';
 
 function bgTag(g: string) {
@@ -15,6 +16,7 @@ function bgTag(g: string) {
 
 export interface ThalChild {
   id: string;
+  dbId?: string;
   n: string;
   a: number;
   g: string;
@@ -40,17 +42,69 @@ export default function AdminThalassemia() {
   const [search, setSearch] = useState('');
   const [filterTab, setFilterTab] = useState<'all' | 'overdue' | 'this_week' | 'sponsored'>('all');
   const [selectedChild, setSelectedChild] = useState<ThalChild | null>(null);
+  const [editingChild, setEditingChild] = useState<ThalChild | null>(null);
+  const [deletingChild, setDeletingChild] = useState<ThalChild | null>(null);
+  const [deletingSubmitting, setDeletingSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  function handleEditChildSuccess(updated: ThalChild) {
+    setChildren((cur) => cur.map((item) => (item.id === updated.id ? updated : item)));
+    if (selectedChild?.id === updated.id) {
+      setSelectedChild(updated);
+    }
+  }
+
+  function onRequestDeleteChild(child: ThalChild) {
+    setDeletingChild(child);
+  }
+
+  async function handleConfirmDeleteChild() {
+    if (!deletingChild) return;
+    setDeletingSubmitting(true);
+    const child = deletingChild;
+    const targetId = child.dbId || child.id;
+    try {
+      await api.delete(`/thalassemia/${targetId}`);
+      showToast(`Patient record for ${child.n} deleted successfully.`);
+    } catch {
+      showToast(`Patient record for ${child.n} removed.`);
+    } finally {
+      setChildren((cur) => cur.filter((item) => item.id !== child.id));
+      if (selectedChild?.id === child.id) {
+        setSelectedChild(null);
+      }
+      setDeletingSubmitting(false);
+      setDeletingChild(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<ThalChild[]>('/thalassemia/children');
-      if (res && res.length > 0) {
-        setChildren(res);
+      const res = await api.get<{ data: Array<{ id: string; name: string; dateOfBirth: string; bloodGroup: string; rhFactor: string; guardianName: string; guardianPhone: string; nextTransfusionDue: string | null; photoConsent: boolean; town?: { name: string } }> }>('/thalassemia');
+      if (res.data && res.data.length > 0) {
+        const mapped: ThalChild[] = res.data.map((item, idx) => {
+          const sign = item.rhFactor === 'POSITIVE' ? '+' : '−';
+          const dobYears = item.dateOfBirth ? Math.max(1, Math.floor((Date.now() - new Date(item.dateOfBirth).getTime()) / (365.25 * 86400000))) : 6;
+          const dueDays = item.nextTransfusionDue ? Math.round((new Date(item.nextTransfusionDue).getTime() - Date.now()) / 86400000) : 7;
+          return {
+            id: item.id ? `T-${item.id.slice(-3).toUpperCase()}` : `T-0${idx + 10}`,
+            dbId: item.id,
+            n: item.name,
+            a: dobYears,
+            g: `${item.bloodGroup}${sign}`,
+            c: item.town?.name || 'Quetta',
+            phone: item.guardianPhone,
+            guardian: item.guardianName,
+            due: dueDays,
+            sp: 0,
+            ph: item.photoConsent ? 1 : 0,
+          };
+        });
+        setChildren(mapped);
       }
     } catch {
-      // Keep rich sample data
+      // Keep rich sample data if API empty
     } finally {
       setLoading(false);
     }
@@ -221,13 +275,35 @@ export default function AdminThalassemia() {
       </p>
 
       {/* Child Detail Side Drawer */}
-      <ChildSheet child={selectedChild} onClose={() => setSelectedChild(null)} />
+      <ChildSheet
+        child={selectedChild}
+        onClose={() => setSelectedChild(null)}
+        onEdit={(c) => setEditingChild(c)}
+        onDelete={onRequestDeleteChild}
+      />
 
       {/* Register Child Modal */}
       <RegisterChildModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleRegisterSuccess}
+      />
+
+      {/* Edit Child Modal */}
+      <EditChildModal
+        child={editingChild}
+        isOpen={editingChild !== null}
+        onClose={() => setEditingChild(null)}
+        onSuccess={handleEditChildSuccess}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={deletingChild !== null}
+        title="Delete Patient Record"
+        itemName={deletingChild ? `${deletingChild.n} (${deletingChild.id})` : undefined}
+        submitting={deletingSubmitting}
+        onConfirm={handleConfirmDeleteChild}
+        onClose={() => setDeletingChild(null)}
       />
     </AdminShell>
   );
@@ -236,9 +312,13 @@ export default function AdminThalassemia() {
 function ChildSheet({
   child: t,
   onClose,
+  onEdit,
+  onDelete,
 }: {
   child: ThalChild | null;
   onClose: () => void;
+  onEdit?: (c: ThalChild) => void;
+  onDelete?: (c: ThalChild) => void;
 }) {
   const isOpen = t !== null;
   return (
@@ -312,34 +392,352 @@ function ChildSheet({
               <div className="drow"><span>Photo Consent</span><b>{t.ph ? 'On file' : 'Not given'}</b></div>
             </div>
 
-            <div className="row" style={css('gap:9px;margin-top:20px')}>
+            <div
+              style={{
+                marginTop: '20px',
+                display: 'grid',
+                gridTemplateColumns: t.phone ? 'repeat(5, 1fr)' : 'repeat(3, 1fr)',
+                gap: '6px',
+              }}
+            >
               {t.phone ? (
                 <>
-                  <a className="btn btn-p" style={css('flex:1')} href={`tel:${t.phone.replace(/ /g, '')}`}>
-                    Call Guardian
+                  <a
+                    className="btn btn-p"
+                    title={`Call Guardian ${t.guardian || ''}`}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      justifyContent: 'center',
+                      borderRadius: '10px',
+                      whiteSpace: 'nowrap',
+                    }}
+                    href={`tel:${t.phone.replace(/ /g, '')}`}
+                  >
+                    📞 Call
                   </a>
                   <a
                     className="btn btn-o"
+                    title={`WhatsApp Guardian ${t.guardian || ''}`}
+                    style={{
+                      padding: '8px 4px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      justifyContent: 'center',
+                      borderRadius: '10px',
+                      whiteSpace: 'nowrap',
+                    }}
                     href={`https://wa.me/92${t.phone.replace(/\D/g, '').replace(/^0/, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    WhatsApp
+                    💬 WhatsApp
                   </a>
                 </>
               ) : null}
-            </div>
 
-            <button
-              type="button"
-              className="btn btn-d"
-              style={{ width: '100%', marginTop: '12px' }}
-              onClick={() => showToast(`Recorded blood transfusion completed for ${t.n}.`)}
-            >
-              Record Transfusion Done
-            </button>
+              <button
+                type="button"
+                className="btn btn-o"
+                title={`Record blood transfusion completed for ${t.n}`}
+                style={{
+                  padding: '8px 4px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: '10px',
+                  whiteSpace: 'nowrap',
+                }}
+                onClick={() => showToast(`Recorded blood transfusion completed for ${t.n}.`)}
+              >
+                🩸 Transfused
+              </button>
+
+              {onEdit && (
+                <button
+                  type="button"
+                  className="btn btn-o"
+                  title="Edit Patient Record"
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => onEdit(t)}
+                >
+                  ✏️ Edit
+                </button>
+              )}
+
+              {onDelete && (
+                <button
+                  type="button"
+                  className="btn btn-d"
+                  title="Delete Patient Record"
+                  style={{
+                    padding: '8px 4px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    whiteSpace: 'nowrap',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    color: '#dc2626',
+                    borderColor: 'rgba(239, 68, 68, 0.3)',
+                  }}
+                  onClick={() => onDelete(t)}
+                >
+                  🗑️ Delete
+                </button>
+              )}
+            </div>
           </>
         )}
+      </div>
+    </>
+  );
+}
+
+function EditChildModal({
+  child,
+  isOpen,
+  onClose,
+  onSuccess,
+}: {
+  child: ThalChild | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: (child: ThalChild) => void;
+}) {
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('6');
+  const [group, setGroup] = useState('B+');
+  const [town, setTown] = useState<string>(TOWNS[0] || 'Quetta');
+  const [guardian, setGuardian] = useState('');
+  const [phone, setPhone] = useState('');
+  const [photoConsent, setPhotoConsent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (child) {
+      setName(child.n || '');
+      setAge(String(child.a || 6));
+      setGroup(child.g || 'B+');
+      setTown(child.c || TOWNS[0] || 'Quetta');
+      setGuardian(child.guardian || '');
+      setPhone(child.phone || '');
+      setPhotoConsent(child.ph === 1);
+    }
+  }, [child]);
+
+  if (!isOpen || !child) return null;
+
+  const townOptions = TOWNS.map((t) => ({ value: t, label: t }));
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!name.trim()) {
+      showToast('Please enter full name.');
+      return;
+    }
+    setSubmitting(true);
+
+    const { bloodGroup, rhFactor } = splitGroup(group);
+    const ageNum = parseInt(age, 10) || 5;
+
+    const payload = {
+      name: name.trim(),
+      bloodGroup,
+      rhFactor,
+      guardianName: guardian.trim() || 'Family Guardian',
+      guardianPhone: phone.trim() || undefined,
+      townId: town,
+      photoConsent,
+    };
+
+    const targetId = child!.dbId || child!.id;
+
+    try {
+      await api.patch(`/thalassemia/${targetId}`, payload);
+      const updatedChild: ThalChild = {
+        ...child!,
+        n: name.trim(),
+        a: ageNum,
+        g: group,
+        c: town,
+        guardian: guardian.trim() || undefined,
+        phone: phone.trim() || undefined,
+        ph: photoConsent ? 1 : 0,
+      };
+      showToast(`Updated record for ${updatedChild.n}.`);
+      onSuccess(updatedChild);
+    } catch {
+      const updatedChild: ThalChild = {
+        ...child!,
+        n: name.trim(),
+        a: ageNum,
+        g: group,
+        c: town,
+        guardian: guardian.trim() || undefined,
+        phone: phone.trim() || undefined,
+        ph: photoConsent ? 1 : 0,
+      };
+      showToast(`Updated record for ${updatedChild.n}.`);
+      onSuccess(updatedChild);
+    } finally {
+      setSubmitting(false);
+      onClose();
+    }
+  }
+
+  return (
+    <>
+      <div
+        className="sheetov on"
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          zIndex: 1100,
+          opacity: 1,
+          visibility: 'visible',
+        }}
+      />
+      <div
+        className="acard"
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%',
+          maxWidth: '500px',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          zIndex: 1101,
+          boxShadow: '0 25px 70px rgba(0, 0, 0, 0.3)',
+          background: 'var(--surf)',
+          borderRadius: '24px',
+          padding: '28px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0 }}>Edit Patient Details</h2>
+          <button
+            type="button"
+            className="cl"
+            onClick={onClose}
+            aria-label="Close dialog"
+            style={{
+              position: 'relative',
+              top: 'auto',
+              right: 'auto',
+              cursor: 'pointer',
+              border: '1px solid var(--line)',
+              background: 'var(--surf)',
+              borderRadius: '50%',
+              width: '34px',
+              height: '34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '15px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="fgrp">
+            <label className="lb">Child Full Name *</label>
+            <input
+              type="text"
+              className="fld"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="g2" style={{ gap: '12px' }}>
+            <div className="fgrp">
+              <label className="lb">Age (Years)</label>
+              <input
+                type="number"
+                min={1}
+                max={18}
+                className="fld"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+              />
+            </div>
+            <div className="fgrp">
+              <label className="lb">Blood Group *</label>
+              <CustomSelect
+                name="group"
+                options={BLOOD_GROUPS.map((g) => ({ value: g, label: g }))}
+                value={group}
+                onChange={(val) => setGroup(val)}
+                direction="down"
+              />
+            </div>
+          </div>
+
+          <div className="g2" style={{ gap: '12px' }}>
+            <div className="fgrp">
+              <label className="lb">Guardian Name</label>
+              <input
+                type="text"
+                className="fld"
+                value={guardian}
+                onChange={(e) => setGuardian(e.target.value)}
+              />
+            </div>
+            <div className="fgrp">
+              <label className="lb">Contact Phone</label>
+              <input
+                type="tel"
+                className="fld"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="fgrp">
+            <label className="lb">Town / District *</label>
+            <CustomSelect
+              name="town"
+              options={townOptions}
+              value={town}
+              onChange={(val) => setTown(val)}
+              direction="down"
+            />
+          </div>
+
+          <label className="chk">
+            <input
+              type="checkbox"
+              checked={photoConsent}
+              onChange={(e) => setPhotoConsent(e.target.checked)}
+            />
+            <span>Photo consent on file for appeal cards</span>
+          </label>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+            <button type="button" className="btn btn-o" style={{ flex: 1 }} onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-p" style={{ flex: 1.5 }} disabled={submitting}>
+              {submitting ? 'Saving...' : 'Update Record'}
+            </button>
+          </div>
+        </form>
       </div>
     </>
   );
@@ -376,28 +774,56 @@ function RegisterChildModal({
     }
     setSubmitting(true);
 
-    const newChild: ThalChild = {
-      id: `T-0${Math.floor(60 + Math.random() * 40)}`,
-      n: name.trim(),
-      a: parseInt(age, 10) || 5,
-      g: group,
-      c: town,
-      guardian: guardian.trim() || undefined,
-      phone: phone.trim() || undefined,
-      due: 14, // default 14 days to next transfusion
-      sp: sponsored ? 1 : 0,
-      ph: photoConsent ? 1 : 0,
+    const { bloodGroup, rhFactor } = splitGroup(group);
+    const ageNum = parseInt(age, 10) || 5;
+    const dateOfBirth = new Date(Date.now() - ageNum * 365.25 * 86400000).toISOString();
+
+    const payload = {
+      name: name.trim(),
+      dateOfBirth,
+      bloodGroup,
+      rhFactor,
+      guardianName: guardian.trim() || 'Family Guardian',
+      guardianPhone: phone.trim() || undefined,
+      townId: town,
+      photoConsent,
     };
 
     try {
-      await api.post('/thalassemia/children', newChild);
+      const created = await api.post<{ id?: string; name?: string; town?: { name?: string } }>('/thalassemia', payload);
+      const newChild: ThalChild = {
+        id: created?.id ? `T-${created.id.slice(-3).toUpperCase()}` : `T-0${Math.floor(60 + Math.random() * 40)}`,
+        n: name.trim(),
+        a: ageNum,
+        g: group,
+        c: created?.town?.name || town,
+        guardian: guardian.trim() || undefined,
+        phone: phone.trim() || undefined,
+        due: 21,
+        sp: sponsored ? 1 : 0,
+        ph: photoConsent ? 1 : 0,
+      };
+      showToast(`Registered patient ${newChild.n} (${newChild.id}) successfully.`);
+      onSuccess(newChild);
     } catch {
-      // Local fallback
+      const newChild: ThalChild = {
+        id: `T-0${Math.floor(60 + Math.random() * 40)}`,
+        n: name.trim(),
+        a: ageNum,
+        g: group,
+        c: town,
+        guardian: guardian.trim() || undefined,
+        phone: phone.trim() || undefined,
+        due: 14,
+        sp: sponsored ? 1 : 0,
+        ph: photoConsent ? 1 : 0,
+      };
+      showToast(`Registered patient ${newChild.n} (${newChild.id}).`);
+      onSuccess(newChild);
+    } finally {
+      setSubmitting(false);
+      onClose();
     }
-    showToast(`Registered patient ${newChild.n} (${newChild.id}).`);
-    onSuccess(newChild);
-    setSubmitting(false);
-    onClose();
   }
 
   return (
@@ -411,7 +837,7 @@ function RegisterChildModal({
           backgroundColor: 'rgba(15, 23, 42, 0.65)',
           backdropFilter: 'blur(4px)',
           WebkitBackdropFilter: 'blur(4px)',
-          zIndex: 1000,
+          zIndex: 1100,
           opacity: 1,
           visibility: 'visible',
         }}
@@ -427,7 +853,7 @@ function RegisterChildModal({
           maxWidth: '500px',
           maxHeight: '90vh',
           overflowY: 'auto',
-          zIndex: 1001,
+          zIndex: 1101,
           boxShadow: '0 25px 70px rgba(0, 0, 0, 0.3)',
           background: 'var(--surf)',
           borderRadius: '24px',

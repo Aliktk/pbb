@@ -369,6 +369,7 @@ model Partner {
   phone     String?
   townId    String?
   logoId    String?
+  sinceYear String?
   createdAt DateTime    @default(now())
 
   @@map("partners")
@@ -496,6 +497,7 @@ model User {
   email          String     @unique
   passwordHash   String? // null while INVITED - an account is created without a password (§8.3)
   phone          String?
+  avatarUrl      String?
   role           Role       @relation(fields: [roleId], references: [id])
   roleId         String
   town           Town?      @relation(fields: [townId], references: [id])
