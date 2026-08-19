@@ -1283,6 +1283,43 @@ from (values
 ) as v(name, category, price)
 where not exists (select 1 from public.service_charges s where s.name = v.name);
 
+-- ── Default super-admin login (so a fresh project works immediately) ─────────
+-- Seeds ONE working super-admin (head office) directly into Supabase Auth so you can
+-- sign in at once and start creating executive + lower-level accounts. Idempotent
+-- (skips if the email already exists). CHANGE THE PASSWORD after first login.
+--   email:    admin@pashtoonkhwabloodbank.org
+--   password: PbbAdmin#2026
+-- If a newer/older GoTrue schema rejects the direct insert, this block fails softly with
+-- a NOTICE — in that case create that user in Authentication → Users → Add user; the
+-- profile seed below then links it to the head-office (super-admin) role automatically.
+do $$
+declare
+  uid uuid := '11111111-1111-1111-1111-111111111111';
+  admin_email text := 'admin@pashtoonkhwabloodbank.org';
+begin
+  if not exists (select 1 from auth.users where lower(email) = admin_email) then
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+      confirmation_token, recovery_token, email_change_token_new, email_change
+    ) values (
+      '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
+      admin_email, crypt('PbbAdmin#2026', gen_salt('bf')), now(),
+      now(), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+      '', '', '', ''
+    );
+    insert into auth.identities (
+      provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+    ) values (
+      uid::text, uid,
+      jsonb_build_object('sub', uid::text, 'email', admin_email, 'email_verified', true),
+      'email', now(), now(), now()
+    );
+  end if;
+exception when others then
+  raise notice 'Default auth user not seeded (%). Create admin@pashtoonkhwabloodbank.org in Authentication -> Users, then re-run this migration; the profile seed will grant it head-office access.', sqlerrm;
+end $$;
+
 -- Head-office admin profile. Any auth user whose email is listed here becomes head
 -- office (role 'head', town_id NULL = sees every town). RLS depends on this row, so
 -- without it a signed-in user is authenticated but sees no data. Run AFTER the auth
