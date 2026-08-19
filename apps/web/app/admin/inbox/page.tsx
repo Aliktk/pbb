@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api, ApiError } from '../../../lib/api';
-import type { Paged } from '../../../lib/apiTypes';
+import { fetchMessages, markMessageAnswered, type InboxMessage } from '../../../lib/messages';
 
 export interface Submission {
   id: string;
@@ -29,14 +28,25 @@ function agoLabel(isoOrMins: string | number): string {
   return `${Math.floor(mins / 1440)} d ago`;
 }
 
-interface ApiMessage {
-  id: string;
-  fromName: string | null;
-  fromPhone: string | null;
-  subject: string | null;
-  body: string;
-  status: string;
-  createdAt: string;
+// Map a Supabase inbox row (contact_messages) to the shape this screen renders.
+const KIND_MAP: Record<string, Submission['kind']> = {
+  volunteer: 'Volunteer', partner: 'Partner', organisation: 'Organisation',
+  message: 'Message', donation: 'Donation', donor: 'Message',
+};
+
+function toSubmission(m: InboxMessage): Submission {
+  return {
+    id: m.id,
+    name: m.name || 'Web Submitter',
+    org: m.org || '',
+    kind: KIND_MAP[m.kind] ?? 'Message',
+    phone: m.phone || '',
+    email: m.email || undefined,
+    city: '',
+    createdAt: m.created_at,
+    detail: m.detail || '',
+    status: m.status === 'ANSWERED' ? 'ANSWERED' : 'NEW',
+  };
 }
 
 const CATEGORIES = ['Everything', 'Volunteers', 'Partners', 'Organisations', 'Messages', 'Donations'] as const;
@@ -81,32 +91,10 @@ export default function AdminInbox() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<Paged<ApiMessage>>('/messages');
-      const mapped: Submission[] = res.data.map((m) => {
-        let kind: Submission['kind'] = 'Message';
-        if (m.subject === 'Volunteer') kind = 'Volunteer';
-        else if (m.subject === 'Hospital or partner') kind = 'Partner';
-        else if (m.subject === 'Press') kind = 'Organisation';
-
-        // Extract email or town if present in body
-        const emailMatch = m.body.match(/Email:\s*([^\n]+)/i);
-        const townMatch = m.body.match(/Town:\s*([^\n]+)/i);
-
-        return {
-          id: m.id,
-          name: m.fromName || 'Web Submitter',
-          org: '',
-          kind,
-          phone: m.fromPhone || '',
-          email: emailMatch ? emailMatch[1].trim() : undefined,
-          city: townMatch ? townMatch[1].trim() : 'Quetta',
-          createdAt: m.createdAt,
-          detail: m.body,
-          status: m.status === 'READ' ? 'ANSWERED' : 'NEW',
-        };
-      });
-      setSubmissions(mapped);
-    } catch {
+      const rows = await fetchMessages();
+      setSubmissions(rows.map(toSubmission));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load the inbox.');
       setSubmissions([]);
     } finally {
       setLoading(false);
@@ -119,9 +107,9 @@ export default function AdminInbox() {
 
   async function markAnswered(sub: Submission) {
     try {
-      await api.patch(`/messages/${sub.id}/status`, { status: 'READ' });
+      await markMessageAnswered(sub.id);
     } catch {
-      // Ignore fallback
+      // best effort; still reflect it in the UI
     }
     setSubmissions((cur) =>
       cur.map((item) => (item.id === sub.id ? { ...item, status: 'ANSWERED' } : item)),

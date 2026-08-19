@@ -1,1070 +1,367 @@
 'use client';
 
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
-import { ConfirmDeleteModal } from '../../../components/admin/ConfirmDeleteModal';
-import { showToast } from '../../../lib/toast';
-import { api } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
-import { Icon } from '../../../components/Icon';
-import { CustomSelect } from '../../../components/CustomSelect';
-import { getTownNamesList } from '../../../lib/towns';
+import { assignableRoles, roleLabel, roleIsScoped, ROLES, ROLE_ORDER, type RoleKey } from '../../../lib/roles';
+import {
+  fetchStaff, fetchInvites, createInvite, deleteInvite, setAccountActive, updateAccountRoleTown,
+  type StaffAccount, type AccountInvite,
+} from '../../../lib/accounts';
+import { fetchTowns, type Town } from '../../../lib/towns';
+import { showToast } from '../../../lib/toast';
 
-type AccountStatus = 'active' | 'invited' | 'suspended';
-
-interface Account {
-  id: string;
-  n: string;
-  r: string;
-  t: string;
-  e: string;
-  ph: string;
-  st: AccountStatus;
-  by: string;
-  last: string;
-}
-
-interface CreatedCredentials {
-  name: string;
-  email: string;
-  password: string;
-  role: string;
-  town: string;
-}
-
-const ROLES_LIST = [
-  'Olus Yar',
-  'Executive',
-  'Branch Manager',
-  'Coordinator',
-  'Data Entry',
-  'Accounts',
-  'Verifier',
-  'Volunteer Lead',
-];
+// Accounts & hierarchy - live, backed by Supabase. Row Level Security scopes the whole page:
+// head office sees every office; an office manager sees only their own. The frontend adds no
+// permission logic - it reads and writes, and the database (0003) decides what is allowed.
 
 export default function AdminAccounts() {
   const { user } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
+  const myRole = (user?.role.id ?? 'viewer') as string;
+  const myTownId = user?.townId ?? null;
+  const isHead = myRole === 'head';
+  const assignable = useMemo(() => assignableRoles(myRole), [myRole]);
 
-  // Modals & Drawer state
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
-  const [suspendingAccount, setSuspendingAccount] = useState<Account | null>(null);
-  const [openDetailAccount, setOpenDetailAccount] = useState<Account | null>(null);
-  const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials | null>(null);
+  const [staff, setStaff] = useState<StaffAccount[]>([]);
+  const [invites, setInvites] = useState<AccountInvite[]>([]);
+  const [towns, setTowns] = useState<Town[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Form states
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formRole, setFormRole] = useState('Data entry');
-  const [formTown, setFormTown] = useState('All towns');
-  const [formStatus, setFormStatus] = useState<AccountStatus>('active');
+  const [open, setOpen] = useState<StaffAccount | null>(null);
+  const [creating, setCreating] = useState(false);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isSuspending, setIsSuspending] = useState(false);
-  const [copiedCreds, setCopiedCreds] = useState(false);
-  const [showPassword, setShowPassword] = useState(true);
-
-  const loadAccounts = useCallback(async () => {
+  async function reload() {
+    setError(null);
     try {
-      const res = await api.get<{ data: Array<{ id: string; name: string; email: string; phone?: string; role?: { name: string }; town?: { name: string }; status: string; createdBy?: string }> }>('/users');
-      if (res && res.data && res.data.length > 0) {
-        const mapped: Account[] = res.data.map((u) => ({
-          id: u.id,
-          n: u.name,
-          r: u.role?.name || 'Staff',
-          t: u.town?.name || 'All towns',
-          e: u.email,
-          ph: u.phone || '-',
-          st: u.status === 'ACTIVE' ? 'active' : u.status === 'SUSPENDED' ? 'suspended' : 'invited',
-          by: u.createdBy || 'Olus Yar (Head of Organisation)',
-          last: 'Recently',
-        }));
-        setAccounts(mapped);
-      }
-    } catch {
-      showToast('Loaded accounts list.');
+      const [s, i, t] = await Promise.all([fetchStaff(), fetchInvites(), fetchTowns()]);
+      setStaff(s);
+      setInvites(i);
+      setTowns(t);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not load the register.');
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    loadAccounts();
-  }, [loadAccounts]);
+    reload();
+  }, []);
 
-  function openCreateModal() {
-    setEditingAccount(null);
-    setFormName('');
-    setFormEmail('');
-    setFormPhone('');
-    setFormRole('Data entry');
-    setFormTown('All towns');
-    setFormStatus('active');
-    setIsCreateModalOpen(true);
-  }
+  const townName = (id: string | null) => (id ? towns.find((t) => t.id === id)?.name ?? id : 'All towns');
 
-  function openEditModal(acc: Account) {
-    setEditingAccount(acc);
-    setFormName(acc.n);
-    setFormEmail(acc.e);
-    setFormPhone(acc.ph === '-' ? '' : acc.ph);
-    setFormRole(acc.r);
-    setFormTown(acc.t);
-    setFormStatus(acc.st);
-    setIsCreateModalOpen(true);
-  }
-
-  async function handleSaveAccount(e: FormEvent) {
-    e.preventDefault();
-    if (!formName.trim() || !formEmail.trim()) {
-      showToast('Please provide full name and official email address.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    const dto = {
-      name: formName.trim(),
-      email: formEmail.trim(),
-      roleId: formRole,
-      townId: formTown === 'All towns' ? undefined : formTown,
-      phone: formPhone.trim(),
-      status: formStatus.toUpperCase(),
-    };
-
-    try {
-      if (editingAccount) {
-        await api.patch(`/users/${editingAccount.id}`, dto);
-        showToast(`Account "${formName.trim()}" updated successfully!`);
-        setIsCreateModalOpen(false);
-      } else {
-        const res = await api.post<{ id: string; name: string; email: string; rawPassword?: string }>('/users', dto);
-        showToast(`Created new personnel account for ${formName.trim()}!`);
-        setIsCreateModalOpen(false);
-        setCreatedCredentials({
-          name: formName.trim(),
-          email: formEmail.trim(),
-          password: res.rawPassword || 'PBB-k9#2m$7x',
-          role: formRole,
-          town: formTown,
-        });
-        setCopiedCreds(false);
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || (editingAccount ? 'Updated account successfully.' : 'Created account successfully.');
-      showToast(msg);
-      setIsCreateModalOpen(false);
-    } finally {
-      setIsSubmitting(false);
-      await loadAccounts();
-    }
-  }
-
-  async function handleToggleSuspend(acc: Account) {
-    if (acc.st !== 'suspended') {
-      setSuspendingAccount(acc);
-      return;
-    }
-
-    try {
-      await api.patch(`/users/${acc.id}`, { status: 'ACTIVE' });
-      await api.post('/audit-logs', {
-        action: 'user.status_toggle',
-        entityType: 'User Account',
-        reason: `Re-activated account status for "${acc.n}"`,
-        actorId: user?.id,
-      }).catch(() => {});
-      showToast(`Account "${acc.n}" has been re-activated.`);
-    } catch {
-      showToast(`Re-activated "${acc.n}" status.`);
-    } finally {
-      await loadAccounts();
-    }
-  }
-
-  async function confirmSuspend() {
-    if (!suspendingAccount) return;
-
-    setIsSuspending(true);
-    try {
-      await api.patch(`/users/${suspendingAccount.id}`, { status: 'SUSPENDED' });
-      await api.post('/audit-logs', {
-        action: 'user.suspend',
-        entityType: 'User Account',
-        reason: `Suspended personnel account for "${suspendingAccount.n}" (${suspendingAccount.e})`,
-        actorId: user?.id,
-      }).catch(() => {});
-      showToast(`Personnel account "${suspendingAccount.n}" suspended.`);
-    } catch {
-      showToast(`Suspended account "${suspendingAccount.n}".`);
-    } finally {
-      setIsSuspending(false);
-      if (openDetailAccount?.id === suspendingAccount.id) setOpenDetailAccount(null);
-      setSuspendingAccount(null);
-      await loadAccounts();
-    }
-  }
-
-  async function confirmDelete() {
-    if (!deletingAccount) return;
-
-    setIsDeleting(true);
-    try {
-      await api.delete(`/users/${deletingAccount.id}`);
-      await api.post('/audit-logs', {
-        action: 'user.delete',
-        entityType: 'User Account',
-        reason: `Deleted personnel account "${deletingAccount.n}" (${deletingAccount.e})`,
-        actorId: user?.id,
-      }).catch(() => {});
-      showToast(`Personnel account "${deletingAccount.n}" deleted.`);
-    } catch {
-      showToast(`Deleted account "${deletingAccount.n}".`);
-    } finally {
-      setIsDeleting(false);
-      if (openDetailAccount?.id === deletingAccount.id) setOpenDetailAccount(null);
-      setDeletingAccount(null);
-      await loadAccounts();
-    }
-  }
-
-  function handleCopyCredentials() {
-    if (!createdCredentials) return;
-    const textToCopy = `===================================
-PBB ADMIN PORTAL LOGIN CREDENTIALS
-===================================
-Account Name: ${createdCredentials.name}
-Appointed Role: ${createdCredentials.role} (${createdCredentials.town})
-Official Email Address: ${createdCredentials.email}
-Login Password: ${createdCredentials.password}
-Portal Login Link: http://localhost:3000/admin/login
-===================================`;
-
-    navigator.clipboard.writeText(textToCopy);
-    setCopiedCreds(true);
-    showToast('Login credentials copied to clipboard!');
-  }
-
-  const filteredAccounts = accounts.filter((a) => {
-    const matchesSearch =
-      a.n.toLowerCase().includes(search.toLowerCase()) ||
-      a.e.toLowerCase().includes(search.toLowerCase()) ||
-      a.ph.includes(search);
-    const matchesRole = roleFilter === 'All' || a.r === roleFilter;
-    return matchesSearch && matchesRole;
-  });
-
-  const townOptions = ['All towns', ...getTownNamesList()];
-
-  const topActions = (
-    <button
-      type="button"
-      className="btn btn-p btn-s"
-      onClick={openCreateModal}
-      style={{ borderRadius: '12px', padding: '9px 18px', fontSize: '13px', fontWeight: 800 }}
-    >
-      + Create Account
-    </button>
+  const actions = assignable.length ? (
+    <>
+      <span style={css('margin-left:auto')} />
+      <button className="btn btn-p btn-s" onClick={() => setCreating(true)}>+ Create an account</button>
+    </>
+  ) : (
+    <><span style={css('margin-left:auto')} /><span className="sm">Your role cannot create accounts</span></>
   );
 
+  const activeCount = staff.filter((a) => a.is_active).length;
+  const suspended = staff.filter((a) => !a.is_active).length;
+
+  const subtitle = isHead ? `${staff.length} people · all offices` : `${townName(myTownId)} office`;
+
   return (
-    <AdminShell
-      view="accounts"
-      title="Accounts &amp; Governance"
-      subtitle={`${accounts.length} Administrative Personnel Accounts`}
-      actions={topActions}
-    >
-      {/* Clean KPI Stats Row */}
-      <div className="akpi" style={{ marginBottom: '22px' }}>
-        <div className="c">
-          <div className="l">Total Personnel</div>
-          <div className="n" style={{ color: '#22C55E' }}>
-            {accounts.length}
-          </div>
-        </div>
-        <div className="c">
-          <div className="l">Active Accounts</div>
-          <div className="n" style={{ color: '#3B82F6' }}>
-            {accounts.filter((a) => a.st === 'active').length}
-          </div>
-        </div>
-        <div className="c">
-          <div className="l">Invited / Pending</div>
-          <div className="n" style={{ color: '#EAB308' }}>
-            {accounts.filter((a) => a.st === 'invited').length}
-          </div>
-        </div>
-        <div className="c">
-          <div className="l">Suspended Accounts</div>
-          <div className="n" style={{ color: '#EF4444' }}>
-            {accounts.filter((a) => a.st === 'suspended').length}
-          </div>
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="afilters" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, maxWidth: '460px' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <input
-              type="text"
-              className="fld"
-              placeholder="Search by name, email, or telephone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ paddingLeft: '34px' }}
-            />
-            <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--txt3)' }}>
-              <Icon name="search" size={15} />
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--txt3)' }}>Role Filter:</span>
-          <div style={{ width: '185px' }}>
-            <CustomSelect
-              name="roleFilter"
-              options={['All', ...ROLES_LIST]}
-              value={roleFilter}
-              onChange={(val) => setRoleFilter(val)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Accounts Table */}
-      <div className="atbl" style={{ marginBottom: '24px', overflowX: 'auto' }}>
-        <table style={{ width: '100%', tableLayout: 'fixed', minWidth: '780px' }}>
-          <thead>
-            <tr>
-              <th style={{ width: '20%' }}>Officer / Name</th>
-              <th style={{ width: '22%' }}>Email &amp; Phone</th>
-              <th style={{ width: '16%' }}>Appointed Role</th>
-              <th style={{ width: '14%' }}>Jurisdiction</th>
-              <th style={{ width: '12%' }}>Status</th>
-              <th style={{ width: '16%', textAlign: 'right', paddingRight: '16px' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAccounts.map((a) => (
-              <tr
-                key={a.id}
-                onClick={() => setOpenDetailAccount(a)}
-                style={{ cursor: 'pointer' }}
-              >
-                <td className="m2" style={{ paddingRight: '10px' }}>
-                  <div className="nm" style={{ fontWeight: 700, fontSize: '14.5px', color: 'var(--txt1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {a.n}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--txt3)' }}>By: {a.by}</div>
-                </td>
-                <td style={{ paddingRight: '10px' }}>
-                  <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--txt1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    ✉️ {a.e}
-                  </div>
-                  <div style={{ fontSize: '11.5px', color: 'var(--txt3)' }}>📞 {a.ph}</div>
-                </td>
-                <td>
-                  <span className="tag" style={{ fontSize: '12px', fontWeight: 700, background: 'rgba(217, 35, 35, 0.12)', color: 'var(--p)' }}>
-                    {a.r}
-                  </span>
-                </td>
-                <td style={{ fontSize: '12.5px', color: 'var(--txt2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  📍 {a.t}
-                </td>
-                <td>
-                  {a.st === 'active' && <span className="tag ok">Active</span>}
-                  {a.st === 'invited' && <span className="tag no">Invited</span>}
-                  {a.st === 'suspended' && <span className="tag wt">Suspended</span>}
-                </td>
-                <td style={{ textAlign: 'right', paddingRight: '16px' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                    <button
-                      type="button"
-                      className="btn btn-o btn-s"
-                      style={{ padding: '5px 8px', borderRadius: '8px' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditModal(a);
-                      }}
-                      title="Edit Account Details"
-                    >
-                      <Icon name="gear" size={13} />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn btn-o btn-s"
-                      style={{ padding: '5px 8px', borderRadius: '8px', color: a.st === 'suspended' ? '#22C55E' : '#EAB308' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleSuspend(a);
-                      }}
-                      title={a.st === 'suspended' ? 'Activate Account' : 'Suspend Account'}
-                    >
-                      {a.st === 'suspended' ? '🟢' : '⛔'}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-cross-delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeletingAccount(a);
-                      }}
-                      title="Delete Personnel Account"
-                      style={{
-                        width: '26px',
-                        height: '26px',
-                        borderRadius: '50%',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        color: '#EF4444',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        flexShrink: 0,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {filteredAccounts.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--txt3)', fontSize: '13px', fontWeight: 600 }}>
-                  {search.trim() ? `No personnel found matching "${search.trim()}".` : 'No accounts found for this filter.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* CREATE / EDIT ACCOUNT MODAL */}
-      {isCreateModalOpen && (
+    <AdminShell view="accounts" title="Accounts" subtitle={subtitle} actions={actions}>
+      {loading ? (
+        <p className="muted" style={css('padding:24px 0')}>Loading the register…</p>
+      ) : error ? (
+        <div className="tag no" style={css('display:block;padding:14px 16px;border-radius:12px')}>{error}</div>
+      ) : (
         <>
-          <div
-            className="sheetov on"
-            onClick={() => setIsCreateModalOpen(false)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-              zIndex: 1000,
-            }}
-          />
-          <div
-            className="acard"
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: '480px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              zIndex: 1001,
-              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4)',
-              background: 'var(--surf)',
-              borderRadius: '24px',
-              padding: '26px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--txt1)' }}>
-                {editingAccount ? 'Edit Personnel Account' : 'Create Personnel Account'}
-              </h2>
-              <button
-                type="button"
-                className="btn-cross-delete"
-                onClick={() => setIsCreateModalOpen(false)}
-              >
-                ✕
-              </button>
+          {invites.length ? (
+            <div className="alert">
+              <div><b>{invites.length} {invites.length === 1 ? 'invitation has' : 'invitations have'} not been accepted yet.</b> The person becomes active the moment they sign up with their invited email and choose a password.</div>
             </div>
+          ) : null}
 
-            <form onSubmit={handleSaveAccount} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="fgrp">
-                <label className="lb" style={{ fontWeight: 700 }}>Full Name *</label>
-                <input
-                  type="text"
-                  className="fld"
-                  placeholder="e.g. Dr. Hamid Kakar"
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700 }}>Official Email *</label>
-                  <input
-                    type="email"
-                    className="fld"
-                    placeholder="name@pbb.org"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700 }}>Telephone Number</label>
-                  <input
-                    type="tel"
-                    className="fld"
-                    placeholder="03XX XXXXXXX"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Appointed Role</label>
-                  <CustomSelect
-                    name="formRole"
-                    options={ROLES_LIST}
-                    value={formRole}
-                    onChange={(val) => setFormRole(val)}
-                  />
-                </div>
-
-                <div className="fgrp">
-                  <label className="lb" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Town Jurisdiction</label>
-                  <CustomSelect
-                    name="formTown"
-                    options={townOptions}
-                    value={formTown}
-                    onChange={(val) => setFormTown(val)}
-                  />
-                </div>
-              </div>
-
-              <div className="fgrp">
-                <label className="lb" style={{ fontWeight: 700, display: 'block', marginBottom: '6px' }}>Account Status</label>
-                <CustomSelect
-                  name="formStatus"
-                  options={['active', 'invited', 'suspended']}
-                  value={formStatus}
-                  onChange={(val) => setFormStatus(val as AccountStatus)}
-                />
-              </div>
-
-              <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn btn-p"
-                  style={{
-                    flex: 1,
-                    borderRadius: '10px',
-                    opacity: isSubmitting ? 0.8 : 1,
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="spinner" style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                      {editingAccount ? 'Saving Account...' : 'Creating Account & Credentials...'}
-                    </>
-                  ) : (
-                    editingAccount ? 'Save Account Changes' : 'Create Account & Generate Password'
-                  )}
-                </button>
-              </div>
-            </form>
+          <div className="akpi">
+            <div className="c"><div className="l">Active accounts</div><div className="n">{activeCount}</div></div>
+            <div className="c"><div className="l">Invited, not yet accepted</div><div className="n r">{invites.length}</div></div>
+            <div className="c"><div className="l">Suspended</div><div className="n">{suspended}</div></div>
+            <div className="c"><div className="l">{isHead ? 'Offices in view' : 'Your office'}</div><div className="n">{isHead ? '14' : '1'}</div></div>
           </div>
+
+          {/* Role separation - generated from the one role model, so UI and database never drift. */}
+          <div className="acard" style={css('margin-bottom:18px')}>
+            <h3 style={css('margin-bottom:6px')}>Roles, and who may create them</h3>
+            <p className="sm" style={css('margin-bottom:18px')}>An account is only ever created by someone above it. Head office runs the whole organisation; an office manager runs one office and creates that office&apos;s staff. Nobody can sign themselves up into access.</p>
+            <div style={css('display:grid;gap:8px')}>
+              {ROLE_ORDER.map((k) => (
+                <div key={k} className="drow" style={css('align-items:flex-start')}>
+                  <span style={css('min-width:150px')}><b>{ROLES[k].label}</b><br /><span className="sm">{ROLES[k].scoped ? 'One office' : 'All offices'}</span></span>
+                  <span className="sm" style={css('text-align:left;flex:1')}>{ROLES[k].description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pending invitations */}
+          {invites.length ? (
+            <div className="atbl" style={css('margin-bottom:18px')}>
+              <h3 style={css('margin:2px 0 10px')}>Waiting to sign up</h3>
+              <table>
+                <thead><tr><th>Person</th><th>Role</th><th>Office</th><th /></tr></thead>
+                <tbody>
+                  {invites.map((i) => (
+                    <tr key={i.email}>
+                      <td className="m2"><div className="nm">{i.name || i.email}</div><div className="sm">{i.email}</div></td>
+                      <td>{roleLabel(i.role_key)}</td>
+                      <td>{townName(i.town_id)}</td>
+                      <td className="m3"><button type="button" className="btn btn-o btn-s" onClick={async () => { await deleteInvite(i.email); showToast('Invitation cancelled'); reload(); }}>Cancel</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {/* The register */}
+          <div className="atbl">
+            <table>
+              <thead><tr><th>Person</th><th>Role</th><th>Office</th><th>Status</th></tr></thead>
+              <tbody>
+                {staff.map((a) => (
+                  <tr key={a.id} onClick={() => setOpen(a)} style={css('cursor:pointer')}>
+                    <td className="m2"><div className="nm">{a.name}</div><div className="sm">{a.email} · {roleLabel(a.role_key)} · {townName(a.town_id)}</div></td>
+                    <td className="m1">{roleLabel(a.role_key)}</td>
+                    <td>{townName(a.town_id)}</td>
+                    <td className="m3">{a.is_active ? <span className="tag ok">Active</span> : <span className="tag wt">Suspended</span>}</td>
+                  </tr>
+                ))}
+                {staff.length === 0 ? <tr><td colSpan={4} className="muted" style={css('padding:18px')}>No accounts yet.</td></tr> : null}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="ahint">There is no public sign-up into access. Every account here was invited by a named person above it, and access is granted by the database only when the invited email signs up.</p>
         </>
       )}
 
-      {/* LOGIN CREDENTIALS SUCCESS MODAL */}
-      {createdCredentials && (
-        <>
-          <div
-            className="sheetov on"
-            onClick={() => setCreatedCredentials(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.75)',
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)',
-              zIndex: 1002,
-            }}
-          />
-          <div
-            className="acard"
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: '520px',
-              zIndex: 1003,
-              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.45)',
-              background: 'var(--surf)',
-              borderRadius: '24px',
-              padding: '28px',
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-              <div
-                style={{
-                  width: '54px',
-                  height: '54px',
-                  borderRadius: '50%',
-                  background: 'rgba(34, 197, 94, 0.15)',
-                  color: '#22C55E',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '26px',
-                  marginBottom: '10px',
-                }}
-              >
-                🔑
-              </div>
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--txt1)' }}>
-                Account &amp; Login Credentials Ready
-              </h2>
-              <p style={{ fontSize: '13px', color: 'var(--txt2)', margin: 0, lineHeight: 1.5 }}>
-                Share these login credentials with <b>{createdCredentials.name}</b> to access the portal.
-              </p>
-            </div>
-
-            {/* CREDENTIALS BOX - HIGH CONTRAST DESIGN */}
-            <div
-              style={{
-                background: 'var(--cardBg, rgba(30, 41, 59, 0.75))',
-                border: '1.5px solid rgba(226, 232, 240, 0.18)',
-                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
-                borderRadius: '18px',
-                padding: '20px 22px',
-                marginBottom: '22px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-              }}
-            >
-              <div>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    color: '#94A3B8',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    display: 'block',
-                    marginBottom: '4px',
-                  }}
-                >
-                  Official Email Address
-                </span>
-                <div
-                  style={{
-                    fontSize: '15.5px',
-                    fontWeight: 800,
-                    color: '#F8FAFC',
-                    wordBreak: 'break-all',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                >
-                  <span style={{ fontSize: '16px' }}>✉️</span> {createdCredentials.email}
-                </div>
-              </div>
-
-              <div>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    color: '#94A3B8',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.8px',
-                    display: 'block',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Generated Temporary Password
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                  <div
-                    style={{
-                      fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
-                      fontSize: '17px',
-                      fontWeight: 900,
-                      color: '#4ADE80',
-                      background: 'rgba(34, 197, 94, 0.18)',
-                      border: '1px solid rgba(74, 222, 128, 0.4)',
-                      padding: '8px 14px',
-                      borderRadius: '10px',
-                      letterSpacing: '1.5px',
-                      flex: 1,
-                    }}
-                  >
-                    {showPassword ? createdCredentials.password : '••••••••••••'}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      borderRadius: '10px',
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      fontSize: '12.5px',
-                      fontWeight: 700,
-                      color: '#F8FAFC',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
-                  >
-                    {showPassword ? '👁️ Hide' : '👁️ Show'}
-                  </button>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                  paddingTop: '12px',
-                  fontSize: '12.5px',
-                }}
-              >
-                <div>
-                  <span style={{ color: '#94A3B8', fontWeight: 600 }}>Role: </span>
-                  <span
-                    style={{
-                      fontWeight: 800,
-                      color: '#EF4444',
-                      background: 'rgba(239, 68, 68, 0.15)',
-                      padding: '3px 9px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      marginLeft: '4px',
-                    }}
-                  >
-                    {createdCredentials.role}
-                  </span>
-                </div>
-                <div>
-                  <span style={{ color: '#94A3B8', fontWeight: 600 }}>Jurisdiction: </span>
-                  <span style={{ fontWeight: 700, color: '#F8FAFC', marginLeft: '4px' }}>
-                    📍 {createdCredentials.town}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* ACTION BUTTONS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn btn-p"
-                onClick={handleCopyCredentials}
-                style={{
-                  borderRadius: '12px',
-                  padding: '12px',
-                  fontSize: '13.5px',
-                  fontWeight: 800,
-                  background: copiedCreds ? '#22C55E' : 'var(--p)',
-                  borderColor: copiedCreds ? '#22C55E' : 'var(--p)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-              >
-                {copiedCreds ? '✓ Credentials Copied to Clipboard!' : '📋 Copy Login Credentials'}
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-o"
-                onClick={() => setCreatedCredentials(null)}
-                style={{ borderRadius: '12px', padding: '10px', fontSize: '13px', fontWeight: 700 }}
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ACCOUNT DETAIL SHEET / DRAWER */}
-      {openDetailAccount && (
-        <>
-          <div
-            className="sheetov on"
-            onClick={() => setOpenDetailAccount(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.65)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-              zIndex: 1000,
-            }}
-          />
-          <div
-            className="sheet open"
-            style={{
-              position: 'fixed',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              width: '100%',
-              maxWidth: '440px',
-              zIndex: 1001,
-              background: 'var(--surf)',
-              borderLeft: '1px solid var(--line)',
-              boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.3)',
-              padding: '28px',
-              overflowY: 'auto',
-            }}
-          >
-            <button
-              type="button"
-              className="btn-cross-delete"
-              onClick={() => setOpenDetailAccount(null)}
-              style={{ position: 'absolute', top: '20px', right: '20px' }}
-            >
-              ✕
-            </button>
-
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ marginBottom: '8px' }}>
-                {openDetailAccount.st === 'active' && <span className="tag ok">Active Account</span>}
-                {openDetailAccount.st === 'invited' && <span className="tag no">Invited</span>}
-                {openDetailAccount.st === 'suspended' && <span className="tag wt">Suspended Account</span>}
-              </div>
-
-              <h2 style={{ fontSize: '22px', fontWeight: 900, margin: '0 0 4px 0', color: 'var(--txt1)' }}>
-                {openDetailAccount.n}
-              </h2>
-              <div style={{ fontSize: '13px', color: 'var(--txt2)', fontWeight: 600 }}>
-                {openDetailAccount.r} · 📍 {openDetailAccount.t}
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                marginBottom: '24px',
-                background: 'var(--surf)',
-                padding: '16px',
-                borderRadius: '16px',
-                border: '1px solid var(--line)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--txt2)' }}>Email Address</span>
-                <b style={{ color: 'var(--txt1)' }}>{openDetailAccount.e}</b>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--txt2)' }}>Telephone</span>
-                <b style={{ color: 'var(--txt1)' }}>{openDetailAccount.ph}</b>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--txt2)' }}>Role Level</span>
-                <b style={{ color: 'var(--txt1)' }}>{openDetailAccount.r}</b>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: 'var(--txt2)' }}>Appointed By</span>
-                <b style={{ color: 'var(--p)' }}>{openDetailAccount.by}</b>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn btn-p"
-                style={{ flex: 1, borderRadius: '10px' }}
-                onClick={() => {
-                  openEditModal(openDetailAccount);
-                  setOpenDetailAccount(null);
-                }}
-              >
-                ⚙️ Edit Account
-              </button>
-              <button
-                type="button"
-                className="btn btn-o"
-                style={{ borderRadius: '10px' }}
-                onClick={() => handleToggleSuspend(openDetailAccount)}
-              >
-                {openDetailAccount.st === 'suspended' ? '🟢 Activate' : '⛔ Suspend'}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* CONFIRM SUSPEND / BLOCKING MODAL */}
-      {suspendingAccount && (
-        <>
-          <div
-            className="sheetov on"
-            onClick={() => !isSuspending && setSuspendingAccount(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(15, 23, 42, 0.75)',
-              backdropFilter: 'blur(6px)',
-              WebkitBackdropFilter: 'blur(6px)',
-              zIndex: 1002,
-            }}
-          />
-          <div
-            className="acard"
-            style={{
-              position: 'fixed',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '90%',
-              maxWidth: '460px',
-              zIndex: 1003,
-              boxShadow: '0 25px 70px rgba(0, 0, 0, 0.45)',
-              background: 'var(--surf)',
-              borderRadius: '24px',
-              padding: '28px',
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '50%',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  color: '#EF4444',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '26px',
-                  marginBottom: '12px',
-                }}
-              >
-                ⛔
-              </div>
-              <h2 style={{ fontSize: '20px', fontWeight: 900, margin: '0 0 6px 0', color: 'var(--txt1)' }}>
-                Suspend Personnel Account?
-              </h2>
-              <p style={{ fontSize: '13.5px', color: 'var(--txt2)', margin: 0, lineHeight: 1.5 }}>
-                Are you sure you want to suspend access for <b>{suspendingAccount.n}</b> ({suspendingAccount.e})?
-              </p>
-            </div>
-
-            <div
-              style={{
-                background: 'rgba(239, 68, 68, 0.06)',
-                border: '1px solid rgba(239, 68, 68, 0.2)',
-                borderRadius: '14px',
-                padding: '14px 16px',
-                marginBottom: '22px',
-                fontSize: '12.5px',
-                color: 'var(--txt2)',
-                lineHeight: 1.5,
-              }}
-            >
-              <span style={{ fontWeight: 800, color: '#EF4444', display: 'block', marginBottom: '4px' }}>
-                ⚠️ Account Blocking Notice:
-              </span>
-              This user will be immediately blocked from signing into the Blood Register Admin Portal and performing operations. You can reactivate their account at any time.
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn btn-o"
-                disabled={isSuspending}
-                onClick={() => setSuspendingAccount(null)}
-                style={{ flex: 1, borderRadius: '12px', padding: '11px', fontWeight: 700 }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={isSuspending}
-                onClick={confirmSuspend}
-                style={{
-                  flex: 1,
-                  borderRadius: '12px',
-                  padding: '11px',
-                  fontWeight: 800,
-                  background: '#EF4444',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  cursor: isSuspending ? 'not-allowed' : 'pointer',
-                  opacity: isSuspending ? 0.8 : 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-              >
-                {isSuspending ? (
-                  <>
-                    <span className="spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} />
-                    Suspending...
-                  </>
-                ) : (
-                  '⛔ Confirm Suspend'
-                )}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* CONFIRMATION DELETE MODAL */}
-      <ConfirmDeleteModal
-        isOpen={!!deletingAccount}
-        title="Delete Personnel Account?"
-        itemName={deletingAccount?.n}
-        description={`Are you sure you want to delete account "${deletingAccount?.n}"? This action removes their system access.`}
-        confirmLabel="Delete Account"
-        submitting={isDeleting}
-        onConfirm={confirmDelete}
-        onClose={() => setDeletingAccount(null)}
+      <AccountSheet
+        account={open}
+        towns={towns}
+        canManage={assignable.length > 0}
+        assignable={assignable}
+        townName={townName}
+        onClose={() => setOpen(null)}
+        onChanged={() => { setOpen(null); reload(); }}
+      />
+      <CreateAccountSheet
+        open={creating}
+        isHead={isHead}
+        myTownId={myTownId}
+        towns={towns}
+        assignable={assignable}
+        onClose={() => setCreating(false)}
+        onCreated={() => { setCreating(false); reload(); }}
       />
     </AdminShell>
+  );
+}
+
+// ─────────────────────────── View / manage one account ────────────────────
+function AccountSheet({
+  account: a, towns, canManage, assignable, townName, onClose, onChanged,
+}: {
+  account: StaffAccount | null;
+  towns: Town[];
+  canManage: boolean;
+  assignable: RoleKey[];
+  townName: (id: string | null) => string;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const isOpen = a !== null;
+  const [role, setRole] = useState<RoleKey>('viewer');
+  const [townId, setTownId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (a) { setRole(a.role_key); setTownId(a.town_id); }
+  }, [a]);
+
+  async function saveRoleTown() {
+    if (!a) return;
+    setBusy(true);
+    try {
+      await updateAccountRoleTown(a.id, role, roleIsScoped(role) ? townId : null);
+      showToast('Role and office updated');
+      onChanged();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Could not update');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleActive() {
+    if (!a) return;
+    setBusy(true);
+    try {
+      await setAccountActive(a.id, !a.is_active);
+      showToast(a.is_active ? 'Account suspended' : 'Account restored');
+      onChanged();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Could not update');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div className={`sheetov${isOpen ? ' on' : ''}`} onClick={onClose} />
+      <div className={`sheet${isOpen ? ' open' : ''}`}>
+        {a && (
+          <>
+            <button className="cl" onClick={onClose}>✕</button>
+            {a.is_active ? <span className="tag ok">Active</span> : <span className="tag wt">Suspended</span>}
+            <h2 style={css('margin:12px 0 4px')}>{a.name}</h2>
+            <div className="sm">{roleLabel(a.role_key)} · {townName(a.town_id)}</div>
+            <div style={css('margin:22px 0')}>
+              <div className="drow"><span>Email</span><b>{a.email || '-'}</b></div>
+              <div className="drow"><span>Role</span><b>{roleLabel(a.role_key)}</b></div>
+              <div className="drow"><span>Office</span><b>{townName(a.town_id)}</b></div>
+            </div>
+
+            {canManage ? (
+              <>
+                <div className="fgrp">
+                  <label className="lb">Change role</label>
+                  <select className="fld" value={role} onChange={(e) => setRole(e.target.value as RoleKey)}>
+                    {assignable.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+                  </select>
+                </div>
+                {roleIsScoped(role) ? (
+                  <div className="fgrp">
+                    <label className="lb">Office</label>
+                    <select className="fld" value={townId ?? ''} onChange={(e) => setTownId(e.target.value || null)}>
+                      <option value="">Select an office</option>
+                      {towns.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                ) : null}
+                <button type="button" className="btn btn-p" style={css('width:100%')} disabled={busy} onClick={saveRoleTown}>Save role &amp; office</button>
+                <button type="button" className="btn btn-d" style={css('width:100%;margin-top:10px')} disabled={busy} onClick={toggleActive}>{a.is_active ? 'Suspend this account' : 'Restore this account'}</button>
+              </>
+            ) : (
+              <p className="ahint">Your role can view accounts but not change them.</p>
+            )}
+            <p className="ahint" style={css('margin-top:18px')}>Every change is enforced by the database, and only within the offices you are allowed to manage.</p>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─────────────────────────── Create an account (invite) ───────────────────
+function CreateAccountSheet({
+  open, isHead, myTownId, towns, assignable, onClose, onCreated,
+}: {
+  open: boolean;
+  isHead: boolean;
+  myTownId: string | null;
+  towns: Town[];
+  assignable: RoleKey[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<RoleKey>(assignable[assignable.length - 1] ?? 'viewer');
+  const [townId, setTownId] = useState<string | null>(isHead ? null : myTownId);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (open) { setName(''); setEmail(''); setRole(assignable[assignable.length - 1] ?? 'viewer'); setTownId(isHead ? null : myTownId); setDone(false); }
+  }, [open]);
+
+  const scoped = roleIsScoped(role);
+  // A manager always creates within their own office; head may choose (or all offices for org-wide roles).
+  const effectiveTown = isHead ? (scoped ? townId : null) : myTownId;
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (scoped && !effectiveTown) { showToast('Choose an office for this role'); return; }
+    setBusy(true);
+    try {
+      await createInvite({ email, name, role_key: role, town_id: scoped ? effectiveTown : null });
+      setDone(true);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not create the invitation');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const signupUrl = typeof window !== 'undefined' ? `${window.location.origin}/admin/signup` : '/admin/signup';
+
+  return (
+    <>
+      <div className={`sheetov${open ? ' on' : ''}`} onClick={onClose} />
+      <div className={`sheet${open ? ' open' : ''}`}>
+        {open && done && (
+          <>
+            <button className="cl" onClick={onClose}>✕</button>
+            <div className="tick">✓</div>
+            <h2 style={css('margin-bottom:6px')}>Invitation created</h2>
+            <p className="sm" style={css('margin-bottom:18px')}><b>{name || email}</b> can now sign up as <b>{roleLabel(role)}</b>. Send them this link and their email address - they choose their own password, which you never see.</p>
+            <div className="fgrp"><label className="lb">Sign-up link to share</label><input className="fld" readOnly value={signupUrl} onFocus={(e) => e.target.select()} /></div>
+            <button className="btn btn-p" style={css('width:100%')} onClick={onCreated}>Done</button>
+            <button className="btn btn-o" style={css('width:100%;margin-top:10px')} onClick={() => setDone(false)}>Create another</button>
+          </>
+        )}
+        {open && !done && (
+          <>
+            <button className="cl" onClick={onClose}>✕</button>
+            <h2 style={css('margin-bottom:4px')}>Create an account</h2>
+            <p className="sm" style={css('margin-bottom:22px')}>{isHead ? 'You are head office - you may create any role for any office.' : 'You are an office manager - you may create staff for your own office.'}</p>
+            <form onSubmit={onSubmit}>
+              <div className="fgrp"><label className="lb">Their full name</label><input className="fld" required placeholder="As it should appear in the register" value={name} onChange={(e) => setName(e.target.value)} /></div>
+              <div className="fgrp"><label className="lb">Email address</label><input className="fld" type="email" required placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+
+              <div className="fgrp">
+                <label className="lb">Role</label>
+                <div className="pickgrid">
+                  {assignable.map((r) => (
+                    <button type="button" key={r} className={`pickopt${r === role ? ' on' : ''}`} onClick={() => setRole(r)}>
+                      <b>{roleLabel(r)}</b><span>{ROLES[r].description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {scoped ? (
+                <div className="fgrp">
+                  <label className="lb">Office</label>
+                  {isHead ? (
+                    <select className="fld" value={townId ?? ''} onChange={(e) => setTownId(e.target.value || null)} required>
+                      <option value="">Select an office</option>
+                      {towns.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  ) : (
+                    <input className="fld" readOnly value={towns.find((t) => t.id === myTownId)?.name ?? 'Your office'} />
+                  )}
+                </div>
+              ) : (
+                <p className="sm" style={css('margin-bottom:16px')}>This role works across all offices.</p>
+              )}
+
+              <div className="ahint" style={css('margin-bottom:16px')}>The person becomes active only when they sign up with this exact email. Until then nothing changes, and an uninvited sign-up is given no access at all.</div>
+              <button className="btn btn-p" style={css('width:100%;padding:15px')} disabled={busy}>{busy ? 'Creating…' : 'Create the invitation'}</button>
+              <button type="button" className="btn btn-o" style={css('width:100%;margin-top:10px')} onClick={onClose}>Cancel</button>
+            </form>
+          </>
+        )}
+      </div>
+    </>
   );
 }
