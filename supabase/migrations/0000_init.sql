@@ -1288,19 +1288,19 @@ where not exists (select 1 from public.service_charges s where s.name = v.name);
 -- project. For security the account is created with a RANDOM, UNKNOWN password (never
 -- committed to source), so it CANNOT be used to log in until YOU set a password. Set it via
 -- either route:
---   • Supabase Dashboard → Authentication → Users → admin@pashtoonkhwabloodbank.org →
+--   • Supabase Dashboard → Authentication → Users → nawazktk99@gmail.com →
 --     "Reset password" (or send a magic link), OR
 --   • run this once in the SQL editor with YOUR own strong password (do NOT commit it):
 --       update auth.users
 --          set encrypted_password = crypt('YOUR_STRONG_PASSWORD', gen_salt('bf'))
---        where email = 'admin@pashtoonkhwabloodbank.org';
+--        where email = 'nawazktk99@gmail.com';
 -- Idempotent (skips if the email already exists). Soft-fails with a NOTICE if the GoTrue
 -- schema differs — then create the user via Authentication → Users → Add user; the profile
 -- seed below links it to the head-office (super-admin) role automatically.
 do $$
 declare
   uid uuid := '11111111-1111-1111-1111-111111111111';
-  admin_email text := 'admin@pashtoonkhwabloodbank.org';
+  admin_email text := 'nawazktk99@gmail.com';
 begin
   if not exists (select 1 from auth.users where lower(email) = admin_email) then
     insert into auth.users (
@@ -1322,7 +1322,7 @@ begin
     );
   end if;
 exception when others then
-  raise notice 'Default auth user not seeded (%). Create admin@pashtoonkhwabloodbank.org in Authentication -> Users, then re-run this migration; the profile seed will grant it head-office access.', sqlerrm;
+  raise notice 'Default auth user not seeded (%). Create nawazktk99@gmail.com in Authentication -> Users, then re-run this migration; the profile seed will grant it head-office access.', sqlerrm;
 end $$;
 
 -- Head-office admin profile. Any auth user whose email is listed here becomes head
@@ -1333,7 +1333,7 @@ insert into public.profiles (id, name, email, role_key, town_id, is_active)
 select u.id, 'Head Office Admin', u.email, 'head', null, true
 from auth.users u
 where lower(u.email) in (
-  'admin@pashtoonkhwabloodbank.org',
+  'nawazktk99@gmail.com',
   'nawazktk99@gmail.com'
 )
 on conflict (id) do update
