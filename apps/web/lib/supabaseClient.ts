@@ -13,7 +13,6 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 if (!url || !anonKey) {
   // Do not throw at import (would break SSR/build); fail visibly when a call is actually made.
-  // eslint-disable-next-line no-console
   console.warn('Supabase env missing: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
 }
 

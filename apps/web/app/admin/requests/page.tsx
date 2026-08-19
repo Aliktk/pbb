@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { api, ApiError } from '../../../lib/api';
-import type { Paged, AdminRequestRow } from '../../../lib/apiTypes';
+import { fetchAdminRequests, updateRequestStatus, countDonors } from '../../../lib/requests';
+import type { AdminRequestRow } from '../../../lib/apiTypes';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -37,10 +37,9 @@ export default function AdminRequests() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<Paged<AdminRequestRow>>('/requests?pageSize=100');
-      setRows(res.data);
+      setRows(await fetchAdminRequests());
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load requests. Is the API running?');
+      setError(err instanceof Error ? err.message : 'Could not load requests.');
     } finally {
       setLoading(false);
     }
@@ -48,7 +47,7 @@ export default function AdminRequests() {
 
   useEffect(() => {
     load();
-    api.get<Paged<unknown>>('/donors?pageSize=1').then((r) => setDonorCount(r.meta.total)).catch(() => setDonorCount(null));
+    countDonors().then(setDonorCount).catch(() => setDonorCount(null));
   }, [load]);
 
   const openCount = rows.filter((r) => r.status === 'OPEN').length;
@@ -61,7 +60,7 @@ export default function AdminRequests() {
       setOpen(updated);
       showToast(`Request marked as ${newStatus.toLowerCase()}.`);
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Could not update the request.');
+      showToast(err instanceof Error ? err.message : 'Could not update the request.');
     }
   }
 

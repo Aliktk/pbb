@@ -9,7 +9,13 @@ import { api } from '../lib/api';
 const MODES = ['General', 'Volunteer', 'Hospital or partner', 'Press'];
 const SKILLS = ['Camps', 'Outreach', 'Driving', 'Office work', 'Design'];
 
-/** Contact form - mode pills reveal volunteer fields; submit shows a success panel. */
+function modeToKind(mode: string): MessageKind {
+  if (mode === 'Volunteer') return 'volunteer';
+  if (mode === 'Hospital or partner') return 'partner';
+  return 'message';
+}
+
+/** Contact form - mode pills reveal volunteer fields; submit lands the message in the office inbox. */
 export function ContactForm() {
   const [mode, setMode] = useState('General');
   const [town, setTown] = useState<string>(TOWNS[0]);
