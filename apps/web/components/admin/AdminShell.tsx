@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ADMIN_GROUPS, ADMIN_MOBNAV } from '../../lib/admin';
+import { ADMIN_GROUPS, ADMIN_MOBNAV, isViewAllowedForRole } from '../../lib/admin';
 import { useAuth } from '../../lib/auth';
 import { countOpenRequests } from '../../lib/requests';
 import { Icon } from '../Icon';
+
+import { LogoutConfirmModal } from './LogoutConfirmModal';
+
+import { syncTownsFromApi } from '../../lib/towns';
 
 interface AdminShellProps {
   view: string;
@@ -16,23 +20,57 @@ interface AdminShellProps {
   children: ReactNode;
 }
 
-/**
- * The admin chrome (sidebar + topbar + mobile bar). It reads the signed-in user from the auth
- * context: the account decides the town scope and what the server will allow. Hiding a nav item
- * is presentation only; the API enforces access on every call.
- */
 export function AdminShell({ view, title, subtitle, actions, children }: AdminShellProps) {
   const { user, logout } = useAuth();
+  const userRole = user?.role?.name || 'Executive Committee';
+  const isAllowed = isViewAllowedForRole(userRole, view, undefined, user?.permissions);
   const router = useRouter();
+  const asideRef = useRef<HTMLElement>(null);
   const [openRequests, setOpenRequests] = useState<number | null>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('pbb_admin_collapsed') === 'true';
+      } catch {
+        // Fallback
+      }
+    }
+    return false;
+  });
 
-  // Apply the prototype's body.adminmode styles while an admin screen is mounted.
+  // Apply body.adminmode class on mount & sync live towns
   useEffect(() => {
     document.body.classList.add('adminmode');
+    syncTownsFromApi();
     return () => document.body.classList.remove('adminmode');
   }, []);
 
-  // Live "open requests" badge from Supabase (best effort; RLS scopes it to the user's town).
+  // Save and restore sidebar scroll position across page transitions
+  useEffect(() => {
+    const el = asideRef.current;
+    if (!el) return;
+
+    const saved = sessionStorage.getItem('pbb_admin_sidebar_scroll');
+    if (saved !== null) {
+      el.scrollTop = parseInt(saved, 10) || 0;
+    }
+
+    const onScroll = () => {
+      try {
+        sessionStorage.setItem('pbb_admin_sidebar_scroll', String(el.scrollTop));
+      } catch {
+        // Session storage fallback
+      }
+    };
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
+  // Live "open requests" badge from the API
   useEffect(() => {
     let alive = true;
     countOpenRequests()
@@ -45,6 +83,18 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
 
   const scopeLabel = user?.townId ? 'Your branch' : 'All branches';
 
+  function toggleSidebar() {
+    setCollapsed((cur) => {
+      const next = !cur;
+      try {
+        localStorage.setItem('pbb_admin_collapsed', String(next));
+      } catch {
+        // LocalStorage fallback
+      }
+      return next;
+    });
+  }
+
   async function signOut() {
     await logout();
     router.replace('/admin/login');
@@ -52,40 +102,103 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
 
   return (
     <>
-      <div className="adm">
-        <aside className="aside">
-          <Link href="/admin/overview" className="abrand">
-            <img src="/assets/pbb-logo.png" alt="" />
-            <span>Blood Register<small>{scopeLabel}</small></span>
-          </Link>
-          {ADMIN_GROUPS.map(([group, items]) => (
-            <div key={group}>
-              <div className="agp">{group}</div>
-              {items.map(([v, label]) => (
-                <Link key={v} href={`/admin/${v}`} className={`anav${v === view ? ' on' : ''}`}>
-                  <Icon name={v} />
-                  {label}
-                  {v === 'requests' && openRequests !== null ? <span className="ct">{openRequests}</span> : null}
-                </Link>
-              ))}
-            </div>
-          ))}
+      <div className={`adm${collapsed ? ' collapsed' : ''}`}>
+        <aside className="aside" ref={asideRef}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: collapsed ? 'center' : 'space-between',
+              paddingBottom: '14px',
+              borderBottom: '1px solid #2B2D33',
+              marginBottom: '12px',
+              minHeight: '44px',
+            }}
+          >
+            {!collapsed && (
+              <Link href="/admin/overview" className="abrand" title="Blood Register Admin" style={{ borderBottom: 0, paddingBottom: 0, marginBottom: 0 }}>
+                <img src="/assets/pbb-logo.png" alt="PBB Logo" />
+                <span>Blood Register<small>{scopeLabel}</small></span>
+              </Link>
+            )}
+            <button
+              type="button"
+              className="sidebar-toggle-btn"
+              onClick={toggleSidebar}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label="Toggle sidebar collapse"
+              style={collapsed ? { width: '38px', height: '38px', margin: '0 auto' } : undefined}
+            >
+              <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} size={collapsed ? 18 : 15} />
+            </button>
+          </div>
+
+          {ADMIN_GROUPS.map(([group, items]) => {
+            const visibleItems = items.filter(([v]) => isViewAllowedForRole(userRole, v, undefined, user?.permissions));
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={group}>
+                <div className="agp">{group}</div>
+                {visibleItems.map(([v, label]) => (
+                  <Link
+                    key={v}
+                    href={`/admin/${v}`}
+                    className={`anav${v === view ? ' on' : ''}`}
+                    title={label}
+                  >
+                    <Icon name={v} size={collapsed ? 21 : 18} />
+                    <span className="nav-label">{label}</span>
+                    {v === 'requests' && openRequests !== null ? <span className="ct">{openRequests}</span> : null}
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
           <div className="awho">
-            Signed in as<b>{user?.name ?? 'Loading'}</b>{user?.role.name ?? ''}
-            <button type="button" className="alogout" onClick={signOut} style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0, textAlign: 'left' }}>
-              Sign out
+            <div className="awho-info">
+              Signed in as<b>{user?.name ?? 'Loading'}</b>{user?.role?.name ?? ''}
+            </div>
+            <button
+              type="button"
+              className="alogout-btn"
+              onClick={() => setShowLogoutModal(true)}
+              title="Sign out"
+            >
+              <Icon name="logout" size={15} />
+              {!collapsed && <span>Sign out</span>}
             </button>
           </div>
         </aside>
 
         <div className="amain">
           <div className="abar">
-            <h1>{title}</h1>
-            {subtitle && <span className="asub">{subtitle}</span>}
-            {actions}
-            <Link href="/" className="btn btn-o btn-s" style={{ marginLeft: 'auto' }}>Back to website</Link>
+            <div className="abar-title-group">
+              <h1>{title}</h1>
+              {subtitle && <span className="asub">{subtitle}</span>}
+            </div>
+            <div className="abar-actions">
+              {actions}
+              <Link href="/" className="btn btn-o btn-s">Back to website</Link>
+            </div>
           </div>
-          <div className="acont">{children}</div>
+          <div className="acont">
+            {!isAllowed ? (
+              <div className="acard" style={{ padding: '60px 30px', textAlign: 'center', borderRadius: '24px' }}>
+                <span style={{ fontSize: '48px', display: 'block', marginBottom: '14px' }}>⛔</span>
+                <h2 style={{ fontSize: '22px', fontWeight: 900, color: 'var(--txt1)', margin: '0 0 8px 0' }}>
+                  Unauthorized Role Access
+                </h2>
+                <p style={{ fontSize: '14px', color: 'var(--txt2)', maxWidth: '520px', margin: '0 auto 20px auto', lineHeight: 1.6 }}>
+                  Your current assigned role <b>"{userRole}"</b> does not have permission to view or manage the <b>"{title}"</b> module. Contact your system administrator to update role access.
+                </p>
+                <Link href="/admin/overview" className="btn btn-p" style={{ borderRadius: '12px', padding: '10px 20px', display: 'inline-block' }}>
+                  Return to Overview Dashboard
+                </Link>
+              </div>
+            ) : (
+              children
+            )}
+          </div>
         </div>
       </div>
 
@@ -96,6 +209,13 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
           </Link>
         ))}
       </div>
+
+      {/* Confirmation Modal for Admin Sign Out */}
+      <LogoutConfirmModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={signOut}
+      />
     </>
   );
 }

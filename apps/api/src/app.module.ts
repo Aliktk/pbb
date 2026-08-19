@@ -10,12 +10,21 @@ import { AuthModule } from './auth/auth.module';
 import { DonorsModule } from './donors/donors.module';
 import { RequestsModule } from './requests/requests.module';
 import { TownsModule } from './towns/towns.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { VolunteersModule } from './volunteers/volunteers.module';
+import { ThalassemiaModule } from './thalassemia/thalassemia.module';
+import { DonationsModule } from './donations/donations.module';
+import { PartnersModule } from './partners/partners.module';
+import { MessagesModule } from './messages/messages.module';
+import { BranchesModule } from './branches/branches.module';
+import { UsersModule } from './users/users.module';
+import { RolesModule } from './roles/roles.module';
+import { AuditModule } from './audit/audit.module';
 import { JwtAuthGuard } from './rbac/jwt-auth.guard';
 import { PermissionsGuard } from './rbac/permissions.guard';
 
 /**
- * Root module. Feature modules (InventoryModule, ContentModule, NotificationsModule) register
- * here as they land - each owned by exactly one track (see docs/BUILD-PLAN.md file-ownership).
+ * Root module. Feature modules register here as they land.
  *
  * Security is global and fail-closed: JwtAuthGuard authenticates every route (except @Public),
  * then PermissionsGuard enforces @Permissions(...). A new endpoint is therefore locked by
@@ -23,9 +32,7 @@ import { PermissionsGuard } from './rbac/permissions.guard';
  */
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
-    // Rate limiting (layer 9): a generous per-IP default for authenticated browsing; sensitive
-    // public routes (login, refresh, request intake) tighten this with @Throttle at the route.
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
     ThrottlerModule.forRoot([
       { ttl: 60_000, limit: Number(process.env.RATE_LIMIT_DEFAULT_PER_MIN ?? 120) },
     ]),
@@ -34,6 +41,16 @@ import { PermissionsGuard } from './rbac/permissions.guard';
     DonorsModule,
     RequestsModule,
     TownsModule,
+    InventoryModule,
+    VolunteersModule,
+    ThalassemiaModule,
+    DonationsModule,
+    PartnersModule,
+    MessagesModule,
+    BranchesModule,
+    UsersModule,
+    RolesModule,
+    AuditModule,
   ],
   controllers: [HealthController],
   providers: [

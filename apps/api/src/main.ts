@@ -4,6 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import type { NextFunction, Request, Response } from 'express';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
 import { LoggingInterceptor } from './common/logging.interceptor';
@@ -14,7 +15,11 @@ async function bootstrap(): Promise<void> {
   // rather than falling back to a permissive value, and "*" is rejected outright because a
   // wildcard origin with credentials is unsafe.
   const isProd = process.env.NODE_ENV === 'production';
-  const rawOrigins = process.env.CORS_ORIGINS ?? (isProd ? '' : 'http://localhost:3000');
+  const rawOrigins =
+    process.env.CORS_ORIGINS ??
+    (isProd
+      ? ''
+      : 'http://localhost:3000,http://localhost:3001,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3001,http://127.0.0.1:3002');
   const corsOrigins = rawOrigins.split(',').map((s) => s.trim()).filter(Boolean);
   if (isProd && corsOrigins.length === 0) {
     throw new Error('CORS_ORIGINS must be set explicitly in production - refusing to start with no allowlist.');
@@ -29,6 +34,10 @@ async function bootstrap(): Promise<void> {
       methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     },
   });
+
+  // Enable large payload body parsing for avatar image uploads
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   app.use(helmet());
 

@@ -26,7 +26,8 @@ interface AuthContextValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  /** Does the signed-in user's role grant `resource:action`? Presentation only; the DB (RLS) enforces. */
+  refetchUser: () => Promise<void>;
+  /** Does the signed-in user's role grant `resource:action`? Presentation only; the server enforces. */
   can: (resource: string, action: string) => boolean;
 }
 
@@ -69,7 +70,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<PublicUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore an existing session on load, and keep in sync with sign-in / sign-out / token refresh.
+  const refetchUser = useCallback(async () => {
+    if (!tokenStore.access) return;
+    try {
+      const me = await api.get<PublicUser>('/auth/me');
+      setUser(me);
+    } catch {
+      // Keep existing user on error
+    }
+  }, []);
+
+  // On first load, if we have a token, ask the server who we are. A bad/expired token clears.
   useEffect(() => {
     let alive = true;
 
@@ -123,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
-  return <AuthContext.Provider value={{ user, loading, login, logout, can }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, loading, login, logout, refetchUser, can }}>{children}</AuthContext.Provider>;
 }
 
 // Turn Supabase's auth error text into something a person can act on.

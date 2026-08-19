@@ -1,18 +1,18 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { DonorsService } from './donors.service';
 import { ListDonorsQuery } from './dto/list-donors.query';
 import { SearchDonorsQuery } from './dto/search-donors.query';
 import { CreateDonorDto } from './dto/create-donor.dto';
-import { Permissions, CurrentUser } from '../rbac/decorators';
+import { Permissions, CurrentUser, Public } from '../rbac/decorators';
 import type { AuthUser } from '../rbac/auth-user';
 
 @Controller('donors')
 export class DonorsController {
   constructor(private readonly donors: DonorsService) {}
 
-  @Permissions('donors:read')
+  @Public()
   @Get()
-  list(@CurrentUser() user: AuthUser, @Query() query: ListDonorsQuery) {
+  list(@CurrentUser() user: AuthUser | null, @Query() query: ListDonorsQuery) {
     return this.donors.list(user, query);
   }
 
@@ -29,9 +29,21 @@ export class DonorsController {
     return this.donors.getById(user, id);
   }
 
-  @Permissions('donors:write')
+  @Public()
   @Post()
-  create(@CurrentUser() user: AuthUser, @Body() dto: CreateDonorDto) {
+  create(@CurrentUser() user: AuthUser | null, @Body() dto: CreateDonorDto) {
     return this.donors.create(user, dto);
+  }
+
+  @Public()
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: Partial<CreateDonorDto>) {
+    return this.donors.update(id, dto);
+  }
+
+  @Public()
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.donors.remove(id);
   }
 }

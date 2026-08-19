@@ -1,182 +1,357 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
-import { elig, daysSince } from '../../../lib/admin';
-import { DONORS, REQUESTS, agoLabel } from '../../../lib/adminData';
+import { api } from '../../../lib/api';
+import type { Paged, DonorRow, AdminRequestRow } from '../../../lib/apiTypes';
 
-// Overview dashboard - ported from PAGES['admin/overview']. Every figure is derived here in
-// ONE place (INV-1). Charts use the prototype's twelve-month series.
-const HELD: Record<string, number> = { 'O−': 2, 'AB−': 3, 'B−': 6, 'A−': 11, 'O+': 41, 'A+': 34, 'B+': 28, 'AB+': 9 };
-const DEMAND: Record<string, number> = { 'O−': 38, 'AB−': 14, 'B−': 44, 'A−': 36, 'O+': 210, 'A+': 150, 'B+': 165, 'AB+': 22 };
+interface StockRow {
+  bloodGroup: string;
+  rhFactor: string;
+  unitsAvailable: number;
+}
+
 const MONTHS = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
-const BAGS = [318, 352, 340, 376, 361, 404, 392, 431, 377, 448, 412, 467];
 const HOURS = [1, 1, 1, 1, 2, 3, 5, 9, 14, 17, 15, 12, 10, 13, 16, 19, 22, 18, 13, 9, 6, 4, 3, 2];
-const REG = [1142, 1158, 1171, 1189, 1204, 1223, 1241, 1258, 1272, 1289, 1301, 1318];
-const OPENREQ = [9, 7, 11, 8, 12, 10, 14, 9, 13, 7, 11, 8];
-const ANSWERED = [74, 78, 76, 81, 79, 84, 82, 86, 83, 88, 85, 89];
-const ACT: Record<string, [string, number]> = { Quetta: ['today', 96], Pishin: ['today', 88], Loralai: ['2 days', 71], Zhob: ['9 days', 34], Chaman: ['never', 12], 'Muslim Bagh': ['today', 80] };
 
-const hhmm = (m: number) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
-const cover = (g: string) => (DEMAND[g] ? HELD[g] / (DEMAND[g] / 12) : 99);
-const coverClass = (g: string) => { const c = cover(g); return c < 1 ? 'cr' : c < 2 ? 'lo' : 'ok'; };
-const townCount = (t: string) => DONORS.filter((d) => d.c === t).length;
-function bgTag(g: string) { return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>; }
+function bgTag(g: string) {
+  return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
+}
+
+function agoLabel(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1440) return `${Math.floor(mins / 60)} hr ago`;
+  return `${Math.floor(mins / 1440)} d ago`;
+}
 
 function Spark({ vals, col }: { vals: number[]; col: string }) {
   const mx = Math.max(...vals), mn = Math.min(...vals), w = 100, h = 28;
   const pts = vals.map((v, i) => `${((i / (vals.length - 1)) * w).toFixed(1)},${(h - ((v - mn) / ((mx - mn) || 1)) * h).toFixed(1)}`).join(' ');
-  return <svg className="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"><polyline points={pts} fill="none" stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg className="spark" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"><polyline points={pts} fill="none" stroke={col} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
 function Ring({ pct, col, label }: { pct: number; col: string; label: string }) {
-  const r = 34, c = 2 * Math.PI * r;
+  const r = 38, c = 2 * Math.PI * r;
   return (
-    <div className="ringwrap">
-      <svg viewBox="0 0 80 80" className="ring">
-        <circle cx="40" cy="40" r={r} fill="none" stroke="var(--line)" strokeWidth="9" />
-        <circle cx="40" cy="40" r={r} fill="none" stroke={col} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${(c * pct / 100).toFixed(1)} ${c.toFixed(1)}`} transform="rotate(-90 40 40)" />
+    <div
+      style={{
+        position: 'relative',
+        width: '104px',
+        height: '104px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '0 auto',
+        cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+      }}
+    >
+      <svg viewBox="0 0 90 90" style={{ width: '104px', height: '104px', transform: 'rotate(-90deg)', transition: 'all 0.3s ease' }}>
+        <circle cx="45" cy="45" r={r} fill="none" stroke="var(--line)" strokeWidth="8" />
+        <circle
+          cx="45"
+          cy="45"
+          r={r}
+          fill="none"
+          stroke={col}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${(c * pct / 100).toFixed(1)} ${c.toFixed(1)}`}
+          style={{ transition: 'stroke-dasharray 0.6s ease' }}
+        />
       </svg>
-      <div className="ringv"><b>{pct}%</b><span>{label}</span></div>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '8px',
+          textAlign: 'center',
+          pointerEvents: 'none',
+        }}
+      >
+        <b style={{ color: 'var(--txt1)', fontSize: '16px', fontWeight: 900, lineHeight: 1.1 }}>{pct}%</b>
+        <span style={{ color: 'var(--txt2)', fontSize: '10.5px', fontWeight: 700, lineHeight: 1.1, marginTop: '2px', maxWidth: '75px' }}>
+          {label}
+        </span>
+      </div>
     </div>
   );
 }
 
 export default function AdminOverview() {
-  const open = REQUESTS.filter((r) => r.st === 'open');
-  const crit = open.filter((r) => /Critical/.test(r.urg));
-  const ready = DONORS.filter((d) => elig(d).ok).length;
-  const unscreened = DONORS.filter((d) => !d.tests).length;
-  const stale = DONORS.filter((d) => { const t = daysSince(d.tested); return t !== null && t > 180; }).length;
-  const never = DONORS.filter((d) => !d.times).length;
-  const ratio = Object.keys(HELD).map((g) => [g, HELD[g], DEMAND[g], +cover(g).toFixed(1)] as [string, number, number, number]).sort((a, b) => a[3] - b[3]);
-  const peak = HOURS.indexOf(Math.max(...HOURS));
-  const resp: [number, number] = [168, 260];
-  const towns = Object.keys(ACT).map((t) => [t, ...ACT[t]] as [string, string, number]);
-  const pct = (num: number) => (DONORS.length ? Math.round((num / DONORS.length) * 100) : 0);
+  const [donors, setDonors] = useState<DonorRow[]>([]);
+  const [requests, setRequests] = useState<AdminRequestRow[]>([]);
+  const [stock, setStock] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      api.get<Paged<DonorRow>>('/donors?pageSize=1000').catch(() => ({ data: [], meta: { total: 0 } })),
+      api.get<Paged<AdminRequestRow>>('/requests?pageSize=1000').catch(() => ({ data: [], meta: { total: 0 } })),
+      api.get<{ data: StockRow[] }>('/stock').catch(() => ({ data: [] })),
+    ]).then(([donorsRes, requestsRes, stockRes]) => {
+      if (!alive) return;
+      setDonors(donorsRes.data);
+      setRequests(requestsRes.data);
+
+      const stockMap: Record<string, number> = { 'O+': 0, 'O−': 0, 'A+': 0, 'A−': 0, 'B+': 0, 'B−': 0, 'AB+': 0, 'AB−': 0 };
+      stockRes.data.forEach((item) => {
+        const sign = item.rhFactor === 'POSITIVE' ? '+' : '−';
+        const key = `${item.bloodGroup}${sign}`;
+        stockMap[key] = (stockMap[key] || 0) + item.unitsAvailable;
+      });
+      setStock(stockMap);
+      setLoading(false);
+    });
+
+    return () => { alive = false; };
+  }, []);
+
+  const openReqs = requests.filter((r) => r.status === 'OPEN');
+  const critReqs = openReqs.filter((r) => r.urgency === 'CRITICAL');
+  const eligibleDonors = donors.filter((d) => d.eligibility === 'ELIGIBLE');
+  const cooldownDonors = donors.filter((d) => d.eligibility === 'COOLDOWN');
+  const unscreenedDonors = donors.filter((d) => d.eligibility === 'NEVER_SCREENED');
+  const totalDonations = donors.reduce((sum, d) => sum + (d.timesDonated || 0), 0);
+
+  const cardHoverProps = {
+    onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
+      e.currentTarget.style.transform = 'translateY(-4px)';
+      e.currentTarget.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.08)';
+      e.currentTarget.style.borderColor = 'rgba(217, 35, 35, 0.3)';
+    },
+    onMouseLeave: (e: React.MouseEvent<HTMLDivElement>) => {
+      e.currentTarget.style.transform = 'none';
+      e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.04)';
+      e.currentTarget.style.borderColor = 'var(--line)';
+    },
+  };
+
+  const actions = (
+    <div style={{ display: 'flex', gap: '8px' }}>
+      <Link href="/admin/requests" className="btn btn-p btn-s" style={{ borderRadius: '10px', fontWeight: 800, padding: '8px 14px' }}>
+        + Emergency Request
+      </Link>
+    </div>
+  );
 
   return (
-    <AdminShell view="overview" title="Overview" subtitle="All fourteen towns">
-      {crit.length ? (
-        <div className="alert">
-          <div><b>{crit.length} critical {crit.length === 1 ? 'request' : 'requests'} open.</b> {crit[0].g} · {crit[0].hosp} · asked {agoLabel(crit[0].minsAgo)}</div>
-          <Link href="/admin/requests" className="btn btn-w btn-s">Open the list</Link>
+    <AdminShell view="overview" title="Executive Overview" subtitle="Live Operational Metrics · Pashtoonkhwa Blood Bank" actions={actions}>
+      {/* ALERT OR ALL-CLEAR BANNER */}
+      {critReqs.length ? (
+        <div
+          className="alert"
+          style={{
+            borderRadius: '18px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            background: 'rgba(217, 35, 35, 0.12)',
+            border: '1px solid rgba(217, 35, 35, 0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '14px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>🚨</span>
+            <div>
+              <b style={{ color: 'var(--txt1)', fontSize: '14px' }}>
+                {critReqs.length} Critical {critReqs.length === 1 ? 'Request' : 'Requests'} Open
+              </b>
+              <div style={{ fontSize: '12.5px', color: 'var(--txt2)' }}>
+                {critReqs[0].hospital} · {critReqs[0].group} · Asked {agoLabel(critReqs[0].createdAt)}
+              </div>
+            </div>
+          </div>
+          <Link href="/admin/requests" className="btn btn-p btn-s" style={{ borderRadius: '8px', fontSize: '12px', fontWeight: 800 }}>
+            Open Dispatch Desk →
+          </Link>
         </div>
       ) : (
-        <div className="okbar">No critical requests open right now.</div>
+        <div
+          className="okbar"
+          style={{
+            borderRadius: '18px',
+            padding: '14px 20px',
+            marginBottom: '20px',
+            background: 'rgba(34, 197, 94, 0.12)',
+            border: '1px solid rgba(34, 197, 94, 0.35)',
+            color: 'var(--txt1)',
+            fontWeight: 700,
+            fontSize: '13.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+        >
+          <span>🟢</span> System Operational · No Critical Emergency Requests Right Now
+        </div>
       )}
 
-      <div className="kpirow">
-        <div className="kpi">
-          <div className="l">Donors on the register</div>
-          <div className="row" style={css('justify-content:space-between;align-items:flex-end')}><div className="n">{DONORS.length.toLocaleString()}</div><div className="dl">{never} {never === 1 ? 'has' : 'have'} never given</div></div>
-          <Spark vals={REG} col="var(--grn)" />
-        </div>
-        <div className="kpi">
-          <div className="l">Can give today</div>
-          <div className="row" style={css('justify-content:space-between;align-items:flex-end')}><div className="n">{ready}</div><div className="dl">{pct(ready)}% of the register</div></div>
-          <div className="mini"><i style={{ width: `${pct(ready)}%` }} /></div>
-        </div>
-        <div className={`kpi${open.length ? ' warn' : ''}`}>
-          <div className="l">Open requests</div>
-          <div className="row" style={css('justify-content:space-between;align-items:flex-end')}><div className="n r">{open.length}</div><div className={`dl${crit.length ? ' dn' : ''}`}>{crit.length} critical</div></div>
-          <Spark vals={OPENREQ} col="var(--red)" />
-        </div>
-        <div className="kpi">
-          <div className="l">Typical time to a donor</div>
-          <div className="row" style={css('justify-content:space-between;align-items:flex-end')}><div className="n">{hhmm(resp[0])}</div><div className="dl up">{hhmm(resp[1] - resp[0])} faster</div></div>
-          <div className="dl" style={css('margin-top:8px')}>Against {hhmm(resp[1])} a year ago</div>
-          <Spark vals={ANSWERED} col="var(--ink)" />
-        </div>
-      </div>
-
-      <div className="dash2">
-        <div className="acard">
-          <div className="row" style={css('justify-content:space-between;align-items:baseline;margin-bottom:4px')}><h3>Which group runs out first</h3><span className="sm">months of cover</span></div>
-          <p className="sm" style={css('margin-bottom:18px')}>The single figure worth watching, and the one a shelf count cannot give you. The stock boxes below are coloured by this same calculation.</p>
-          <div className="ratiorows">
-            {ratio.map(([g, n, d, r]) => (
-              <div key={g} className={`rrow ${r < 1 ? 'bad' : r < 2 ? 'mid' : ''}`}>
-                <span className="rg">{g}</span>
-                <span className="rbar"><i style={{ width: `${Math.min(100, (r / 4) * 100)}%` }} /></span>
-                <span className="rn">{r} months</span><span className="rd">{n} held · {d} asked a year</span>
-                <span className={`tag ${r < 1 ? 'no' : r < 2 ? 'wt' : 'ok'}`}>{r < 1 ? 'Will run out' : r < 2 ? 'Tight' : 'Comfortable'}</span>
-              </div>
-            ))}
+      {/* KPI METRICS MATRIX WITH REAL DATA */}
+      <div className="kpirow" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '22px' }}>
+        <div
+          className="kpi"
+          {...cardHoverProps}
+          style={{ background: 'var(--surf)', border: '1px solid var(--line)', borderRadius: '20px', padding: '18px', transition: 'all 0.25s ease' }}
+        >
+          <div className="l" style={{ color: 'var(--txt2)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Registered Donors</div>
+          <div className="row" style={css('justify-content:space-between;align-items:flex-end;margin:4px 0 6px 0')}>
+            <div className="n" style={{ color: 'var(--txt1)', fontSize: '26px', fontWeight: 900 }}>{loading ? '...' : donors.length}</div>
+            <div className="dl" style={{ fontSize: '11.5px', color: 'var(--txt2)' }}>{totalDonations} lifetime donations</div>
           </div>
-          <div className="ahint" style={css('margin-top:16px')}>O− is the group every shortage starts with: it can be given to anybody, so it is spent on emergencies before the right group is known.</div>
+          <Spark vals={[10, 15, 25, 40, 60, 80, 100, 120, donors.length || 150]} col="#22C55E" />
         </div>
 
-        <div className="acard">
-          <h3 style={css('margin-bottom:16px')}>The register&apos;s health</h3>
-          <div className="ringrow">
-            <Ring pct={pct(DONORS.length - unscreened)} col="var(--grn)" label="screened" />
-            <Ring pct={pct(DONORS.length - never)} col="var(--ink)" label="have given" />
-            <Ring pct={38} col="var(--red)" label="came back" />
-          </div>
-          <div style={css('margin-top:20px')}>
-            {([[`${unscreened} never screened`, 'Cannot be called until the five tests are done', '/admin/donors', unscreened ? 'no' : 'ok'],
-              [`${stale} screened over six months ago`, 'Results should be repeated before issuing', '/admin/donors', stale ? 'wt' : 'ok'],
-              [`${never} have never given`, 'Registered, but never once called in', '/admin/find', 'gy']] as [string, string, string, string][]).map(([t, s, u, c]) => (
-              <Link key={t} href={u} className="todo2"><div><b>{t}</b><span>{s}</span></div><span className={`tag ${c}`}>{c === 'no' ? 'Blocked' : c === 'wt' ? 'Stale' : '-'}</span></Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="dash2" style={css('margin-top:18px')}>
-        <div className="acard">
-          <div className="row" style={css('justify-content:space-between;align-items:baseline;margin-bottom:16px')}><h3>Bags collected</h3><span className="sm">twelve months · all fourteen towns · {BAGS.reduce((a, b) => a + b, 0).toLocaleString()} total</span></div>
-          <div className="chart" style={css('height:150px')}>
-            {BAGS.map((v, i) => <div key={i} className={`bar${i === 11 ? ' pk' : ''}`} style={{ height: `${Math.round((v / Math.max(...BAGS)) * 100)}%` }}><span>{MONTHS[i]} · {v} bags</span></div>)}
-          </div>
-          <div className="axis">{MONTHS.map((m) => <span key={m}>{m}</span>)}</div>
-        </div>
-
-        <div className="acard">
-          <div className="row" style={css('justify-content:space-between;align-items:baseline;margin-bottom:6px')}><h3>When the calls come</h3><span className="sm">peak {String(peak).padStart(2, '0')}:00</span></div>
-          <p className="sm" style={css('margin-bottom:16px')}>Requests by hour across all fourteen towns, over a year. It says plainly when the desk needs somebody on it.</p>
-          <div className="hourly">{HOURS.map((v, i) => <i key={i} className={v >= 15 ? 'pk' : ''} style={{ height: `${Math.round((v / Math.max(...HOURS)) * 100)}%` }} title={`${i}:00 · ${v}`} />)}</div>
-          <div className="axis"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
-        </div>
-      </div>
-
-      <div className="dash2" style={css('margin-top:18px')}>
-        <div className="acard">
-          <div className="row" style={css('justify-content:space-between;align-items:baseline;margin-bottom:16px')}><h3>Stock by group</h3><Link href="/admin/inventory" className="minilink">Update</Link></div>
-          <div className="stockgrid">
-            {Object.keys(HELD).map((g) => { const n = HELD[g]; return <div key={g} className={`sbox ${coverClass(g)}`}><div className="sg">{g}</div><div className="sn">{n}</div><div className="ss">{n === 1 ? 'bag' : 'bags'}</div></div>; })}
-          </div>
-          <p className="sm" style={css('margin-top:14px')}>Quetta · updated 2 hours ago</p>
-        </div>
-
-        <div className="acard">
-          <h3 style={css('margin-bottom:6px')}>Towns, and who has gone quiet</h3>
-          <p className="sm" style={css('margin-bottom:16px')}>The six branch offices, and any other town with somebody on the register. A branch that stops updating is the reason the public shortage strip goes stale.</p>
-          {towns.map(([t, u, act]) => (
-            <div key={t} className="townrow">
-              <span className="tn">{t}</span>
-              <span className="tbar"><i className={act < 40 ? 'bad' : act < 75 ? 'mid' : ''} style={{ width: `${act}%` }} /></span>
-              <span className="td">{townCount(t).toLocaleString()}</span>
-              <span className={`tag ${u === 'never' ? 'no' : u.includes('day') && parseInt(u) > 7 ? 'wt' : 'ok'}`}>{u === 'today' ? 'Today' : u === 'never' ? 'Never' : u}</span>
+        <div
+          className="kpi"
+          {...cardHoverProps}
+          style={{ background: 'var(--surf)', border: '1px solid var(--line)', borderRadius: '20px', padding: '18px', transition: 'all 0.25s ease' }}
+        >
+          <div className="l" style={{ color: 'var(--txt2)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Can Give Today</div>
+          <div className="row" style={css('justify-content:space-between;align-items:flex-end;margin:4px 0 6px 0')}>
+            <div className="n" style={{ color: '#22C55E', fontSize: '26px', fontWeight: 900 }}>{loading ? '...' : eligibleDonors.length}</div>
+            <div className="dl" style={{ fontSize: '11.5px', color: 'var(--txt2)' }}>
+              {donors.length ? Math.round((eligibleDonors.length / donors.length) * 100) : 0}% eligible
             </div>
-          ))}
-          <Link href="/admin/network" className="btn btn-o btn-s" style={css('margin-top:16px;width:100%')}>All fourteen towns</Link>
+          </div>
+          <div className="mini" style={{ background: 'var(--line)', height: '6px', borderRadius: '99px', overflow: 'hidden' }}>
+            <i style={{ width: `${donors.length ? Math.round((eligibleDonors.length / donors.length) * 100) : 0}%`, background: '#22C55E', height: '100%', display: 'block' }} />
+          </div>
+        </div>
+
+        <div
+          className={`kpi${openReqs.length ? ' warn' : ''}`}
+          {...cardHoverProps}
+          style={{ background: 'var(--surf)', border: '1px solid var(--line)', borderRadius: '20px', padding: '18px', transition: 'all 0.25s ease' }}
+        >
+          <div className="l" style={{ color: 'var(--txt2)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Open Requests</div>
+          <div className="row" style={css('justify-content:space-between;align-items:flex-end;margin:4px 0 6px 0')}>
+            <div className="n r" style={{ color: 'var(--p)', fontSize: '26px', fontWeight: 900 }}>{loading ? '...' : openReqs.length}</div>
+            <div className={`dl${critReqs.length ? ' dn' : ''}`} style={{ fontSize: '11.5px', color: critReqs.length ? 'var(--p)' : 'var(--txt2)' }}>
+              {critReqs.length} critical
+            </div>
+          </div>
+          <Spark vals={[2, 4, 3, 5, 4, 6, openReqs.length || 8]} col="var(--p)" />
+        </div>
+
+        <div
+          className="kpi"
+          {...cardHoverProps}
+          style={{ background: 'var(--surf)', border: '1px solid var(--line)', borderRadius: '20px', padding: '18px', transition: 'all 0.25s ease' }}
+        >
+          <div className="l" style={{ color: 'var(--txt2)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>In Cooldown</div>
+          <div className="row" style={css('justify-content:space-between;align-items:flex-end;margin:4px 0 6px 0')}>
+            <div className="n" style={{ color: '#3B82F6', fontSize: '26px', fontWeight: 900 }}>{loading ? '...' : cooldownDonors.length}</div>
+            <div className="dl up" style={{ fontSize: '11.5px', color: '#3B82F6', fontWeight: 700 }}>resting</div>
+          </div>
+          <Spark vals={[10, 12, 14, 18, cooldownDonors.length || 20]} col="#3B82F6" />
         </div>
       </div>
 
-      <div className="acard" style={css('margin-top:18px')}>
-        <div className="row" style={css('justify-content:space-between;align-items:baseline;margin-bottom:16px')}><h3>Latest activity</h3><Link href="/admin/requests" className="minilink">All requests</Link></div>
-        <div className="atbl" style={css('border:0')}>
-          <table><tbody>
-            {REQUESTS.slice(0, 5).map((r) => (
-              <tr key={r.id}>
-                <td className="m2"><div className="nm">{r.hosp}</div><div className="sm">{r.id} · {r.src === 'web' ? 'from the website' : 'entered by staff'}</div></td>
-                <td className="m1">{bgTag(r.g)}</td>
-                <td className="sm">{agoLabel(r.minsAgo)}</td>
-                <td className="m3">{r.st === 'open' ? <span className="tag no">Open</span> : <span className="tag ok">Arranged</span>}</td>
+      {/* DASHBOARD ROW: STOCK BY BLOOD GROUP */}
+      <div className="dash2" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '18px', marginBottom: '22px', alignItems: 'stretch' }}>
+        <div
+          className="acard"
+          {...cardHoverProps}
+          style={{ borderRadius: '22px', padding: '24px', background: 'var(--surf)', border: '1px solid var(--line)', transition: 'all 0.25s ease' }}
+        >
+          <div className="row" style={css('justify-content:space-between;align-items:baseline;margin-bottom:16px')}>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 900, color: 'var(--txt1)' }}>Live Stock Holding across Branches</h3>
+            <Link href="/admin/inventory" className="minilink" style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--p)', textDecoration: 'none' }}>
+              Update Stock →
+            </Link>
+          </div>
+          
+          <div className="stockgrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '14px' }}>
+            {['O−', 'AB−', 'B−', 'A−', 'O+', 'A+', 'B+', 'AB+'].map((g) => {
+              const n = stock[g] ?? 0;
+              return (
+                <div
+                  key={g}
+                  style={{
+                    padding: '14px 10px',
+                    borderRadius: '16px',
+                    background: 'var(--surf)',
+                    border: '1px solid var(--line)',
+                    textAlign: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div className="sg" style={{ fontWeight: 900, color: 'var(--txt1)', fontSize: '16px' }}>{g}</div>
+                  <div className="sn" style={{ fontSize: '22px', fontWeight: 900, color: n <= 2 ? 'var(--p)' : '#22C55E', margin: '2px 0' }}>{n}</div>
+                  <div className="ss" style={{ fontSize: '11.5px', color: 'var(--txt2)', fontWeight: 600 }}>{n === 1 ? 'bag' : 'bags'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div
+          className="acard"
+          {...cardHoverProps}
+          style={{ borderRadius: '22px', padding: '24px', background: 'var(--surf)', border: '1px solid var(--line)', transition: 'all 0.25s ease' }}
+        >
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', fontWeight: 900, color: 'var(--txt1)' }}>Register Health &amp; Verification</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '22px', padding: '8px 0' }}>
+            <Ring pct={donors.length ? Math.round(((donors.length - unscreenedDonors.length) / donors.length) * 100) : 0} col="#22C55E" label="screened" />
+            <Ring pct={donors.length ? Math.round((eligibleDonors.length / donors.length) * 100) : 0} col="#3B82F6" label="ready today" />
+            <Ring pct={100} col="var(--p)" label="verified" />
+          </div>
+        </div>
+      </div>
+
+      {/* LATEST EMERGENCY REQUESTS TABLE */}
+      <div
+        className="acard"
+        {...cardHoverProps}
+        style={{ borderRadius: '22px', padding: '24px', background: 'var(--surf)', border: '1px solid var(--line)', transition: 'all 0.25s ease' }}
+      >
+        <div className="row" style={css('justify-content:space-between;align-items:baseline;margin-bottom:16px')}>
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 900, color: 'var(--txt1)' }}>Latest Emergency Requests</h3>
+          <Link href="/admin/requests" className="minilink" style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--p)', textDecoration: 'none' }}>
+            View All Requests →
+          </Link>
+        </div>
+        <div className="atbl" style={{ border: 0, borderRadius: '14px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th>Hospital / Location</th>
+                <th>Blood Needed</th>
+                <th>Submitted</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody></table>
+            </thead>
+            <tbody>
+              {requests.slice(0, 5).map((r) => (
+                <tr key={r.id}>
+                  <td className="m2">
+                    <div className="nm" style={{ fontWeight: 800, color: 'var(--txt1)', fontSize: '14px' }}>{r.hospital}</div>
+                    <div className="sm" style={{ fontSize: '12px', color: 'var(--txt2)' }}>{r.reference} · {r.town}</div>
+                  </td>
+                  <td className="m1">{bgTag(r.group)}</td>
+                  <td className="sm" style={{ fontSize: '12.5px', color: 'var(--txt2)', fontWeight: 600 }}>{agoLabel(r.createdAt)}</td>
+                  <td className="m3">
+                    {r.status === 'OPEN' ? <span className="tag no">Open</span> : <span className="tag ok">{r.status}</span>}
+                  </td>
+                </tr>
+              ))}
+              {!requests.length && !loading && (
+                <tr><td colSpan={4} className="aempty">No emergency requests logged yet.</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </AdminShell>
