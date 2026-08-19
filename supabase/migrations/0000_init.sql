@@ -1284,14 +1284,19 @@ from (values
 where not exists (select 1 from public.service_charges s where s.name = v.name);
 
 -- ── Default super-admin login (so a fresh project works immediately) ─────────
--- Seeds ONE working super-admin (head office) directly into Supabase Auth so you can
--- sign in at once and start creating executive + lower-level accounts. Idempotent
--- (skips if the email already exists). CHANGE THE PASSWORD after first login.
---   email:    admin@pashtoonkhwabloodbank.org
---   password: PbbAdmin#2026
--- If a newer/older GoTrue schema rejects the direct insert, this block fails softly with
--- a NOTICE — in that case create that user in Authentication → Users → Add user; the
--- profile seed below then links it to the head-office (super-admin) role automatically.
+-- Seeds ONE super-admin ACCOUNT (head office) so the account hierarchy exists on a fresh
+-- project. For security the account is created with a RANDOM, UNKNOWN password (never
+-- committed to source), so it CANNOT be used to log in until YOU set a password. Set it via
+-- either route:
+--   • Supabase Dashboard → Authentication → Users → admin@pashtoonkhwabloodbank.org →
+--     "Reset password" (or send a magic link), OR
+--   • run this once in the SQL editor with YOUR own strong password (do NOT commit it):
+--       update auth.users
+--          set encrypted_password = crypt('YOUR_STRONG_PASSWORD', gen_salt('bf'))
+--        where email = 'admin@pashtoonkhwabloodbank.org';
+-- Idempotent (skips if the email already exists). Soft-fails with a NOTICE if the GoTrue
+-- schema differs — then create the user via Authentication → Users → Add user; the profile
+-- seed below links it to the head-office (super-admin) role automatically.
 do $$
 declare
   uid uuid := '11111111-1111-1111-1111-111111111111';
@@ -1304,7 +1309,7 @@ begin
       confirmation_token, recovery_token, email_change_token_new, email_change
     ) values (
       '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
-      admin_email, crypt('PbbAdmin#2026', gen_salt('bf')), now(),
+      admin_email, crypt(encode(gen_random_bytes(18), 'hex'), gen_salt('bf')), now(),
       now(), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
       '', '', '', ''
     );
