@@ -67,18 +67,10 @@ function agoLabel(iso: string): string {
   return `${Math.floor(mins / 1440)} d ago`;
 }
 
-const INITIAL_VOLUNTEERS: Volunteer[] = [
-  { id: 'VOL-101', name: 'Hafeez Ullah', phone: '0300-1122334', email: 'hafeez@example.com', town: 'Quetta', skills: ['Camps', 'Outreach'], stage: 'new', createdAt: new Date(Date.now() - 3600000 * 2).toISOString() },
-  { id: 'VOL-102', name: 'Sabir Khan', phone: '0333-4455667', town: 'Zhob', skills: ['Outreach', 'Driving'], stage: 'active', createdAt: new Date(Date.now() - 3600000 * 48).toISOString() },
-  { id: 'VOL-103', name: 'Naveed Ahmed', phone: '0312-9988776', town: 'Pishin', skills: ['Driving'], stage: 'contacted', createdAt: new Date(Date.now() - 3600000 * 12).toISOString() },
-  { id: 'VOL-104', name: 'Asma Bibi', phone: '0345-5544332', email: 'asma@example.com', town: 'Quetta', skills: ['Office', 'Design'], stage: 'active', createdAt: new Date(Date.now() - 3600000 * 72).toISOString() },
-  { id: 'VOL-105', name: 'Rahim Dad', phone: '0301-2233445', town: 'Loralai', skills: ['Camps'], stage: 'new', createdAt: new Date(Date.now() - 3600000 * 5).toISOString() },
-];
-
 const SKILL_LIST = ['All Skills', 'Camps', 'Outreach', 'Driving', 'Office', 'Design'];
 
 export default function AdminVolunteers() {
-  const [volunteers, setVolunteers] = useState<Volunteer[]>(INITIAL_VOLUNTEERS);
+  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<'all' | 'new' | 'contacted' | 'active'>('all');
@@ -123,7 +115,7 @@ export default function AdminVolunteers() {
     setLoading(true);
     try {
       const res = await api.get<{ data: Array<{ id: string; name: string; phone: string; email?: string; status: string; skills?: string; townId?: string; createdAt: string }> }>('/volunteers');
-      if (res.data && res.data.length > 0) {
+      if (res.data) {
         const mapped: Volunteer[] = res.data.map((v) => ({
           id: v.id,
           name: v.name,
@@ -135,9 +127,12 @@ export default function AdminVolunteers() {
           createdAt: v.createdAt,
         }));
         setVolunteers(mapped);
+      } else {
+        setVolunteers([]);
       }
-    } catch {
-      // Keep initial rich data state if server empty
+    } catch (err) {
+      console.error(err);
+      setVolunteers([]);
     } finally {
       setLoading(false);
     }
