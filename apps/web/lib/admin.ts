@@ -50,7 +50,8 @@ export const ADMIN_GROUPS: [string, [string, string][]][] = [
   [
     'Donations',
     [
-      ['ledger', 'Donations ledger'],
+      ['ledger', 'Blood intake ledger'],
+      ['finance', 'Finance & invoices'],
       ['record', 'Record a donation'],
     ],
   ],
