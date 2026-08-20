@@ -64,7 +64,7 @@ export default function People() {
               </h1>
 
               <p className="people-hero-desc">
-                Pashtoonkhwa Blood Bank and Welfare Society has been continuously supervised by the same three-member organising committee since the day it opened on 24th March 1999.
+                Pashtoonkhwa Blood Bank and Welfare Society has been continuously supervised by the same three-member organising committee since the day it opened on 24th March 1996.
               </p>
 
               {/* Luxury Badges Grid */}
@@ -80,7 +80,7 @@ export default function People() {
                   </div>
                   <div>
                     <span className="s-lbl">Inaugurated</span>
-                    <span className="s-val">24 March 1999</span>
+                    <span className="s-val">24 March 1996</span>
                   </div>
                 </div>
 
@@ -120,7 +120,7 @@ export default function People() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                   </svg>
-                  <span>Supervised by Committee Since 1999</span>
+                  <span>Supervised by Committee Since 1996</span>
                 </div>
               </div>
             </div>
@@ -142,7 +142,6 @@ export default function People() {
               n="Olus Yar"
               r="Heads the Organisation · PBB"
               d="Heads the organisation. Every branch, every account and every register answers upward to this office."
-              phone="0300-3815590"
               extraTag="Executive Head"
             />
 
@@ -150,7 +149,7 @@ export default function People() {
               i={1}
               n="Mr. Faqir Khushal Khan Kasi"
               r="Organiser · PBB Committee"
-              d="Member of the organising committee since inauguration in 1999, overseeing operational logistics and community relations."
+              d="Member of the organising committee since inauguration in 1996, overseeing operational logistics and community relations."
               extraTag="Founding Member"
             />
 

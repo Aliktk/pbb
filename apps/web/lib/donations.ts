@@ -71,6 +71,18 @@ export async function fetchDonations(limit = 300): Promise<DonationRow[]> {
   return ((data ?? []) as unknown as RawDonation[]).map(mapDonation);
 }
 
+// One donor's donation history, newest first. RLS still scopes to the caller's town.
+export async function fetchDonationsByDonor(donorId: string, limit = 50): Promise<DonationRow[]> {
+  const { data, error } = await supabase
+    .from('donations')
+    .select(SELECT)
+    .eq('donorId', donorId)
+    .order('donatedAt', { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as RawDonation[]).map(mapDonation);
+}
+
 export interface CreateDonationInput {
   donorId: string;
   townId: string;

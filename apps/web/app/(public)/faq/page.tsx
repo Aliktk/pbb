@@ -26,7 +26,7 @@ const FAQS: FaqItem[] = [
   {
     id: 3,
     q: 'What if nobody in our family can donate in exchange?',
-    a: 'In four critical cases there is no exchange donor requirement at all: thalassemia pediatric patients, pregnant mothers, acute emergency trauma cases, and natural disaster victims. This policy has been enforced strictly since 1999.',
+    a: 'In four critical cases there is no exchange donor requirement at all: thalassemia pediatric patients, pregnant mothers, acute emergency trauma cases, and natural disaster victims. This policy has been enforced strictly since 1996.',
     category: 'Costs & Exemptions',
   },
   {

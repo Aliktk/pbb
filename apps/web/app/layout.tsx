@@ -5,7 +5,7 @@ import { Preloader } from '../components/Preloader';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://pashtoonkhwabloodbank.org';
 const TITLE = 'Pashtoonkhwa Blood Bank, Quetta, Balochistan';
 const DESCRIPTION =
-  'Pashtoonkhwa Blood Bank and Welfare Society. Screened blood on exchange, free for thalassemia children. Since 24 March 1999.';
+  'Pashtoonkhwa Blood Bank and Welfare Society. Screened blood on exchange, free for thalassemia children. Since 24 March 1996.';
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),

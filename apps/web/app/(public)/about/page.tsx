@@ -210,11 +210,11 @@ export default function About() {
               </div>
 
               <h1 className="story-hero-title">
-                Twenty-seven years,<br />kept on the <span className="highlight-text-red">record.</span>
+                Thirty years,<br />kept on the <span className="highlight-text-red">record.</span>
               </h1>
 
               <p className="story-hero-desc">
-                Pashtoonkhwa Blood Bank and Welfare Society was inaugurated by the Chairman of Pashtoonkhwa Milli Awami Party, Mr. Mehmood Khan Achakzai, on 24th March 1999. It has served the people, irrespective of language, colour, religion, race and ethnicity, since its first day.
+                Pashtoonkhwa Blood Bank and Welfare Society was inaugurated by the Chairman of Pashtoonkhwa Milli Awami Party, Mr. Mehmood Khan Achakzai, on 24th March 1996. It has served the people, irrespective of language, colour, religion, race and ethnicity, since its first day.
               </p>
 
               <div className="story-meta-grid">
@@ -229,7 +229,7 @@ export default function About() {
                   </div>
                   <div>
                     <span className="s-lbl">Inaugurated</span>
-                    <span className="s-val">24 March 1999</span>
+                    <span className="s-val">24 March 1996</span>
                   </div>
                 </div>
 
@@ -293,7 +293,7 @@ export default function About() {
       {/* Timeline Section */}
       <section className="timeline-section-pro">
         <Era
-          y="1999"
+          y="1996"
           kick="The Beginning"
           iconType="star"
           title="Inaugurated beside the Quetta Press Club"

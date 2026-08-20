@@ -10,52 +10,48 @@ interface GalleryItem {
   id: number;
   title: string;
   category: string;
-  location: string;
   src: string;
   isVideo?: boolean;
 }
 
+// Illustrative placeholder images (see lib/images.ts). Titles describe the kind of activity shown;
+// they are not tied to a verified date or location. Real field photographs with confirmed captions
+// will replace these.
 const GALLERY_ITEMS: GalleryItem[] = [
   {
     id: 1,
-    title: 'University Mobile Donation Drive',
+    title: 'Mobile Donation Drive',
     category: 'Blood camps',
-    location: 'Quetta Campus',
     src: IMG.heroDonation, // Landscape
   },
   {
     id: 2,
     title: 'Voluntary Donor Registration & Screening',
     category: 'Awareness',
-    location: 'Headquarters',
     src: IMG.portraitA, // Tall Portrait
   },
   {
     id: 3,
     title: 'Emergency Medical Dispatch Unit',
     category: 'Ambulance',
-    location: 'Highway Corridor',
     src: IMG.ambulance, // Wide Landscape
   },
   {
     id: 4,
-    title: 'High School Blood Awareness Seminar',
+    title: 'Blood Awareness Seminar',
     category: 'Awareness',
-    location: 'Loralai City',
     src: IMG.portraitB, // Tall Portrait
   },
   {
     id: 5,
     title: 'Clinical Lab Testing & Storage',
     category: 'Blood camps',
-    location: 'Khuzdar Branch',
     src: IMG.clinician, // Tall Vertical
   },
   {
     id: 6,
     title: 'Ground Operational Walkthrough',
     category: 'Videos',
-    location: 'Peshawar Hub',
     src: IMG.bloodBags, // Landscape
     isVideo: true,
   },
@@ -63,35 +59,30 @@ const GALLERY_ITEMS: GalleryItem[] = [
     id: 7,
     title: 'Youth Volunteer Leadership Group',
     category: 'Awareness',
-    location: 'Mardan Sector',
     src: IMG.portraitC, // Tall Portrait
   },
   {
     id: 8,
     title: 'Eid-ul-Adha Hide Collection Drive',
     category: 'Eid ul Adha',
-    location: 'Turbat Sector',
     src: IMG.community, // Landscape
   },
   {
     id: 9,
     title: 'Donor Health Check & Vitals',
     category: 'Blood camps',
-    location: 'Swat District',
     src: IMG.gloves, // Medium Portrait
   },
   {
     id: 10,
     title: 'New Regional Branch Foundation',
     category: 'New building',
-    location: 'Zhob Branch',
     src: IMG.building, // Landscape
   },
   {
     id: 11,
     title: '24/7 Dispatch Control Room Operations',
     category: 'Videos',
-    location: 'Headquarters',
     src: IMG.screeningLab, // Landscape
     isVideo: true,
   },
@@ -99,7 +90,6 @@ const GALLERY_ITEMS: GalleryItem[] = [
     id: 12,
     title: 'Institutional Healthcare Partnership Drive',
     category: 'Blood camps',
-    location: 'Chaman Sector',
     src: IMG.partnership, // Landscape
   },
 ];
@@ -140,7 +130,7 @@ export default function Gallery() {
           </div>
           <div className="side-badge-text">
             <span className="side-badge-val">Ground Media</span>
-            <span className="side-badge-lbl">Verified Field Archive</span>
+            <span className="side-badge-lbl">Illustrative Gallery</span>
           </div>
         </div>
 
@@ -152,8 +142,8 @@ export default function Gallery() {
             </svg>
           </div>
           <div className="side-badge-text">
-            <span className="side-badge-val">8 Regional Districts</span>
-            <span className="side-badge-lbl">100% Transparent</span>
+            <span className="side-badge-val">Across Balochistan</span>
+            <span className="side-badge-lbl">Illustrative Placeholders</span>
           </div>
         </div>
 
@@ -165,12 +155,12 @@ export default function Gallery() {
             </div>
 
             <h1 className="join-hero-title">
-              The work, as it happens.<br />
-              <span className="highlight-text-red">Real ground operations.</span>
+              A picture of the work.<br />
+              <span className="highlight-text-red">Illustrative gallery.</span>
             </h1>
 
             <p className="join-hero-desc">
-              Photographs, videos, and field archives documented across mobile blood drives, emergency dispatch centers, and regional camps.
+              Illustrative images showing the kind of work we do — mobile blood drives, emergency dispatch, and community camps. Real field photographs from our branches will replace these placeholders.
             </p>
 
             <div className="hero-emergency-bar">
@@ -178,7 +168,7 @@ export default function Gallery() {
                 <circle cx="12" cy="12" r="10" />
                 <polygon points="10 8 16 12 10 16 10 8" />
               </svg>
-              <span>Media Inquiries &amp; Press Relations: <a href="mailto:media@pbb.org.pk">media@pbb.org.pk</a> — Communications Desk</span>
+              <span>Media Inquiries &amp; Press Relations: <a href="mailto:media@pashtoonkhwabloodbank.org">media@pashtoonkhwabloodbank.org</a> — Communications Desk</span>
             </div>
           </div>
         </div>

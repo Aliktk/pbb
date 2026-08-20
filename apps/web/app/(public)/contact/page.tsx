@@ -132,13 +132,12 @@ export default function Contact() {
                     <span className="staff-role">Central Organizer</span>
                     <div className="staff-detail">
                       <span className="staff-name">Olus Yar</span>
-                      <a href="tel:03003815590" className="staff-phone">0300-3815590</a>
                     </div>
                   </div>
                   <div className="staff-item">
                     <span className="staff-role">Web &amp; IT Administrator</span>
                     <div className="staff-detail">
-                      <a href="tel:03327828121" className="staff-phone">0332-7828121</a>
+                      <span className="staff-name">Head office desk</span>
                     </div>
                   </div>
                 </div>
@@ -183,7 +182,7 @@ export default function Contact() {
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
                   <p>
-                    <strong>Response Guarantee:</strong> Emergency blood dispatches are coordinated within 90 seconds of receiving a verified request.
+                    <strong>Response Commitment:</strong> Emergency blood dispatches are coordinated immediately, as fast as possible, once a verified request is received.
                   </p>
                 </div>
               </div>

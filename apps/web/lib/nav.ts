@@ -20,7 +20,7 @@ export const NAV: NavGroup[] = [
     label: 'About',
     items: [
       { label: 'The problem we are solving', href: '/problem', description: 'Twelve gaps, and our answer', icon: 'M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z' },
-      { label: 'Our story', href: '/about', description: 'Since 24 March 1999', icon: 'M12 8v8m-4-4h8M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z' },
+      { label: 'Our story', href: '/about', description: 'Since 24 March 1996', icon: 'M12 8v8m-4-4h8M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z' },
       { label: 'Our leadership', href: '/people', description: 'Committee and medical staff', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z' },
       { label: 'Who stands with us', href: '/supporters', description: 'Supporting organisations', icon: 'M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z' },
       { label: 'Our branches', href: '/branches', description: '6 offices, 14 towns', icon: 'M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Zm0-9h.01' },

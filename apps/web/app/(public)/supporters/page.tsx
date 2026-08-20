@@ -12,7 +12,7 @@ interface SupporterItem {
 const SUPPORTERS: SupporterItem[] = [
   {
     name: 'Pashtoonkhwa Milli Awami Party',
-    note: 'Founding support and ongoing supervision since inauguration in 1999.',
+    note: 'Founding support and ongoing supervision since inauguration in 1996.',
     category: 'Political & Civic Ally',
     type: 'civic',
   },

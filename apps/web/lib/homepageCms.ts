@@ -17,7 +17,7 @@ export const EXACT_HOMEPAGE_SECTIONS: HomepageSection[] = [
     desc: 'Main hero headline, subtext, 4 impact metrics & dispatch badge',
     category: 'hero',
     config: {
-      eyebrowBadge: 'Serving Balochistan since 24 March 1999',
+      eyebrowBadge: 'Serving Balochistan since 24 March 1996',
       headlinePart1: 'Blood is life.',
       headlineHighlight: 'record',
       subheadline:
@@ -65,7 +65,7 @@ export const EXACT_HOMEPAGE_SECTIONS: HomepageSection[] = [
     category: 'services',
     config: {
       label: 'What we do',
-      heading: 'Four things, done since 1999',
+      heading: 'Four things, done since 1996',
       lead:
         'Blood is never purchased. The only source is exchange from relatives of the patient and registered members.',
       p1Title: 'Screened blood',
@@ -87,13 +87,13 @@ export const EXACT_HOMEPAGE_SECTIONS: HomepageSection[] = [
     key: 'yearly_chart',
     name: 'Impact Record Chart',
     live: true,
-    desc: '27-year transfusion history chart (1999 to 2012 bags data)',
+    desc: '30-year transfusion history chart (1999 to 2012 digitized bags data)',
     category: 'impact',
     config: {
       label: 'Impact Record',
-      heading: 'Twenty-Seven Years of Transfusions',
+      heading: 'Thirty Years of Transfusions',
       lead:
-        'Every bag transfused since our founding in 1999. Published records through 2012 (digitization ongoing).',
+        'Every bag transfused since our founding in 1996. Digitized published records span 1999 to 2012 (earlier years and digitization ongoing).',
       peakText: '2011 (Peak Year: 9,484 bags)',
     },
   },
@@ -159,7 +159,7 @@ export const EXACT_HOMEPAGE_SECTIONS: HomepageSection[] = [
       stat1Lbl: 'National blood registries before this platform',
       stat2Val: '200+',
       stat2Lbl: 'Thalassemia children relying exclusively on our network',
-      stat3Val: '1999',
+      stat3Val: '1996',
       stat3Lbl: 'The year our paper diary donor system began',
     },
   },

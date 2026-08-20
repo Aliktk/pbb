@@ -10,8 +10,6 @@ import { Icon } from '../Icon';
 
 import { LogoutConfirmModal } from './LogoutConfirmModal';
 
-import { syncTownsFromApi } from '../../lib/towns';
-
 interface AdminShellProps {
   view: string;
   title: string;
@@ -39,10 +37,9 @@ export function AdminShell({ view, title, subtitle, actions, children }: AdminSh
     return false;
   });
 
-  // Apply body.adminmode class on mount & sync live towns
+  // Apply body.adminmode class on mount
   useEffect(() => {
     document.body.classList.add('adminmode');
-    syncTownsFromApi();
     return () => document.body.classList.remove('adminmode');
   }, []);
 
