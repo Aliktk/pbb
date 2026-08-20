@@ -25,7 +25,7 @@ export function LoginShell({ children }: { children: ReactNode }) {
             </div>
             <h1 className="brandside-title">
               The register,<br />
-              since <em className="text-red-highlight">1999</em>.
+              since <em className="text-red-highlight">1996</em>.
             </h1>
             <p className="brandside-desc">
               Fourteen towns, one book. Sign in to add donors, answer requests and record what has been given.

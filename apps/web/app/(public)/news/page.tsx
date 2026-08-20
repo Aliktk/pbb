@@ -32,7 +32,7 @@ const DEFAULT_NEWS: AnnouncementItem[] = [
     title: 'New Quetta Central Premises — Construction Final Phase',
     kind: 'Notice',
     date: '3 September',
-    body: 'Construction of the new Quetta central facility has entered its final inspection phase. The expanded cold storage capacity will hold up to 400 screened bags.',
+    body: 'Construction of the new Quetta central facility has entered its final inspection phase, adding expanded cold storage capacity for screened blood units.',
     image: IMG.building,
     status: 'live',
     location: 'Home · News',
@@ -62,7 +62,7 @@ const DEFAULT_NEWS: AnnouncementItem[] = [
     title: 'Mass Awareness Drive, Quetta University Campus',
     kind: 'Awareness',
     date: '14 August',
-    body: 'Over 280 students registered as first-time voluntary donors during a two-day campus awareness campaign organized by PBB volunteers.',
+    body: 'Students registered as first-time voluntary donors during a two-day campus awareness campaign organized by PBB volunteers.',
     image: IMG.portraitA,
     status: 'live',
     location: 'News',
@@ -117,7 +117,7 @@ export default function News() {
           </div>
           <div className="side-badge-text">
             <span className="side-badge-val">Ground Bulletins</span>
-            <span className="side-badge-lbl">Field Verified</span>
+            <span className="side-badge-lbl">Branch Updates</span>
           </div>
         </div>
 
@@ -155,7 +155,7 @@ export default function News() {
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                 <polyline points="22,6 12,13 2,6" />
               </svg>
-              <span>Press Desk &amp; Media Bulletins: <a href="mailto:news@pbb.org.pk">news@pbb.org.pk</a> — Central Office</span>
+              <span>Press Desk &amp; Media Bulletins: <a href="mailto:news@pashtoonkhwabloodbank.org">news@pashtoonkhwabloodbank.org</a> — Central Office</span>
             </div>
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function News() {
                     <span className="news-cat-pill red">{feature.kind}</span>
                     <span className="news-date-text">{feature.date}</span>
                     <span className="news-dot">•</span>
-                    <span className="news-read-text">Verified Dispatch</span>
+                    <span className="news-read-text">Announcement</span>
                   </div>
 
                   <h2 className="news-feat-title">{feature.title}</h2>

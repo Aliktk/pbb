@@ -273,7 +273,7 @@ export default function Home() {
                       ))}
                     </div>
                     <div className="axis">
-                      <span>1999 (Founding)</span>
+                      <span>1999 (Earliest digitized year)</span>
                       <span className="peak-indicator">{cfg.peakText}</span>
                       <span>June 2012</span>
                     </div>

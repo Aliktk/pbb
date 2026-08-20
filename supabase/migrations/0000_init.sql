@@ -858,7 +858,12 @@ create policy towns_insert on public.towns for insert to authenticated
   with check (public.is_head() and coalesce(is_head_office, false) = false);
 
 -- ── profiles: scoped read (self / head / manager-own-town), management, self name edit.
-grant update (name) on public.profiles to authenticated;
+-- Column-level UPDATE grant. `name` is self-editable by anyone; the account-management
+-- columns (is_active / role_key / town_id) are grantable here but gated by the
+-- profiles_manage policy (only head, or a manager over their own town's operational
+-- roles) AND by profiles_self_update's WITH CHECK below, which forbids a user from
+-- changing those three columns on their OWN row (no self-escalation to 'head').
+grant update (name, is_active, role_key, town_id) on public.profiles to authenticated;
 
 drop policy if exists profiles_self_read on public.profiles;
 drop policy if exists profiles_scope_read on public.profiles;
@@ -887,7 +892,14 @@ create policy profiles_manage on public.profiles for update to authenticated
 drop policy if exists profiles_self_update on public.profiles;
 create policy profiles_self_update on public.profiles for update to authenticated
   using (id = auth.uid())
-  with check (id = auth.uid());
+  with check (
+    id = auth.uid()
+    -- self-edit may only change `name`; the account-management columns must match the
+    -- row's current values, so a user cannot promote themselves or move their own town.
+    and role_key  = (select p.role_key  from public.profiles p where p.id = auth.uid())
+    and is_active = (select p.is_active from public.profiles p where p.id = auth.uid())
+    and town_id is not distinct from (select p.town_id from public.profiles p where p.id = auth.uid())
+  );
 
 -- ── account_invites: who may invite whom (head any; manager operational roles, own town).
 grant select, insert, delete on public.account_invites to authenticated;
@@ -1299,7 +1311,7 @@ where not exists (select 1 from public.service_charges s where s.name = v.name);
 -- seed below links it to the head-office (super-admin) role automatically.
 do $$
 declare
-  uid uuid := '11111111-1111-1111-1111-111111111111';
+  uid uuid := gen_random_uuid();
   admin_email text := 'nawazktk99@gmail.com';
 begin
   if not exists (select 1 from auth.users where lower(email) = admin_email) then
@@ -1314,9 +1326,9 @@ begin
       '', '', '', ''
     );
     insert into auth.identities (
-      provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+      id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
     ) values (
-      uid::text, uid,
+      gen_random_uuid(), uid::text, uid,
       jsonb_build_object('sub', uid::text, 'email', admin_email, 'email_verified', true),
       'email', now(), now(), now()
     );
@@ -1332,10 +1344,7 @@ end $$;
 insert into public.profiles (id, name, email, role_key, town_id, is_active)
 select u.id, 'Head Office Admin', u.email, 'head', null, true
 from auth.users u
-where lower(u.email) in (
-  'nawazktk99@gmail.com',
-  'nawazktk99@gmail.com'
-)
+where lower(u.email) = 'nawazktk99@gmail.com'
 on conflict (id) do update
   set role_key = 'head', town_id = null, is_active = true;
 

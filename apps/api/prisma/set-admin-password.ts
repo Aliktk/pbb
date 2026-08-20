@@ -12,9 +12,18 @@ import * as argon2 from 'argon2';
 const prisma = new PrismaClient();
 
 const email = process.env.ADMIN_EMAIL ?? 'admin@pashtoonkhwabloodbank.org';
-const password = process.env.SEED_ADMIN_PASSWORD ?? process.argv[2] ?? 'pbbadmin123';
+// No hardcoded fallback: refuse to run unless a real password is supplied via env or argument.
+// (The production system is Supabase-direct; this legacy Prisma script must never set a
+// well-known password on any account.)
+const password = process.env.SEED_ADMIN_PASSWORD ?? process.argv[2];
 
 async function main(): Promise<void> {
+  if (!password || password.length < 10) {
+    throw new Error(
+      'Refusing to set a weak/absent password. Provide a strong one: ' +
+        "SEED_ADMIN_PASSWORD='...' pnpm --filter @pbb/api auth:set-password",
+    );
+  }
   const passwordHash = await argon2.hash(password);
   const user = await prisma.user.update({
     where: { email },

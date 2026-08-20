@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { css } from '../../lib/style';
-import { api } from '../../lib/api';
+import { fetchDonationsByDonor, type DonationRow } from '../../lib/donations';
 import type { DonorRow } from '../../lib/apiTypes';
 
 interface DonorSheetProps {
@@ -13,15 +13,6 @@ interface DonorSheetProps {
   onEdit?: (donor: DonorRow) => void;
   onDelete?: (id: string) => void;
   onClose: () => void;
-}
-
-interface DonationRecord {
-  id: string;
-  donatedAt: string;
-  quantityMl: number;
-  componentType?: string;
-  branch?: { town?: { name: string } };
-  recordedBy?: { name?: string };
 }
 
 const ELIGIBILITY: Record<string, { lab: string; tag: string }> = {
@@ -53,66 +44,34 @@ export function DonorSheet({
 }: DonorSheetProps) {
   const isOpen = d !== null;
   const [viewMode, setViewMode] = useState<'details' | 'history'>('details');
-  const [historyList, setHistoryList] = useState<DonationRecord[]>([]);
+  const [historyList, setHistoryList] = useState<DonationRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // Reset view mode when donor changes or sheet opens
   useEffect(() => {
     setViewMode('details');
     setHistoryList([]);
+    setHistoryError(null);
   }, [d?.id]);
 
-  const count = d?.timesDonated ?? 0;
-  const effectiveLastDonated = d?.lastDonatedAt ?? (count > 0 ? new Date(Date.now() - (45 + (count % 4) * 20) * 86_400_000).toISOString() : null);
+  const effectiveLastDonated = d?.lastDonatedAt ?? null;
   const days = effectiveLastDonated ? daysSince(effectiveLastDonated) : null;
   const e = d ? ELIGIBILITY[d.eligibility] ?? { lab: d.eligibility, tag: 'gy' } : { lab: '', tag: 'gy' };
 
+  // Real donation history from Supabase (RLS-scoped). No records means an honest empty state -
+  // history is never fabricated from the donor's timesDonated count.
   async function handleFetchHistory() {
     if (!d) return;
     setViewMode('history');
     setLoadingHistory(true);
+    setHistoryError(null);
     try {
-      const res = await api.get<{ data: DonationRecord[] }>(`/donations?donorId=${d.id}`);
-      if (res.data && res.data.length > 0) {
-        setHistoryList(res.data);
-      } else if (count > 0) {
-        // Generate donor-specific history derived from donor's timesDonated count
-        const displayCount = Math.min(count, 10);
-        const baseTime = effectiveLastDonated ? new Date(effectiveLastDonated).getTime() : Date.now() - 45 * 86_400_000;
-        const generated: DonationRecord[] = [];
-        for (let i = 0; i < displayCount; i++) {
-          const dateOffset = baseTime - i * (90 + (i % 3) * 5) * 86_400_000;
-          generated.push({
-            id: `hist-${d.id}-${i}`,
-            donatedAt: new Date(dateOffset).toISOString(),
-            quantityMl: 350,
-            componentType: i % 3 === 2 ? 'PACKED_CELLS' : 'WHOLE_BLOOD',
-            branch: { town: { name: d.town || 'Quetta' } },
-          });
-        }
-        setHistoryList(generated);
-      } else {
-        setHistoryList([]);
-      }
-    } catch {
-      if (count > 0) {
-        const displayCount = Math.min(count, 10);
-        const baseTime = effectiveLastDonated ? new Date(effectiveLastDonated).getTime() : Date.now() - 45 * 86_400_000;
-        const generated: DonationRecord[] = [];
-        for (let i = 0; i < displayCount; i++) {
-          const dateOffset = baseTime - i * 92 * 86_400_000;
-          generated.push({
-            id: `hist-${d.id}-${i}`,
-            donatedAt: new Date(dateOffset).toISOString(),
-            quantityMl: 350,
-            componentType: 'WHOLE_BLOOD',
-            branch: { town: { name: d.town || 'Quetta' } },
-          });
-        }
-        setHistoryList(generated);
-      } else {
-        setHistoryList([]);
-      }
+      const records = await fetchDonationsByDonor(d.id);
+      setHistoryList(records);
+    } catch (err) {
+      setHistoryList([]);
+      setHistoryError(err instanceof Error ? err.message : 'Could not load donation history.');
     } finally {
       setLoadingHistory(false);
     }
@@ -276,6 +235,24 @@ export function DonorSheet({
                   <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--mid)', fontSize: '13.5px' }}>
                     Loading donation history...
                   </div>
+                ) : historyError ? (
+                  <div
+                    style={{
+                      padding: '24px 16px',
+                      margin: '14px 0 20px',
+                      borderRadius: '12px',
+                      background: 'var(--bg, #f8fafc)',
+                      border: '1px solid var(--line, #e2e8f0)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: '14px', color: 'var(--red, #dc2626)' }}>
+                      Could not load donation history
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: 'var(--mid)' }}>
+                      {historyError}
+                    </p>
+                  </div>
                 ) : historyList.length > 0 ? (
                   <div style={{ margin: '12px 0 20px', maxHeight: '320px', overflowY: 'auto' }}>
                     {historyList.map((item, idx) => {
@@ -301,12 +278,12 @@ export function DonorSheet({
                               📅 {formattedDate}
                             </span>
                             <span className="tag ok" style={{ fontSize: '11px' }}>
-                              {item.quantityMl || 350} ml
+                              {item.quantityMl} ml
                             </span>
                           </div>
                           <div style={{ fontSize: '12.5px', color: 'var(--mid)' }}>
-                            {itemDays !== null ? `${itemDays} days ago` : 'Date recorded'} · {item.componentType || 'WHOLE_BLOOD'}
-                            {item.branch?.town?.name ? ` · ${item.branch.town.name} Branch` : ''}
+                            {itemDays !== null ? `${itemDays} days ago` : 'Date recorded'}
+                            {item.town ? ` · ${item.town}` : ''}
                           </div>
                         </div>
                       );

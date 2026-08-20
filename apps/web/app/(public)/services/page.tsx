@@ -122,7 +122,7 @@ export default function Services() {
                   <div className="s-metric-box">
                     <span className="s-metric-val highlight">0 PKR</span>
                     <span className="s-metric-lbl">Commercial Fee</span>
-                    <span className="s-metric-sub">Strictly non-profit since 1999</span>
+                    <span className="s-metric-sub">Strictly non-profit since 1996</span>
                   </div>
                 </div>
 
@@ -191,7 +191,7 @@ export default function Services() {
               </div>
               <h3 className="model-title text-emerald">Thalassemia, Pregnancy, Emergency &amp; Disasters</h3>
               <p className="model-desc">
-                In these four vital humanitarian cases, blood is provided 100% free of cost and without any exchange requirement. This strict policy has been honored without exception since 1999.
+                In these four vital humanitarian cases, blood is provided 100% free of cost and without any exchange requirement. This strict policy has been honored without exception since 1996.
               </p>
               <div className="free-highlights-row">
                 <span className="free-highlight-pill">200 Registered Thalassemia Kids</span>

@@ -86,7 +86,7 @@ export function SiteFooter() {
 
         {/* Bottom Bar Pro */}
         <div className="footer-bottom-pro">
-          <span className="copyright-tag">© 1999-2026 Pashtoonkhwa Blood Bank</span>
+          <span className="copyright-tag">© 1996-2026 Pashtoonkhwa Blood Bank</span>
 
           <div className="footer-bottom-links">
             <Link href="/privacy" className="footer-pill-link">

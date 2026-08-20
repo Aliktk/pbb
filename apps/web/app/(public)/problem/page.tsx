@@ -80,7 +80,7 @@ export default function Problem() {
                   </div>
 
                   <div className="v-metric-box metric-gold">
-                    <span className="v-val">1999</span>
+                    <span className="v-val">1996</span>
                     <span className="v-lbl">Non-Stop Service</span>
                     <span className="v-sub">0 purchased bags ever</span>
                   </div>
@@ -134,7 +134,7 @@ export default function Problem() {
               </h2>
 
               <p className="answer-desc">
-                Not a national programme — a working one. Every donor recorded, every request logged, every branch able to see who in their own town can give today. It has run since 1999 on exchange, charity and Zakat, and has never purchased a single bag.
+                Not a national programme — a working one. Every donor recorded, every request logged, every branch able to see who in their own town can give today. It has run since 1996 on exchange, charity and Zakat, and has never purchased a single bag.
               </p>
 
               <div className="answer-actions">
@@ -149,7 +149,7 @@ export default function Problem() {
 
             <div className="answer-stats-side">
               <div className="a-stat-box">
-                <span className="a-stat-num">1999</span>
+                <span className="a-stat-num">1996</span>
                 <span className="a-stat-txt">Founding Year in Quetta</span>
               </div>
               <div className="a-stat-box">

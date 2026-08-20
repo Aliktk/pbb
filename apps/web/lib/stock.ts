@@ -24,11 +24,12 @@ interface RawStock {
 }
 
 // Per-group available counts, keyed by the group symbol ("O−", "A+", ...). When more than one row
-// maps to the same group (e.g. head office reading several towns), the counts are summed.
-export async function fetchStock(): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    .from('stock_levels')
-    .select('bloodGroup,rhFactor,unitsAvailable,townId');
+// maps to the same group (e.g. head office reading several towns), the counts are summed. Pass a
+// townId to read a single town's levels; omit it to read everything RLS allows (aggregated).
+export async function fetchStock(townId?: string): Promise<Record<string, number>> {
+  let query = supabase.from('stock_levels').select('bloodGroup,rhFactor,unitsAvailable,townId');
+  if (townId) query = query.eq('townId', townId);
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as unknown as RawStock[];
   const byGroup: Record<string, number> = {};
@@ -60,5 +61,24 @@ export async function upsertStock(input: UpsertStockInput): Promise<void> {
       },
       { onConflict: 'townId,bloodGroup,rhFactor' },
     );
+  if (error) throw new Error(error.message);
+}
+
+// Save every group's available units for one town in a single upsert. Same (townId, bloodGroup,
+// rhFactor) conflict target as upsertStock, so re-saving overwrites counts instead of duplicating.
+export async function saveStockLevels(
+  townId: string,
+  items: ReadonlyArray<{ bloodGroup: string; rhFactor: string; unitsAvailable: number }>,
+): Promise<void> {
+  if (items.length === 0) return;
+  const rows = items.map((item) => ({
+    townId,
+    bloodGroup: item.bloodGroup,
+    rhFactor: item.rhFactor,
+    unitsAvailable: item.unitsAvailable,
+  }));
+  const { error } = await supabase
+    .from('stock_levels')
+    .upsert(rows, { onConflict: 'townId,bloodGroup,rhFactor' });
   if (error) throw new Error(error.message);
 }

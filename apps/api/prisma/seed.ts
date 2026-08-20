@@ -8,6 +8,19 @@
  */
 import { PrismaClient, BloodGroup, RhFactor, ScreeningResult, UserStatus } from '@prisma/client';
 
+// SAFETY GUARD: this file seeds ~200 FAKE donors and demo offices for the legacy Prisma/NestJS
+// database. Production runs on Supabase (see supabase/migrations/0000_init.sql), which seeds only
+// the single super-admin. This fixture must never touch a real database. It refuses to run unless
+// PBB_DEV_FIXTURES=1 is explicitly set, so `pnpm db:seed` cannot accidentally inject test data.
+if (process.env.PBB_DEV_FIXTURES !== '1') {
+  // eslint-disable-next-line no-console
+  console.error(
+    'Refusing to run the dev fixture seed. It creates ~200 FAKE donors and is for local dev only.\n' +
+      'Set PBB_DEV_FIXTURES=1 to run it against a throwaway local database. Never run against production.',
+  );
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 const DAY = 24 * 60 * 60 * 1000;

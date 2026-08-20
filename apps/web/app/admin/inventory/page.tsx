@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { css } from '../../../lib/style';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
-import { TOWNS } from '../../../lib/nav';
 import { CustomSelect } from '../../../components/CustomSelect';
-import { api } from '../../../lib/api';
+import { fetchStock, saveStockLevels } from '../../../lib/stock';
+import { fetchTowns, type Town } from '../../../lib/towns';
+import { splitGroup } from '../../../lib/bloodGroup';
 
 function bgTag(g: string) {
   return <span className={`abg${g.includes('−') ? ' r' : ''}`}>{g}</span>;
@@ -41,65 +42,35 @@ interface StockBox {
   s: CoverClass;
 }
 
-interface ApiStockRow {
-  branchId: string;
-  bloodGroup: string;
-  rhFactor: string;
-  unitsAvailable: number;
-  branch: { id: string; town: { name: string } };
-}
-
-interface BranchOption {
-  id: string;
-  name: string;
-}
-
 export default function AdminInventory() {
-  const [branches, setBranches] = useState<BranchOption[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
+  const [towns, setTowns] = useState<Town[]>([]);
+  const [selectedTownId, setSelectedTownId] = useState<string>('all');
   const [stock, setStock] = useState<StockBox[]>(
     STOCK_ORDER.map((g) => ({ g, n: 0, s: 'cr' })),
   );
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Load branch list from API
+  // Load the town list straight from Supabase (RLS-scoped) for the scope selector.
   useEffect(() => {
-    api
-      .get<{ data: Array<{ id: string; town: { name: string } }> }>('/branches')
-      .then((res) => {
-        if (res && res.data && res.data.length > 0) {
-          const list = res.data.map((b) => ({
-            id: b.id,
-            name: `${b.town.name} Branch`,
-          }));
-          setBranches(list);
-        }
-      })
-      .catch(() => {});
+    fetchTowns()
+      .then(setTowns)
+      .catch(() => setTowns([]));
   }, []);
 
-  // Fetch stock when selectedBranchId changes
+  // Fetch stock when the selected town changes. 'all' reads every town RLS allows (aggregated).
   useEffect(() => {
-    if (!selectedBranchId) return;
+    if (!selectedTownId) return;
     let alive = true;
     setLoading(true);
-    const endpoint = selectedBranchId === 'all' ? '/stock' : `/stock?branchId=${selectedBranchId}`;
-    api
-      .get<{ data: ApiStockRow[] }>(endpoint)
-      .then((res) => {
+    fetchStock(selectedTownId === 'all' ? undefined : selectedTownId)
+      .then((byGroup) => {
         if (!alive) return;
-        const map: Record<string, number> = { 'O+': 0, 'O−': 0, 'A+': 0, 'A−': 0, 'B+': 0, 'B−': 0, 'AB+': 0, 'AB−': 0 };
-        if (res && res.data) {
-          res.data.forEach((row) => {
-            const sign = row.rhFactor === 'POSITIVE' ? '+' : '−';
-            const key = `${row.bloodGroup}${sign}`;
-            map[key] = (map[key] || 0) + row.unitsAvailable;
-          });
-        }
-        setStock(STOCK_ORDER.map((g) => ({ g, n: map[g] || 0, s: coverClass(g, map[g] || 0) })));
+        setStock(STOCK_ORDER.map((g) => ({ g, n: byGroup[g] || 0, s: coverClass(g, byGroup[g] || 0) })));
       })
-      .catch(() => {})
+      .catch(() => {
+        if (alive) setStock(STOCK_ORDER.map((g) => ({ g, n: 0, s: coverClass(g, 0) })));
+      })
       .finally(() => {
         if (alive) setLoading(false);
       });
@@ -107,11 +78,11 @@ export default function AdminInventory() {
     return () => {
       alive = false;
     };
-  }, [selectedBranchId]);
+  }, [selectedTownId]);
 
   function adjust(g: string, delta: number) {
-    if (selectedBranchId === 'all') {
-      showToast('Select a specific branch to modify inventory levels.');
+    if (selectedTownId === 'all') {
+      showToast('Select a specific town to modify inventory levels.');
       return;
     }
     setStock((prev) =>
@@ -124,8 +95,8 @@ export default function AdminInventory() {
   }
 
   function setCountDirectly(g: string, value: string) {
-    if (selectedBranchId === 'all') {
-      showToast('Select a specific branch to modify inventory levels.');
+    if (selectedTownId === 'all') {
+      showToast('Select a specific town to modify inventory levels.');
       return;
     }
     const num = Math.max(0, parseInt(value, 10) || 0);
@@ -135,32 +106,23 @@ export default function AdminInventory() {
   }
 
   async function handleSaveInventory() {
-    if (!selectedBranchId || selectedBranchId === 'all') {
-      showToast('Please select a specific branch to save inventory changes.');
+    if (!selectedTownId || selectedTownId === 'all') {
+      showToast('Please select a specific town to save inventory changes.');
       return;
     }
     setSaving(true);
     try {
       const items = stock.map((item) => {
-        const bloodGroup = item.g.slice(0, -1); // e.g. 'O'
-        const sign = item.g.slice(-1); // '+' or '−'
-        const rhFactor = sign === '+' ? 'POSITIVE' : 'NEGATIVE';
-        return {
-          bloodGroup,
-          rhFactor,
-          unitsAvailable: item.n,
-        };
+        const { bloodGroup, rhFactor } = splitGroup(item.g);
+        return { bloodGroup, rhFactor, unitsAvailable: item.n };
       });
 
-      await api.patch('/stock/bulk', {
-        branchId: selectedBranchId,
-        items,
-      });
+      await saveStockLevels(selectedTownId, items);
 
-      const bName = branches.find((b) => b.id === selectedBranchId)?.name || 'Branch';
-      showToast(`Inventory saved successfully for ${bName}!`);
-    } catch {
-      showToast('Inventory saved successfully.');
+      const tName = towns.find((t) => t.id === selectedTownId)?.name || 'town';
+      showToast(`Inventory saved successfully for ${tName}.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not save inventory. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -170,22 +132,22 @@ export default function AdminInventory() {
   const criticalCount = stock.filter((item) => item.s === 'cr').length;
   const lowCount = stock.filter((item) => item.s === 'lo').length;
 
-  const branchOptions = [
-    { value: 'all', label: 'All Branches' },
-    ...branches.map((b) => ({ value: b.id, label: b.name })),
+  const townOptions = [
+    { value: 'all', label: 'All Towns' },
+    ...towns.map((t) => ({ value: t.id, label: t.name })),
   ];
-  const selectedBranchName = selectedBranchId === 'all'
-    ? 'All Network Branches'
-    : branches.find((b) => b.id === selectedBranchId)?.name || 'Central Branch';
+  const selectedTownName = selectedTownId === 'all'
+    ? 'All Network Towns'
+    : towns.find((t) => t.id === selectedTownId)?.name || 'Selected town';
 
   const actions = (
     <button
       type="button"
       className="btn btn-p btn-s"
       onClick={handleSaveInventory}
-      disabled={saving || selectedBranchId === 'all'}
-      title={selectedBranchId === 'all' ? 'Select a specific branch to edit inventory' : 'Save Inventory'}
-      style={selectedBranchId === 'all' ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+      disabled={saving || selectedTownId === 'all'}
+      title={selectedTownId === 'all' ? 'Select a specific town to edit inventory' : 'Save Inventory'}
+      style={selectedTownId === 'all' ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
     >
       {saving ? 'Saving...' : 'Save Inventory'}
     </button>
@@ -195,7 +157,7 @@ export default function AdminInventory() {
     <AdminShell
       view="inventory"
       title="Inventory"
-      subtitle={`${selectedBranchName} · Live levels`}
+      subtitle={`${selectedTownName} · Live levels`}
       actions={actions}
     >
       {/* Top KPI Metric Cards */}
@@ -221,17 +183,17 @@ export default function AdminInventory() {
       {/* Filter / Branch Bar */}
       <div className="afilters" style={{ alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
-          <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mid)' }}>Branch Scope:</span>
+          <span style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--mid)' }}>Town Scope:</span>
           <div style={{ minWidth: '240px' }}>
             <CustomSelect
-              name="branch"
-              options={branchOptions}
-              value={selectedBranchId}
-              onChange={(val) => setSelectedBranchId(val)}
+              name="town"
+              options={townOptions}
+              value={selectedTownId}
+              onChange={(val) => setSelectedTownId(val)}
             />
           </div>
         </div>
-        {selectedBranchId === 'all' ? (
+        {selectedTownId === 'all' ? (
           <span className="tag ok" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '4px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 700 }}>
             🌐 Overall Network Aggregate View
           </span>

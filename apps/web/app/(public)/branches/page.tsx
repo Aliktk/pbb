@@ -5,22 +5,15 @@ import { ImageSlot } from '../../../components/ImageSlot';
 import { css } from '../../../lib/style';
 import { TOWNS } from '../../../lib/nav';
 import { IMG } from '../../../lib/images';
-import { fetchOffices, type Office } from '../../../lib/offices';
+import { fetchOffices, FALLBACK_OFFICES, type Office } from '../../../lib/offices';
 
 // Our branches - office contact details come from the database (towns table, migration 0006), so
-// what each office edits in the admin shows here at once. A static list is used as a fallback while
-// loading or if the database cannot be reached, so the page is never empty.
-const FALLBACK: Office[] = [
-  { id: 'quetta', name: 'Quetta', isHeadOffice: true, address: 'Zainab Chamber, Shara-e-Adalat, near Quetta Press Club', phones: ['081-2836820', '081-2839500'], email: null, bank: null, hasAmbulance: true },
-  { id: 'loralai', name: 'Loralai', isHeadOffice: false, address: 'Sayed Abdul Qadir Road', phones: ['0824-662066'], email: null, bank: 'UBL Loralai · A/C 2101-1', hasAmbulance: false },
-  { id: 'pishin', name: 'Pishin', isHeadOffice: false, address: 'Band Road', phones: ['0826-421288'], email: null, bank: 'NBP Pishin · A/C 4589-93', hasAmbulance: false },
-  { id: 'zhob', name: 'Zhob', isHeadOffice: false, address: 'Sharbat Khan Road', phones: ['0822-413902'], email: null, bank: 'Bank Islami Zhob · A/C 1048-0088676-0001', hasAmbulance: false },
-  { id: 'chaman', name: 'Chaman', isHeadOffice: false, address: 'Khushi Muhammad Road, District Chaman', phones: ['0333-3151503', '0826-612281'], email: 'pbb.chaman@gmail.com', bank: null, hasAmbulance: false },
-  { id: 'muslimbagh', name: 'Muslim Bagh', isHeadOffice: false, address: 'Aryan Market, Muslim Bagh Bazar', phones: [], email: null, bank: null, hasAmbulance: false },
-];
+// what each office edits in the admin shows here at once. The static FALLBACK_OFFICES list (shared
+// with the /branch/[id] detail page) is used while loading or if the database cannot be reached, so
+// the page is never empty.
 
 export default function Branches() {
-  const [offices, setOffices] = useState<Office[]>(FALLBACK);
+  const [offices, setOffices] = useState<Office[]>(FALLBACK_OFFICES);
 
   useEffect(() => {
     let alive = true;
