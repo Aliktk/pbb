@@ -867,12 +867,12 @@ grant insert on public.towns to authenticated;
 
 drop policy if exists towns_manage on public.towns;
 create policy towns_manage on public.towns for update to authenticated
-  using (public.is_head() or (public.has_role('manager') and id = public.current_town_id()))
-  with check (public.is_head() or (public.has_role('manager') and id = public.current_town_id()));
+  using ((select public.is_head()) or ((select public.has_role('manager')) and id = (select public.current_town_id())))
+  with check ((select public.is_head()) or ((select public.has_role('manager')) and id = (select public.current_town_id())));
 
 drop policy if exists towns_insert on public.towns;
 create policy towns_insert on public.towns for insert to authenticated
-  with check (public.is_head() and coalesce(is_head_office, false) = false);
+  with check ((select public.is_head()) and coalesce(is_head_office, false) = false);
 
 -- ── profiles: scoped read (self / head / manager-own-town), management, self name edit.
 -- Column-level UPDATE grant. `name` is self-editable by anyone; the account-management
@@ -886,36 +886,36 @@ drop policy if exists profiles_self_read on public.profiles;
 drop policy if exists profiles_scope_read on public.profiles;
 create policy profiles_scope_read on public.profiles for select to authenticated
   using (
-    id = auth.uid()
-    or public.is_head()
-    or (public.has_role('manager') and town_id = public.current_town_id())
+    id = (select auth.uid())
+    or (select public.is_head())
+    or ((select public.has_role('manager')) and town_id = (select public.current_town_id()))
   );
 
 drop policy if exists profiles_manage on public.profiles;
 create policy profiles_manage on public.profiles for update to authenticated
   using (
-    public.is_head()
-    or (public.has_role('manager') and town_id = public.current_town_id())
+    (select public.is_head())
+    or ((select public.has_role('manager')) and town_id = (select public.current_town_id()))
   )
   with check (
-    public.is_head()
+    (select public.is_head())
     or (
-      public.has_role('manager')
-      and town_id = public.current_town_id()
+      (select public.has_role('manager'))
+      and town_id = (select public.current_town_id())
       and role_key in ('coordinator', 'clerk', 'lab', 'volunteer', 'viewer')
     )
   );
 
 drop policy if exists profiles_self_update on public.profiles;
 create policy profiles_self_update on public.profiles for update to authenticated
-  using (id = auth.uid())
+  using (id = (select auth.uid()))
   with check (
-    id = auth.uid()
+    id = (select auth.uid())
     -- self-edit may only change `name`; the account-management columns must match the
     -- row's current values, so a user cannot promote themselves or move their own town.
-    and role_key  = (select p.role_key  from public.profiles p where p.id = auth.uid())
-    and is_active = (select p.is_active from public.profiles p where p.id = auth.uid())
-    and town_id is not distinct from (select p.town_id from public.profiles p where p.id = auth.uid())
+    and role_key  = (select p.role_key  from public.profiles p where p.id = (select auth.uid()))
+    and is_active = (select p.is_active from public.profiles p where p.id = (select auth.uid()))
+    and town_id is not distinct from (select p.town_id from public.profiles p where p.id = (select auth.uid()))
   );
 
 -- ── account_invites: who may invite whom (head any; manager operational roles, own town).
@@ -923,46 +923,46 @@ grant select, insert, delete on public.account_invites to authenticated;
 
 drop policy if exists invites_read on public.account_invites;
 create policy invites_read on public.account_invites for select to authenticated
-  using (public.is_head() or (public.has_role('manager') and town_id = public.current_town_id()));
+  using ((select public.is_head()) or ((select public.has_role('manager')) and town_id = (select public.current_town_id())));
 
 drop policy if exists invites_create on public.account_invites;
 create policy invites_create on public.account_invites for insert to authenticated
   with check (
-    public.is_head()
+    (select public.is_head())
     or (
-      public.has_role('manager')
-      and town_id = public.current_town_id()
+      (select public.has_role('manager'))
+      and town_id = (select public.current_town_id())
       and role_key in ('coordinator', 'clerk', 'lab', 'volunteer')
     )
   );
 
 drop policy if exists invites_delete on public.account_invites;
 create policy invites_delete on public.account_invites for delete to authenticated
-  using (public.is_head() or (public.has_role('manager') and town_id = public.current_town_id()));
+  using ((select public.is_head()) or ((select public.has_role('manager')) and town_id = (select public.current_town_id())));
 
 -- ── donors: staff only, confined to their town; only some roles may write.
 grant select, insert, update on public.donors to authenticated;
 drop policy if exists donors_read on public.donors;
 create policy donors_read on public.donors for select to authenticated
-  using (public.is_staff() and "deletedAt" is null and public.in_scope("townId"));
+  using ((select public.is_staff()) and "deletedAt" is null and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists donors_write on public.donors;
 create policy donors_write on public.donors for insert to authenticated
-  with check (public.has_role('head','manager','clerk') and public.in_scope("townId"));
+  with check ((select public.has_role('head','manager','clerk')) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists donors_update on public.donors;
 create policy donors_update on public.donors for update to authenticated
-  using (public.has_role('head','manager','clerk') and public.in_scope("townId"))
-  with check (public.in_scope("townId"));
+  using ((select public.has_role('head','manager','clerk')) and ((select public.is_head()) or "townId" = (select public.current_town_id())))
+  with check (((select public.is_head()) or "townId" = (select public.current_town_id())));
 
 -- ── screenings: staff read/write for donors in their scope.
 grant select, insert on public.screenings to authenticated;
 drop policy if exists screenings_read on public.screenings;
 create policy screenings_read on public.screenings for select to authenticated
-  using (public.is_staff() and exists (
-    select 1 from public.donors d where d.id = screenings."donorId" and public.in_scope(d."townId")));
+  using ((select public.is_staff()) and exists (
+    select 1 from public.donors d where d.id = screenings."donorId" and ((select public.is_head()) or d."townId" = (select public.current_town_id()))));
 drop policy if exists screenings_write on public.screenings;
 create policy screenings_write on public.screenings for insert to authenticated
-  with check (public.has_role('head','manager','lab') and exists (
-    select 1 from public.donors d where d.id = screenings."donorId" and public.in_scope(d."townId")));
+  with check ((select public.has_role('head','manager','lab')) and exists (
+    select 1 from public.donors d where d.id = screenings."donorId" and ((select public.is_head()) or d."townId" = (select public.current_town_id()))));
 
 -- ── blood_requests: public may CREATE (website form); staff read/act, scoped.
 grant select, insert, update on public.blood_requests to anon, authenticated;
@@ -971,85 +971,85 @@ create policy requests_public_insert on public.blood_requests for insert to anon
   with check (status = 'OPEN' and source = 'PUBLIC_FORM' and "unitsNeeded" between 1 and 20);
 drop policy if exists requests_staff_read on public.blood_requests;
 create policy requests_staff_read on public.blood_requests for select to authenticated
-  using (public.is_staff() and public.in_scope("townId"));
+  using ((select public.is_staff()) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists requests_staff_update on public.blood_requests;
 create policy requests_staff_update on public.blood_requests for update to authenticated
-  using (public.has_role('head','manager','coordinator') and public.in_scope("townId"))
-  with check (public.in_scope("townId"));
+  using ((select public.has_role('head','manager','coordinator')) and ((select public.is_head()) or "townId" = (select public.current_town_id())))
+  with check (((select public.is_head()) or "townId" = (select public.current_town_id())));
 
 -- ── donations: read within scope; write for operating roles, in the caller's town.
 grant select, insert, update on public.donations to authenticated;
 drop policy if exists donations_read on public.donations;
 create policy donations_read on public.donations for select to authenticated
-  using (public.is_head() or (public.is_staff() and public.in_scope("townId")));
+  using ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or "townId" = (select public.current_town_id()))));
 drop policy if exists donations_write on public.donations;
 create policy donations_write on public.donations for insert to authenticated
-  with check (public.has_role('head','manager','clerk','lab') and public.in_scope("townId"));
+  with check ((select public.has_role('head','manager','clerk','lab')) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists donations_update on public.donations;
 create policy donations_update on public.donations for update to authenticated
-  using (public.has_role('head','manager','clerk','lab') and public.in_scope("townId"))
-  with check (public.in_scope("townId"));
+  using ((select public.has_role('head','manager','clerk','lab')) and ((select public.is_head()) or "townId" = (select public.current_town_id())))
+  with check (((select public.is_head()) or "townId" = (select public.current_town_id())));
 
 -- ── stock_levels: read within scope; write for operating roles, in the caller's town.
 grant select, insert, update on public.stock_levels to authenticated;
 drop policy if exists stock_read on public.stock_levels;
 create policy stock_read on public.stock_levels for select to authenticated
-  using (public.is_head() or (public.is_staff() and public.in_scope("townId")));
+  using ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or "townId" = (select public.current_town_id()))));
 drop policy if exists stock_write on public.stock_levels;
 create policy stock_write on public.stock_levels for insert to authenticated
-  with check (public.has_role('head','manager','clerk','lab') and public.in_scope("townId"));
+  with check ((select public.has_role('head','manager','clerk','lab')) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists stock_update on public.stock_levels;
 create policy stock_update on public.stock_levels for update to authenticated
-  using (public.has_role('head','manager','clerk','lab') and public.in_scope("townId"))
-  with check (public.in_scope("townId"));
+  using ((select public.has_role('head','manager','clerk','lab')) and ((select public.is_head()) or "townId" = (select public.current_town_id())))
+  with check (((select public.is_head()) or "townId" = (select public.current_town_id())));
 
 -- ── thalassemia_patients: staff read in town; head/manager/clerk/lab write in town.
 grant select, insert, update, delete on public.thalassemia_patients to authenticated;
 drop policy if exists thalassemia_read on public.thalassemia_patients;
 create policy thalassemia_read on public.thalassemia_patients for select to authenticated
-  using (public.is_head() or (public.is_staff() and public.in_scope("townId")));
+  using ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or "townId" = (select public.current_town_id()))));
 drop policy if exists thalassemia_insert on public.thalassemia_patients;
 create policy thalassemia_insert on public.thalassemia_patients for insert to authenticated
-  with check (public.has_role('head','manager','clerk','lab') and public.in_scope("townId"));
+  with check ((select public.has_role('head','manager','clerk','lab')) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists thalassemia_update on public.thalassemia_patients;
 create policy thalassemia_update on public.thalassemia_patients for update to authenticated
-  using (public.has_role('head','manager','clerk','lab') and public.in_scope("townId"))
-  with check (public.in_scope("townId"));
+  using ((select public.has_role('head','manager','clerk','lab')) and ((select public.is_head()) or "townId" = (select public.current_town_id())))
+  with check (((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists thalassemia_delete on public.thalassemia_patients;
 create policy thalassemia_delete on public.thalassemia_patients for delete to authenticated
-  using (public.has_role('head','manager','clerk','lab') and public.in_scope("townId"));
+  using ((select public.has_role('head','manager','clerk','lab')) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 
 -- ── volunteers: staff read in scope; run-the-programme roles write in their town.
 grant select, insert, update, delete on public.volunteers to authenticated;
 drop policy if exists volunteers_read on public.volunteers;
 create policy volunteers_read on public.volunteers for select to authenticated
-  using (public.is_head() or (public.is_staff() and public.in_scope("townId")));
+  using ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or "townId" = (select public.current_town_id()))));
 drop policy if exists volunteers_write on public.volunteers;
 create policy volunteers_write on public.volunteers for insert to authenticated
-  with check (public.has_role('head','manager','clerk','volunteer') and public.in_scope("townId"));
+  with check ((select public.has_role('head','manager','clerk','volunteer')) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists volunteers_update on public.volunteers;
 create policy volunteers_update on public.volunteers for update to authenticated
-  using (public.has_role('head','manager','clerk','volunteer') and public.in_scope("townId"))
-  with check (public.in_scope("townId"));
+  using ((select public.has_role('head','manager','clerk','volunteer')) and ((select public.is_head()) or "townId" = (select public.current_town_id())))
+  with check (((select public.is_head()) or "townId" = (select public.current_town_id())));
 drop policy if exists volunteers_delete on public.volunteers;
 create policy volunteers_delete on public.volunteers for delete to authenticated
-  using (public.has_role('head','manager','clerk','volunteer') and public.in_scope("townId"));
+  using ((select public.has_role('head','manager','clerk','volunteer')) and ((select public.is_head()) or "townId" = (select public.current_town_id())));
 
 -- ── partners: ORG-WIDE (no town scoping). Read = any staff; write = head/manager.
 grant select, insert, update, delete on public.partners to authenticated;
 drop policy if exists partners_read on public.partners;
 create policy partners_read on public.partners for select to authenticated
-  using (public.is_staff());
+  using ((select public.is_staff()));
 drop policy if exists partners_write on public.partners;
 create policy partners_write on public.partners for insert to authenticated
-  with check (public.has_role('head', 'manager'));
+  with check ((select public.has_role('head', 'manager')));
 drop policy if exists partners_update on public.partners;
 create policy partners_update on public.partners for update to authenticated
-  using (public.has_role('head', 'manager'))
-  with check (public.has_role('head', 'manager'));
+  using ((select public.has_role('head', 'manager')))
+  with check ((select public.has_role('head', 'manager')));
 drop policy if exists partners_delete on public.partners;
 create policy partners_delete on public.partners for delete to authenticated
-  using (public.has_role('head', 'manager'));
+  using ((select public.has_role('head', 'manager')));
 
 -- ── contact_messages: public may INSERT (always NEW); staff read/answer in office.
 grant select, insert, update on public.contact_messages to anon, authenticated;
@@ -1058,21 +1058,21 @@ create policy messages_public_insert on public.contact_messages for insert to an
   with check (status = 'NEW');
 drop policy if exists messages_staff_read on public.contact_messages;
 create policy messages_staff_read on public.contact_messages for select to authenticated
-  using (public.is_head() or (public.is_staff() and town_id = public.current_town_id()));
+  using ((select public.is_head()) or ((select public.is_staff()) and town_id = (select public.current_town_id())));
 drop policy if exists messages_staff_update on public.contact_messages;
 create policy messages_staff_update on public.contact_messages for update to authenticated
-  using (public.is_head() or (public.is_staff() and town_id = public.current_town_id()))
-  with check (public.is_head() or (public.is_staff() and town_id = public.current_town_id()));
+  using ((select public.is_head()) or ((select public.is_staff()) and town_id = (select public.current_town_id())))
+  with check ((select public.is_head()) or ((select public.is_staff()) and town_id = (select public.current_town_id())));
 
 -- ── service_charges: every staff reads the price list; only head office changes it.
 grant select on public.service_charges to authenticated;
 grant insert, update, delete on public.service_charges to authenticated;
 drop policy if exists charges_read on public.service_charges;
 create policy charges_read on public.service_charges for select to authenticated
-  using (public.is_staff());
+  using ((select public.is_staff()));
 drop policy if exists charges_write on public.service_charges;
 create policy charges_write on public.service_charges for all to authenticated
-  using (public.is_head()) with check (public.is_head());
+  using ((select public.is_head())) with check ((select public.is_head()));
 
 -- ── invoices: office-scoped. Column-level INSERT excludes money/audit columns so
 --    they fall to defaults / triggers (server-authoritative pricing, INV finance).
@@ -1081,14 +1081,14 @@ grant insert (town_id, customer_name, customer_phone, status, is_waived, notes)
   on public.invoices to authenticated;
 drop policy if exists invoices_read on public.invoices;
 create policy invoices_read on public.invoices for select to authenticated
-  using (public.is_head() or (public.is_staff() and public.in_scope(town_id)));
+  using ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or town_id = (select public.current_town_id()))));
 drop policy if exists invoices_write on public.invoices;
 create policy invoices_write on public.invoices for insert to authenticated
-  with check (public.has_role('head','manager','clerk') and public.in_scope(town_id));
+  with check ((select public.has_role('head','manager','clerk')) and ((select public.is_head()) or town_id = (select public.current_town_id())));
 drop policy if exists invoices_update on public.invoices;
 create policy invoices_update on public.invoices for update to authenticated
-  using (public.has_role('head','manager','clerk') and public.in_scope(town_id))
-  with check (public.in_scope(town_id));
+  using ((select public.has_role('head','manager','clerk')) and ((select public.is_head()) or town_id = (select public.current_town_id())))
+  with check (((select public.is_head()) or town_id = (select public.current_town_id())));
 
 -- ── invoice_items: follow their invoice's scope. Column-level INSERT excludes
 --    unit_price_pkr / amount_pkr (server-priced by trigger).
@@ -1098,42 +1098,42 @@ grant insert (invoice_id, service_charge_id, description, qty)
 drop policy if exists invoice_items_read on public.invoice_items;
 create policy invoice_items_read on public.invoice_items for select to authenticated
   using (exists (select 1 from public.invoices i where i.id = invoice_items.invoice_id
-                 and (public.is_head() or (public.is_staff() and public.in_scope(i.town_id)))));
+                 and ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or i.town_id = (select public.current_town_id()))))));
 drop policy if exists invoice_items_write on public.invoice_items;
 create policy invoice_items_write on public.invoice_items for all to authenticated
   using (exists (select 1 from public.invoices i where i.id = invoice_items.invoice_id
-                 and public.has_role('head','manager','clerk') and public.in_scope(i.town_id)))
+                 and (select public.has_role('head','manager','clerk')) and ((select public.is_head()) or i.town_id = (select public.current_town_id()))))
   with check (exists (select 1 from public.invoices i where i.id = invoice_items.invoice_id
-                 and public.has_role('head','manager','clerk') and public.in_scope(i.town_id)));
+                 and (select public.has_role('head','manager','clerk')) and ((select public.is_head()) or i.town_id = (select public.current_town_id()))));
 
 -- ── financial_donations: office-scoped. Column-level INSERT excludes received_by
---    (server-set to auth.uid()).
+--    (server-set to (select auth.uid())).
 grant select on public.financial_donations to authenticated;
 grant insert (town_id, source, amount_pkr, method, note)
   on public.financial_donations to authenticated;
 drop policy if exists donations_read on public.financial_donations;
 create policy donations_read on public.financial_donations for select to authenticated
-  using (public.is_head() or (public.is_staff() and public.in_scope(town_id)));
+  using ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or town_id = (select public.current_town_id()))));
 drop policy if exists donations_write on public.financial_donations;
 create policy donations_write on public.financial_donations for insert to authenticated
-  with check (public.has_role('head','manager','clerk') and public.in_scope(town_id));
+  with check ((select public.has_role('head','manager','clerk')) and ((select public.is_head()) or town_id = (select public.current_town_id())));
 
 -- ── yearly_intake: everyone reads the public figure; only head office records it.
 grant select on public.yearly_intake to authenticated;
 grant insert, update on public.yearly_intake to authenticated;
 drop policy if exists yearly_read on public.yearly_intake;
 create policy yearly_read on public.yearly_intake for select to authenticated
-  using (public.is_staff());
+  using ((select public.is_staff()));
 drop policy if exists yearly_write on public.yearly_intake;
 create policy yearly_write on public.yearly_intake for all to authenticated
-  using (public.is_head()) with check (public.is_head());
+  using ((select public.is_head())) with check ((select public.is_head()));
 
 -- ── audit_log: READ-ONLY exposure (append-only). Head reads all; scoped staff own
 --    town. Deliberately NO insert/update/delete policy — only the service role writes.
 grant select on public.audit_log to authenticated;
 drop policy if exists audit_log_read on public.audit_log;
 create policy audit_log_read on public.audit_log for select to authenticated
-  using (public.is_head() or (public.is_staff() and public.in_scope("townId")));
+  using ((select public.is_head()) or ((select public.is_staff()) and ((select public.is_head()) or "townId" = (select public.current_town_id()))));
 
 -- Every other public table (users, roles, tokens, invitations, donor_otps, events,
 -- media_assets, pages, page_versions, messages, notification_logs, announcements,

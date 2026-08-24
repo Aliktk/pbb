@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LoginShell } from '../../../components/admin/LoginShell';
 import { useAuth } from '../../../lib/auth';
-import { ApiError } from '../../../lib/api';
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -24,7 +23,7 @@ export default function AdminLogin() {
       await login(email.trim(), pass);
       router.replace('/admin/overview');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Invalid email or password. Please check your credentials.');
+      setError(err instanceof Error ? err.message : 'Invalid email or password. Please check your credentials.');
       setBusy(false);
     }
   }

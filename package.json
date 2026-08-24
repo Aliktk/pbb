@@ -14,15 +14,8 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint .",
     "test:unit": "pnpm -r test:unit",
-    "test:api": "pnpm --filter @pbb/api test:api",
     "test:e2e": "pnpm --filter @pbb/web test:e2e",
-    "test:rbac": "pnpm --filter @pbb/api test:rbac",
-    "test:invariants": "node scripts/invariants/run.mjs",
-    "verify": "node scripts/harness/verify.mjs",
-    "db:migrate": "pnpm --filter @pbb/api prisma migrate dev",
-    "db:reset": "pnpm --filter @pbb/api prisma migrate reset --force",
-    "db:seed": "pnpm --filter @pbb/api db:seed",
-    "db:studio": "pnpm --filter @pbb/api prisma studio",
+    "check:supabase": "node scripts/check-supabase.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md}\""
   },
   "devDependencies": {
