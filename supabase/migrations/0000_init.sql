@@ -9,7 +9,7 @@
 -- the Supabase-direct (BCP / PostgREST + RLS) layer.
 --
 -- Model: Supabase Auth is the identity provider. A `profiles` row maps each auth
--- user to a role_key + town. The browser talks straight to PostgREST with the anon
+-- user to a role_key + town. The browser talks straight to PostgREST with the anoNn
 -- key; Row Level Security (default-deny on every public table) is what makes that
 -- safe — it enforces every rule the old NestJS API used to.
 --
@@ -711,6 +711,23 @@ create table if not exists public.yearly_intake (
   updated_by  uuid references auth.users(id) default auth.uid(),
   updated_at  timestamptz not null default now()
 );
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 7b. PERFORMANCE INDEXES FOR RLS SCOPE + FK COLUMNS
+--     Every town-scoped RLS policy filters on the town key, and joins/child
+--     lookups hit FK columns. Without these, in_scope()/join checks force a
+--     sequential scan per authenticated request. All idempotent.
+-- ─────────────────────────────────────────────────────────────────────────
+create index if not exists "donations_townId_idx"        on "donations" ("townId");
+create index if not exists "stock_levels_townId_idx"      on "stock_levels" ("townId");
+create index if not exists invoices_town_id_idx           on public.invoices (town_id);
+create index if not exists financial_donations_town_id_idx on public.financial_donations (town_id);
+create index if not exists invoice_items_invoice_id_idx   on public.invoice_items (invoice_id);
+create index if not exists invoice_items_charge_id_idx    on public.invoice_items (service_charge_id);
+-- MR-number uniqueness within a town for the town-based insert path (branchId NULL),
+-- since the legacy (branchId, mrNo) unique index is vacuous when branchId is NULL.
+create unique index if not exists "donors_townId_mrNo_key"
+  on "donors" ("townId", "mrNo") where "branchId" is null;
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- 8. RLS HELPER + SUPPORT FUNCTIONS
