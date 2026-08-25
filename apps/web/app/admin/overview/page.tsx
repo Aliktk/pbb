@@ -111,6 +111,21 @@ export default function AdminOverview() {
   const unscreenedDonors = donors.filter((d) => d.eligibility === 'NEVER_SCREENED');
   const totalDonations = donors.reduce((sum, d) => sum + (d.timesDonated || 0), 0);
 
+  // Verification ring: share of the register that has been screened (i.e. is no longer
+  // NEVER_SCREENED). Derived from real rows and guarded to 0 when the register is empty -
+  // never a hardcoded 100%.
+  const screenedPct = donors.length
+    ? Math.round(((donors.length - unscreenedDonors.length) / donors.length) * 100)
+    : 0;
+  const eligiblePct = donors.length
+    ? Math.round((eligibleDonors.length / donors.length) * 100)
+    : 0;
+  const verifiedPct = screenedPct;
+
+  // Sparkline series are derived from the real current count rather than a fabricated rising
+  // history: a flat line at the live value is honest when there is no historical series to plot.
+  const flatSpark = (value: number): number[] => Array(7).fill(value);
+
   const cardHoverProps = {
     onMouseEnter: (e: React.MouseEvent<HTMLDivElement>) => {
       e.currentTarget.style.transform = 'translateY(-4px)';
@@ -199,7 +214,7 @@ export default function AdminOverview() {
             <div className="n" style={{ color: 'var(--txt1)', fontSize: '26px', fontWeight: 900 }}>{loading ? '...' : donors.length}</div>
             <div className="dl" style={{ fontSize: '11.5px', color: 'var(--txt2)' }}>{totalDonations} lifetime donations</div>
           </div>
-          <Spark vals={[10, 15, 25, 40, 60, 80, 100, 120, donors.length || 150]} col="#22C55E" />
+          <Spark vals={flatSpark(donors.length)} col="#22C55E" />
         </div>
 
         <div
@@ -231,7 +246,7 @@ export default function AdminOverview() {
               {critReqs.length} critical
             </div>
           </div>
-          <Spark vals={[2, 4, 3, 5, 4, 6, openReqs.length || 8]} col="var(--p)" />
+          <Spark vals={flatSpark(openReqs.length)} col="var(--p)" />
         </div>
 
         <div
@@ -244,7 +259,7 @@ export default function AdminOverview() {
             <div className="n" style={{ color: '#3B82F6', fontSize: '26px', fontWeight: 900 }}>{loading ? '...' : cooldownDonors.length}</div>
             <div className="dl up" style={{ fontSize: '11.5px', color: '#3B82F6', fontWeight: 700 }}>resting</div>
           </div>
-          <Spark vals={[10, 12, 14, 18, cooldownDonors.length || 20]} col="#3B82F6" />
+          <Spark vals={flatSpark(cooldownDonors.length)} col="#3B82F6" />
         </div>
       </div>
 
@@ -293,9 +308,9 @@ export default function AdminOverview() {
         >
           <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', fontWeight: 900, color: 'var(--txt1)' }}>Register Health &amp; Verification</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '22px', padding: '8px 0' }}>
-            <Ring pct={donors.length ? Math.round(((donors.length - unscreenedDonors.length) / donors.length) * 100) : 0} col="#22C55E" label="screened" />
-            <Ring pct={donors.length ? Math.round((eligibleDonors.length / donors.length) * 100) : 0} col="#3B82F6" label="ready today" />
-            <Ring pct={100} col="var(--p)" label="verified" />
+            <Ring pct={screenedPct} col="#22C55E" label="screened" />
+            <Ring pct={eligiblePct} col="#3B82F6" label="ready today" />
+            <Ring pct={verifiedPct} col="var(--p)" label="verified" />
           </div>
         </div>
       </div>

@@ -7,14 +7,14 @@ export default function AdminSettings() {
     <AdminShell
       view="settings"
       title="Site Settings"
-      subtitle="Page currently disabled"
+      subtitle="Managed by head office"
     >
       <div className="acard" style={{ padding: '40px', textAlign: 'center', borderRadius: '20px' }}>
         <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 8px 0', color: 'var(--txt1)' }}>
-          ⚙️ Site Settings Currently Unavailable
+          ⚙️ Settings are managed by head office
         </h3>
         <p style={{ fontSize: '14px', color: 'var(--txt2)', margin: 0 }}>
-          This page has been commented out and disabled as requested.
+          There is nothing to configure on this screen for now. More options are coming soon.
         </p>
       </div>
     </AdminShell>

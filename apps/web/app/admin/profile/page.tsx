@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { AdminShell } from '../../../components/admin/AdminShell';
 import { showToast } from '../../../lib/toast';
 import { supabase } from '../../../lib/supabaseClient';
+import { updateAccountName } from '../../../lib/accounts';
 import { useAuth } from '../../../lib/auth';
 import { Icon } from '../../../components/Icon';
 
@@ -95,12 +96,8 @@ export default function AdminProfile() {
 
     setIsSavingProfile(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ name: name.trim() })
-        .eq('id', authUser.id);
-      if (error) throw new Error(error.message);
-
+      // updateAccountName verifies a row was actually updated (no fake success), then we re-read.
+      await updateAccountName(authUser.id, name);
       await refetchUser();
       showToast('Profile name updated.');
     } catch (err: unknown) {

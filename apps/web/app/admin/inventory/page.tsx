@@ -17,6 +17,8 @@ type CoverClass = 'cr' | 'lo' | 'ok';
 
 const DEMAND: Record<string, number> = { 'O−': 38, 'AB−': 14, 'B−': 44, 'A−': 36, 'O+': 210, 'A+': 150, 'B+': 165, 'AB+': 22 };
 const STOCK_ORDER = ['O−', 'AB−', 'B−', 'A−', 'O+', 'A+', 'B+', 'AB+'] as const;
+// Sane upper bound per blood group so a mistyped figure cannot claim an impossible stock level.
+const MAX_BAGS_PER_GROUP = 100000;
 
 function coverClass(g: string, count: number): CoverClass {
   const d = DEMAND[g];
@@ -88,7 +90,7 @@ export default function AdminInventory() {
     setStock((prev) =>
       prev.map((box) => {
         if (box.g !== g) return box;
-        const newCount = Math.max(0, box.n + delta);
+        const newCount = Math.min(MAX_BAGS_PER_GROUP, Math.max(0, box.n + delta));
         return { ...box, n: newCount, s: coverClass(g, newCount) };
       }),
     );
@@ -99,7 +101,7 @@ export default function AdminInventory() {
       showToast('Select a specific town to modify inventory levels.');
       return;
     }
-    const num = Math.max(0, parseInt(value, 10) || 0);
+    const num = Math.min(MAX_BAGS_PER_GROUP, Math.max(0, parseInt(value, 10) || 0));
     setStock((prev) =>
       prev.map((box) => (box.g === g ? { ...box, n: num, s: coverClass(g, num) } : box)),
     );
@@ -205,9 +207,13 @@ export default function AdminInventory() {
       </div>
 
       {/* 8 Blood Group Stock Grid */}
+      {selectedTownId === 'all' && (
+        <p className="ahint" style={css('margin:0 0 12px')}>Select a town to edit levels.</p>
+      )}
       <div className="inv-grid">
         {stock.map(({ g, n, s }) => {
           const pct = coverPercent(g, n);
+          const editingDisabled = selectedTownId === 'all';
           return (
             <div key={g} className={`inv-card ${s}`}>
               <div className="inv-card-head">
@@ -230,6 +236,7 @@ export default function AdminInventory() {
                   className="inv-btn-ctrl"
                   onClick={() => adjust(g, -1)}
                   aria-label={`Decrease ${g} stock`}
+                  disabled={editingDisabled}
                 >
                   −
                 </button>
@@ -239,12 +246,15 @@ export default function AdminInventory() {
                   value={n}
                   onChange={(e) => setCountDirectly(g, e.target.value)}
                   min="0"
+                  max={MAX_BAGS_PER_GROUP}
+                  disabled={editingDisabled}
                 />
                 <button
                   type="button"
                   className="inv-btn-ctrl"
                   onClick={() => adjust(g, 1)}
                   aria-label={`Increase ${g} stock`}
+                  disabled={editingDisabled}
                 >
                   +
                 </button>

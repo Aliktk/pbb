@@ -17,7 +17,16 @@ export interface Submission {
   city: string;
   createdAt: string;
   detail: string;
+  subject: string;
   status: 'NEW' | 'ANSWERED' | 'IN_PROGRESS';
+}
+
+// The contact form has no dedicated subject column, so the chosen "What is this about?" value is
+// carried in the detail body as an "About: <subject>" token. Pull it back out so the inbox can
+// show the operator what the submission was actually about.
+function extractSubject(detail: string): string {
+  const match = detail.match(/About:\s*([^·]+)/i);
+  return match ? match[1].trim() : '';
 }
 
 function agoLabel(isoOrMins: string | number): string {
@@ -45,6 +54,7 @@ function toSubmission(m: InboxMessage): Submission {
     city: '',
     createdAt: m.created_at,
     detail: m.detail || '',
+    subject: extractSubject(m.detail || ''),
     status: m.status === 'ANSWERED' ? 'ANSWERED' : 'NEW',
   };
 }
@@ -270,6 +280,23 @@ function SubmissionSheet({
   onMarkAnswered: (s: Submission) => void;
 }) {
   const isOpen = s !== null;
+
+  // While the detail sheet is open, close it on Escape and lock body scroll so the page behind
+  // does not move. Both are restored on close/unmount.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, onClose]);
+
   return (
     <>
       <div className={`sheetov${isOpen ? ' on' : ''}`} onClick={onClose} />
@@ -300,6 +327,7 @@ function SubmissionSheet({
               <div className="drow"><span>Phone Number</span><b>{s.phone || 'None'}</b></div>
               {s.email ? <div className="drow"><span>Email</span><b className="mono2">{s.email}</b></div> : null}
               <div className="drow"><span>Town / City</span><b>{s.city || 'Not specified'}</b></div>
+              {s.subject ? <div className="drow"><span>Subject</span><b>{s.subject}</b></div> : null}
               <div className="drow"><span>Category</span><b>{s.kind}</b></div>
             </div>
 

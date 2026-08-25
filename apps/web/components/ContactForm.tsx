@@ -29,9 +29,28 @@ export function ContactForm() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const name = String(fd.get('name') ?? '').trim();
+    const phone = String(fd.get('phone') ?? '').trim();
+    const message = String(fd.get('msg') ?? '').trim();
     const town = String(fd.get('city') ?? '').trim();
+
+    // Reject whitespace-only values before they reach the insert, and require the phone to carry
+    // real digits (the whole workflow is calling people back) - never silently store bad data.
+    if (!name) {
+      showToast('Please enter your name.');
+      return;
+    }
+    if (!/\d{7,}/.test(phone.replace(/[\s-]/g, ''))) {
+      showToast('Please enter a valid phone number (at least 7 digits).');
+      return;
+    }
+    if (!message) {
+      showToast('Please enter a message.');
+      return;
+    }
+
     const detail = [
-      String(fd.get('msg') ?? '').trim(),
+      message,
       skills.length ? `Can help with: ${skills.join(', ')}` : '',
       town ? `Town: ${town}` : '',
       `About: ${mode}`,
@@ -40,9 +59,9 @@ export function ContactForm() {
     try {
       await submitContactMessage({
         kind: modeToKind(mode),
-        name: String(fd.get('name') ?? ''),
-        phone: String(fd.get('phone') ?? ''),
-        email: String(fd.get('email') ?? ''),
+        name,
+        phone,
+        email: String(fd.get('email') ?? '').trim(),
         detail,
       });
       setSubmitted(true);

@@ -69,22 +69,32 @@ export async function deleteInvite(email: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function setAccountActive(id: string, isActive: boolean): Promise<void> {
-  const { error } = await supabase.from('profiles').update({ is_active: isActive }).eq('id', id);
+// A profiles UPDATE can return no error yet affect ZERO rows (RLS USING excluded the row, or a
+// grant is missing). Without .select() the caller can't tell — so we select the id back and treat
+// "no rows" as a real failure instead of a fake success.
+function assertUpdated(data: unknown, error: { message: string } | null): void {
   if (error) throw new Error(error.message);
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error('Nothing was saved — the account may be outside the offices you can manage.');
+  }
+}
+
+export async function setAccountActive(id: string, isActive: boolean): Promise<void> {
+  const { data, error } = await supabase.from('profiles').update({ is_active: isActive }).eq('id', id).select('id');
+  assertUpdated(data, error);
 }
 
 export async function updateAccountRoleTown(id: string, roleKey: RoleKey, townId: string | null): Promise<void> {
-  const { error } = await supabase.from('profiles').update({ role_key: roleKey, town_id: townId }).eq('id', id);
-  if (error) throw new Error(error.message);
+  const { data, error } = await supabase.from('profiles').update({ role_key: roleKey, town_id: townId }).eq('id', id).select('id');
+  assertUpdated(data, error);
 }
 
 // Update a person's display name (own row, or a row the caller may manage under profiles_manage).
 export async function updateAccountName(id: string, name: string): Promise<void> {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 200) throw new Error('Name must be between 1 and 200 characters.');
-  const { error } = await supabase.from('profiles').update({ name: trimmed }).eq('id', id);
-  if (error) throw new Error(error.message);
+  const { data, error } = await supabase.from('profiles').update({ name: trimmed }).eq('id', id).select('id');
+  assertUpdated(data, error);
 }
 
 // Send a self-service password-reset email. The link returns the person to /admin/reset where

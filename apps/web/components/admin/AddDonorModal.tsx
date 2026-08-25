@@ -27,6 +27,18 @@ export function AddDonorModal({ isOpen, onClose, onSuccess, towns }: AddDonorMod
   const [consentToCall, setConsentToCall] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
+  // A donor must be an adult (18+) and a plausible age (<=120). Bound the date input and validate
+  // on submit so a future or impossible date of birth can never be saved.
+  const MIN_AGE_YEARS = 18;
+  const MAX_AGE_YEARS = 120;
+  const today = new Date();
+  const dobMax = new Date(today.getFullYear() - MIN_AGE_YEARS, today.getMonth(), today.getDate())
+    .toISOString()
+    .slice(0, 10);
+  const dobMin = new Date(today.getFullYear() - MAX_AGE_YEARS, today.getMonth(), today.getDate())
+    .toISOString()
+    .slice(0, 10);
+
   // Auto-generate a realistic MR number when modal opens if empty
   useEffect(() => {
     if (isOpen && !mrNo) {
@@ -51,8 +63,20 @@ export function AddDonorModal({ isOpen, onClose, onSuccess, towns }: AddDonorMod
       showToast('Please enter the donor full name.');
       return;
     }
+    if (!phone.trim()) {
+      showToast('Please enter a phone number - the emergency workflow is calling the donor.');
+      return;
+    }
     if (!townId) {
       showToast('Please select a town.');
+      return;
+    }
+    if (!dob || dob > dobMax) {
+      showToast(`Donor must be at least ${MIN_AGE_YEARS} years old.`);
+      return;
+    }
+    if (dob < dobMin) {
+      showToast(`Please check the date of birth (over ${MAX_AGE_YEARS} years old).`);
       return;
     }
 
@@ -171,13 +195,14 @@ export function AddDonorModal({ isOpen, onClose, onSuccess, towns }: AddDonorMod
               />
             </div>
             <div className="fgrp">
-              <label className="lb">Phone Number</label>
+              <label className="lb">Phone Number *</label>
               <input
                 type="tel"
                 className="fld"
                 placeholder="0300-1234567"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -212,12 +237,15 @@ export function AddDonorModal({ isOpen, onClose, onSuccess, towns }: AddDonorMod
               />
             </div>
             <div className="fgrp">
-              <label className="lb">Date of Birth</label>
+              <label className="lb">Date of Birth *</label>
               <input
                 type="date"
                 className="fld"
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
+                min={dobMin}
+                max={dobMax}
+                required
               />
             </div>
           </div>

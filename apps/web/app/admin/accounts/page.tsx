@@ -85,7 +85,7 @@ export default function AdminAccounts() {
             <div className="c"><div className="l">Active accounts</div><div className="n">{activeCount}</div></div>
             <div className="c"><div className="l">Invited, not yet accepted</div><div className="n r">{invites.length}</div></div>
             <div className="c"><div className="l">Suspended</div><div className="n">{suspended}</div></div>
-            <div className="c"><div className="l">{isHead ? 'Offices in view' : 'Your office'}</div><div className="n">{isHead ? '14' : '1'}</div></div>
+            <div className="c"><div className="l">{isHead ? 'Towns in view' : 'Your office'}</div><div className="n">{isHead ? towns.length : 1}</div></div>
           </div>
 
           {/* Role separation - generated from the one role model, so UI and database never drift. */}

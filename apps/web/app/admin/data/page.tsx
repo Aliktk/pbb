@@ -91,10 +91,9 @@ export default function AdminData() {
   const [exportReason, setExportReason] = useState('');
   const [exportingModule, setExportingModule] = useState<string | null>(null);
 
-  // Backup States
-  const [backupsList, setBackupsList] = useState<BackupItem[]>([
-    { id: 'bk-1', label: 'Nightly System Snapshot', date: new Date().toLocaleDateString(), size: '4.2 MB', type: 'JSON Archive' },
-  ]);
+  // Backup States. Starts empty - snapshots only appear once the operator creates a real one, so
+  // the list never implies a nightly backup job that does not exist.
+  const [backupsList, setBackupsList] = useState<BackupItem[]>([]);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
 
   // Privacy Search & Anonymization States
@@ -766,6 +765,13 @@ export default function AdminData() {
                       </td>
                     </tr>
                   ))}
+                  {backupsList.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="aempty" style={{ textAlign: 'center', color: 'var(--txt3)', padding: '20px' }}>
+                        No snapshots yet. Use “Create Instant Snapshot” to generate one.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

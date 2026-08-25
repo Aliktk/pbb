@@ -504,10 +504,12 @@ create unique index if not exists "password_reset_tokens_tokenHash_key" on "pass
 create unique index if not exists "invitations_tokenHash_key" on "invitations"("tokenHash");
 create index        if not exists "donor_otps_donorId_idx" on "donor_otps"("donorId");
 
--- Town-based stock upsert target (0010): one stock row per (town, group, rh).
+-- Town-based stock upsert target (0010): one stock row per (town, group, rh). NON-partial so it
+-- can serve as an ON CONFLICT arbiter for supabase-js upsert (a partial index cannot — 42P10).
+-- NULL townId rows are legacy/branch-based and remain distinct (NULLs never collide in a uq index).
+drop index if exists "stock_levels_town_group_uq";
 create unique index if not exists "stock_levels_town_group_uq"
-  on "stock_levels" ("townId", "bloodGroup", "rhFactor")
-  where "townId" is not null;
+  on "stock_levels" ("townId", "bloodGroup", "rhFactor");
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- 5. BASE FOREIGN KEYS
@@ -1391,10 +1393,57 @@ where lower(u.email) = 'nawazktk99@gmail.com'
 on conflict (id) do update
   set role_key = 'head', town_id = null, is_active = true;
 
--- NOTE ON OFFICE SEED (0006): the six office contact rows (Quetta/Loralai/Pishin/
--- Zhob/Chaman/Muslim Bagh) are matched by town NAME via UPDATE. On a fresh install
--- the towns do not exist yet, so those UPDATEs would be no-ops. Seed the 14 towns
--- first (app/seed script), then those office details can be applied. They are NOT
--- inlined here because they depend on town rows this migration does not create.
+-- ── Real network seed: the 14 towns of the PBB network, 6 of which are offices. This is the
+-- SINGLE SOURCE OF TRUTH for /branches, the home coverage block, and every town dropdown. Without
+-- it the public site falls back to a hardcoded list, and the first office added to the DB replaces
+-- that list destructively. Idempotent via a unique(name). Only Quetta (head) + Chaman have
+-- confirmed contacts; the other offices carry "to follow" placeholders until the client supplies them.
+do $$ begin
+  alter table public.towns add constraint towns_name_key unique (name);
+exception when duplicate_object then null; end $$;
+
+insert into public.towns (name, is_office, is_head_office, "isOffice", address, phones, email) values
+  ('Quetta',          true,  true,  true,  'Zainab Chamber, Shara-e-Adalat, near Quetta Press Club', array['081-2836820','081-2839500'], 'admin@pashtoonkhwabloodbank.org'),
+  ('Chaman',          true,  false, true,  'Khushi Muhammad Road, District Chaman',                  array['0333-3151503','0826-612281'], 'pbb.chaman@gmail.com'),
+  ('Pishin',          true,  false, true,  null, '{}', null),
+  ('Loralai',         true,  false, true,  null, '{}', null),
+  ('Zhob',            true,  false, true,  null, '{}', null),
+  ('Muslim Bagh',     true,  false, true,  null, '{}', null),
+  ('Killa Saifullah', false, false, false, null, '{}', null),
+  ('Dukki',           false, false, false, null, '{}', null),
+  ('Musakhel',        false, false, false, null, '{}', null),
+  ('Sherani',         false, false, false, null, '{}', null),
+  ('Harnai',          false, false, false, null, '{}', null),
+  ('Ziarat',          false, false, false, null, '{}', null),
+  ('Qila Abdullah',   false, false, false, null, '{}', null),
+  ('Sibi',            false, false, false, null, '{}', null)
+on conflict (name) do update set
+  is_office      = excluded.is_office,
+  is_head_office = excluded.is_head_office,
+  "isOffice"     = excluded."isOffice",
+  address        = coalesce(excluded.address, public.towns.address),
+  phones         = case when excluded.phones = '{}' then public.towns.phones else excluded.phones end,
+  email          = coalesce(excluded.email, public.towns.email);
+
+-- ── Donation → donor integrity (INV: the register, record sheet and search can never disagree).
+-- A donation insert must move the donor's lifetime count and last-donated date so the eligibility
+-- view applies the cooldown. SECURITY DEFINER: the donation was already RLS-checked for the caller's
+-- town; this controlled update keeps the donor row in step. Without it the donor stays "Never" and
+-- the same person could be called again the next day (safety bug).
+create or replace function public.apply_donation_to_donor() returns trigger
+  language plpgsql security definer set search_path = public as $$
+begin
+  update public.donors
+     set "lastDonatedAt" = greatest(coalesce("lastDonatedAt", new."donatedAt"), new."donatedAt"),
+         "timesDonated"  = "timesDonated" + 1,
+         "updatedAt"     = now()
+   where id = new."donorId";
+  return new;
+end $$;
+
+drop trigger if exists trg_apply_donation on public.donations;
+create trigger trg_apply_donation
+  after insert on public.donations
+  for each row execute function public.apply_donation_to_donor();
 
 commit;
