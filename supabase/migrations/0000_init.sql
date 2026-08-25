@@ -743,6 +743,18 @@ create or replace function public.current_town_id() returns text
   select town_id from public.profiles where id = auth.uid() and is_active
 $$;
 
+-- The caller's own role / active flag. SECURITY DEFINER so a policy ON profiles can read the
+-- caller's current values WITHOUT a direct sub-select on profiles (which would recurse: 42P17).
+create or replace function public.current_role_key() returns text
+  language sql stable security definer set search_path = public as $$
+  select role_key from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.current_is_active() returns boolean
+  language sql stable security definer set search_path = public as $$
+  select coalesce((select is_active from public.profiles where id = auth.uid()), false)
+$$;
+
 create or replace function public.is_staff() returns boolean
   language sql stable security definer set search_path = public as $$
   select coalesce((select is_active from public.profiles where id = auth.uid()), false)
@@ -915,11 +927,12 @@ create policy profiles_self_update on public.profiles for update to authenticate
   using (id = (select auth.uid()))
   with check (
     id = (select auth.uid())
-    -- self-edit may only change `name`; the account-management columns must match the
-    -- row's current values, so a user cannot promote themselves or move their own town.
-    and role_key  = (select p.role_key  from public.profiles p where p.id = (select auth.uid()))
-    and is_active = (select p.is_active from public.profiles p where p.id = (select auth.uid()))
-    and town_id is not distinct from (select p.town_id from public.profiles p where p.id = (select auth.uid()))
+    -- self-edit may only change `name`; the account-management columns must match the caller's
+    -- current values, read via SECURITY DEFINER helpers (NOT a direct sub-select on profiles,
+    -- which recurses -> 42P17). This prevents self-promotion / moving your own town.
+    and role_key  = (select public.current_role_key())
+    and is_active = (select public.current_is_active())
+    and town_id is not distinct from (select public.current_town_id())
   );
 
 -- ── account_invites: who may invite whom (head any; manager operational roles, own town).

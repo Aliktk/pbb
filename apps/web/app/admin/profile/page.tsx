@@ -26,6 +26,8 @@ export default function AdminProfile() {
   // Password fields
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const email = authUser?.email ?? '';
@@ -111,8 +113,12 @@ export default function AdminProfile() {
   // Update Password - via Supabase Auth for the signed-in user.
   async function handleUpdatePassword(e: FormEvent) {
     e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      showToast('New password must be at least 6 characters long.');
+    if (!newPassword || newPassword.length < 8) {
+      showToast('New password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword.length > 128) {
+      showToast('New password must be 128 characters or fewer.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -366,26 +372,34 @@ export default function AdminProfile() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
                 <div className="fgrp">
                   <label className="lb" style={{ fontWeight: 700 }}>New Password *</label>
-                  <input
-                    type="password"
-                    className="fld"
-                    placeholder="Enter new password (min 6 chars)"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
+                  <div className="pwwrap">
+                    <input
+                      type={showNew ? 'text' : 'password'}
+                      className="fld"
+                      placeholder="Enter new password (min 8 chars)"
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                    />
+                    <button type="button" className="pweye" onClick={() => setShowNew((s) => !s)} aria-label="Show password">{showNew ? 'Hide' : 'Show'}</button>
+                  </div>
                 </div>
 
                 <div className="fgrp">
                   <label className="lb" style={{ fontWeight: 700 }}>Confirm New Password *</label>
-                  <input
-                    type="password"
-                    className="fld"
-                    placeholder="Re-enter new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
+                  <div className="pwwrap">
+                    <input
+                      type={showConfirm ? 'text' : 'password'}
+                      className="fld"
+                      placeholder="Re-enter new password"
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
+                    <button type="button" className="pweye" onClick={() => setShowConfirm((s) => !s)} aria-label="Show password">{showConfirm ? 'Hide' : 'Show'}</button>
+                  </div>
                 </div>
               </div>
 
