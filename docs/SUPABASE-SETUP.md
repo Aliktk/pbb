@@ -75,3 +75,39 @@ work, page by page (each is a `supabase.from(...)` / `supabase.auth` call):
 
 The RLS policies above are written to match exactly these calls, so the frontend does not need
 any permission logic of its own - Supabase enforces it.
+
+## Account management (create / roles / suspend / password reset / delete)
+
+Most of this works with the anon key + RLS out of the box once `0000_init.sql` is applied:
+
+- **Create** - head/manager invites from `/admin/accounts`; the person signs up at `/admin/signup`
+  and a trigger activates their profile.
+- **Edit role/office/name, suspend/restore** - `/admin/accounts` (RLS-scoped).
+- **Self password change** - the profile page (signed in).
+
+Two things need one-time project configuration:
+
+### 1. Password-reset emails (self-service `/admin/forgot` -> `/admin/reset`)
+
+1. **SMTP.** Dashboard -> **Authentication -> Emails / SMTP** - configure a sender (or use the
+   built-in limited email for testing). Without SMTP no reset email is sent.
+2. **Redirect allow-list.** Dashboard -> **Authentication -> URL Configuration -> Redirect URLs** -
+   add `https://<your-domain>/admin/reset` (and `http://localhost:3000/admin/reset` for local).
+   The reset link will not work until its redirect URL is allow-listed.
+
+### 2. Admin set-password + hard-delete (head office only) - Edge Function
+
+These need the **service-role** key, which must never be in the browser. They live in the
+`admin-users` Edge Function (`supabase/functions/admin-users`). Deploy it once:
+
+```bash
+# From the repo root, with the Supabase CLI logged in and linked to your project:
+supabase functions deploy admin-users
+```
+
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are injected automatically -
+  do **not** add them manually and never commit the service-role key.
+- The function authorizes every call twice: a valid session JWT **and** an active `role_key='head'`
+  profile. Managers cannot call it; they use "Email a password-reset link" instead.
+- Until it is deployed, the **"Set a password manually"** and **"Delete this account"** buttons on
+  `/admin/accounts` will show an error toast (everything else still works).

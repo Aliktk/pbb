@@ -7,6 +7,7 @@ import { useAuth } from '../../../lib/auth';
 import { assignableRoles, roleLabel, roleIsScoped, ROLES, ROLE_ORDER, type RoleKey } from '../../../lib/roles';
 import {
   fetchStaff, fetchInvites, createInvite, deleteInvite, setAccountActive, updateAccountRoleTown,
+  updateAccountName, sendPasswordReset, adminSetPassword, deleteAccount,
   type StaffAccount, type AccountInvite,
 } from '../../../lib/accounts';
 import { fetchTowns, type Town } from '../../../lib/towns';
@@ -147,6 +148,8 @@ export default function AdminAccounts() {
         account={open}
         towns={towns}
         canManage={assignable.length > 0}
+        isHead={isHead}
+        myId={user?.id ?? null}
         assignable={assignable}
         townName={townName}
         onClose={() => setOpen(null)}
@@ -167,51 +170,63 @@ export default function AdminAccounts() {
 
 // ─────────────────────────── View / manage one account ────────────────────
 function AccountSheet({
-  account: a, towns, canManage, assignable, townName, onClose, onChanged,
+  account: a, towns, canManage, isHead, myId, assignable, townName, onClose, onChanged,
 }: {
   account: StaffAccount | null;
   towns: Town[];
   canManage: boolean;
+  isHead: boolean;
+  myId: string | null;
   assignable: RoleKey[];
   townName: (id: string | null) => string;
   onClose: () => void;
   onChanged: () => void;
 }) {
   const isOpen = a !== null;
+  const isSelf = a?.id === myId;
+  const [name, setName] = useState('');
   const [role, setRole] = useState<RoleKey>('viewer');
   const [townId, setTownId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [newPass, setNewPass] = useState('');
+  const [showPassField, setShowPassField] = useState(false);
+  const [showPassText, setShowPassText] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    if (a) { setRole(a.role_key); setTownId(a.town_id); }
+    if (a) {
+      setName(a.name);
+      setRole(a.role_key);
+      setTownId(a.town_id);
+      setNewPass('');
+      setShowPassField(false);
+      setShowPassText(false);
+      setConfirmDelete(false);
+    }
   }, [a]);
 
-  async function saveRoleTown() {
-    if (!a) return;
+  // Run an async action with a busy guard and success/error toast.
+  async function run(fn: () => Promise<void>, ok: string, after: 'refresh' | 'stay' = 'refresh') {
     setBusy(true);
     try {
-      await updateAccountRoleTown(a.id, role, roleIsScoped(role) ? townId : null);
-      showToast('Role and office updated');
-      onChanged();
+      await fn();
+      showToast(ok);
+      if (after === 'refresh') onChanged();
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Could not update');
+      showToast(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
       setBusy(false);
     }
   }
 
-  async function toggleActive() {
+  async function saveDetails() {
     if (!a) return;
-    setBusy(true);
-    try {
-      await setAccountActive(a.id, !a.is_active);
-      showToast(a.is_active ? 'Account suspended' : 'Account restored');
-      onChanged();
-    } catch (e) {
-      showToast(e instanceof Error ? e.message : 'Could not update');
-    } finally {
-      setBusy(false);
-    }
+    const trimmed = name.trim();
+    if (!trimmed) { showToast('Name cannot be empty'); return; }
+    await run(async () => {
+      if (trimmed !== a.name) await updateAccountName(a.id, trimmed);
+      await updateAccountRoleTown(a.id, role, roleIsScoped(role) ? townId : null);
+    }, 'Account details updated');
   }
 
   return (
@@ -223,7 +238,7 @@ function AccountSheet({
             <button className="cl" onClick={onClose}>✕</button>
             {a.is_active ? <span className="tag ok">Active</span> : <span className="tag wt">Suspended</span>}
             <h2 style={css('margin:12px 0 4px')}>{a.name}</h2>
-            <div className="sm">{roleLabel(a.role_key)} · {townName(a.town_id)}</div>
+            <div className="sm">{roleLabel(a.role_key)} · {townName(a.town_id)}{isSelf ? ' · this is you' : ''}</div>
             <div style={css('margin:22px 0')}>
               <div className="drow"><span>Email</span><b>{a.email || '-'}</b></div>
               <div className="drow"><span>Role</span><b>{roleLabel(a.role_key)}</b></div>
@@ -232,8 +247,13 @@ function AccountSheet({
 
             {canManage ? (
               <>
+                {/* ── Identity & access ── */}
                 <div className="fgrp">
-                  <label className="lb">Change role</label>
+                  <label className="lb">Full name</label>
+                  <input className="fld" value={name} onChange={(e) => setName(e.target.value)} />
+                </div>
+                <div className="fgrp">
+                  <label className="lb">Role</label>
                   <select className="fld" value={role} onChange={(e) => setRole(e.target.value as RoleKey)}>
                     {assignable.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
                   </select>
@@ -247,13 +267,80 @@ function AccountSheet({
                     </select>
                   </div>
                 ) : null}
-                <button type="button" className="btn btn-p" style={css('width:100%')} disabled={busy} onClick={saveRoleTown}>Save role &amp; office</button>
-                <button type="button" className="btn btn-d" style={css('width:100%;margin-top:10px')} disabled={busy} onClick={toggleActive}>{a.is_active ? 'Suspend this account' : 'Restore this account'}</button>
+                <button type="button" className="btn btn-p" style={css('width:100%')} disabled={busy} onClick={saveDetails}>Save changes</button>
+
+                {/* ── Access state ── */}
+                <div className="drow" style={css('margin-top:24px;font-weight:700')}><span>Access</span></div>
+                <button
+                  type="button"
+                  className="btn btn-o"
+                  style={css('width:100%;margin-top:8px')}
+                  disabled={busy || isSelf}
+                  onClick={() => run(() => setAccountActive(a.id, !a.is_active), a.is_active ? 'Account suspended' : 'Account restored')}
+                >
+                  {a.is_active ? 'Suspend this account' : 'Restore this account'}
+                </button>
+                {isSelf ? <p className="ahint" style={css('margin-top:6px')}>You cannot suspend or delete your own account.</p> : null}
+
+                {/* ── Password ── */}
+                <div className="drow" style={css('margin-top:24px;font-weight:700')}><span>Password</span></div>
+                <button
+                  type="button"
+                  className="btn btn-o"
+                  style={css('width:100%;margin-top:8px')}
+                  disabled={busy || !a.email}
+                  onClick={() => run(() => sendPasswordReset(a.email as string), 'Reset link sent (if the address exists)', 'stay')}
+                >
+                  Email a password-reset link
+                </button>
+
+                {isHead ? (
+                  showPassField ? (
+                    <div style={css('margin-top:10px')}>
+                      <div className="fgrp">
+                        <label className="lb">Set a new password now (8–128 characters)</label>
+                        <div className="pwwrap">
+                          <input className="fld" type={showPassText ? 'text' : 'password'} autoComplete="new-password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="New password" />
+                          <button type="button" className="pweye" onClick={() => setShowPassText((s) => !s)} aria-label="Show password">{showPassText ? 'Hide' : 'Show'}</button>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-p"
+                        style={css('width:100%')}
+                        disabled={busy || newPass.length < 8}
+                        onClick={() => run(async () => { await adminSetPassword(a.id, newPass); setNewPass(''); setShowPassField(false); }, 'Password updated', 'stay')}
+                      >
+                        Set password
+                      </button>
+                      <button type="button" className="btn btn-o" style={css('width:100%;margin-top:8px')} onClick={() => { setShowPassField(false); setNewPass(''); }}>Cancel</button>
+                      <p className="ahint" style={css('margin-top:6px')}>Use only when the person cannot receive email. Share it privately; ask them to change it after signing in.</p>
+                    </div>
+                  ) : (
+                    <button type="button" className="btn btn-o" style={css('width:100%;margin-top:8px')} disabled={busy} onClick={() => setShowPassField(true)}>Set a password manually</button>
+                  )
+                ) : null}
+
+                {/* ── Danger zone (head office only) ── */}
+                {isHead ? (
+                  <>
+                    <div className="drow" style={css('margin-top:24px;font-weight:700')}><span>Danger zone</span></div>
+                    {confirmDelete ? (
+                      <div style={css('margin-top:8px')}>
+                        <p className="sm" style={css('margin-bottom:8px')}>Permanently delete <b>{a.name}</b>? This removes their sign-in and profile. Their historical records (donors, donations) remain. This cannot be undone.</p>
+                        <button type="button" className="btn btn-d" style={css('width:100%')} disabled={busy} onClick={() => run(() => deleteAccount(a.id), 'Account deleted')}>Yes, delete permanently</button>
+                        <button type="button" className="btn btn-o" style={css('width:100%;margin-top:8px')} onClick={() => setConfirmDelete(false)}>Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" className="btn btn-d" style={css('width:100%;margin-top:8px')} disabled={busy || isSelf} onClick={() => setConfirmDelete(true)}>Delete this account…</button>
+                    )}
+                  </>
+                ) : null}
               </>
             ) : (
               <p className="ahint">Your role can view accounts but not change them.</p>
             )}
-            <p className="ahint" style={css('margin-top:18px')}>Every change is enforced by the database, and only within the offices you are allowed to manage.</p>
+            <p className="ahint" style={css('margin-top:18px')}>Every change is enforced by the database, and only within the offices you are allowed to manage. Setting a password and deleting are head-office only.</p>
           </>
         )}
       </div>
