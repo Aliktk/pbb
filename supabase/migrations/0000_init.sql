@@ -880,6 +880,10 @@ create policy towns_insert on public.towns for insert to authenticated
 -- profiles_manage policy (only head, or a manager over their own town's operational
 -- roles) AND by profiles_self_update's WITH CHECK below, which forbids a user from
 -- changing those three columns on their OWN row (no self-escalation to 'head').
+-- SELECT is required at the table level too (RLS policy alone is not enough): without it every
+-- authenticated user reads no profile row and the app falls back to the lowest role. The
+-- profiles_scope_read policy below still restricts WHICH rows are visible.
+grant select on public.profiles to authenticated;
 grant update (name, is_active, role_key, town_id) on public.profiles to authenticated;
 
 drop policy if exists profiles_self_read on public.profiles;
