@@ -551,6 +551,15 @@ do $$ begin
   alter table "blood_requests"       add constraint "blood_requests_townId_fkey" foreign key ("townId") references "towns"("id") on delete restrict on update cascade;
 exception when duplicate_object then null; end $$;
 do $$ begin
+  -- Enables the PostgREST embed partners?select=...,town:towns(name). Nullable + set null so a
+  -- (rare) town removal never blocks; partners are org-wide reference data.
+  alter table "partners"             add constraint "partners_townId_fkey" foreign key ("townId") references "towns"("id") on delete set null on update cascade;
+exception when duplicate_object then null; end $$;
+do $$ begin
+  -- Enables the PostgREST embed volunteers?select=...,town:towns(name).
+  alter table "volunteers"           add constraint "volunteers_townId_fkey" foreign key ("townId") references "towns"("id") on delete set null on update cascade;
+exception when duplicate_object then null; end $$;
+do $$ begin
   alter table "request_calls"        add constraint "request_calls_requestId_fkey" foreign key ("requestId") references "blood_requests"("id") on delete restrict on update cascade;
 exception when duplicate_object then null; end $$;
 do $$ begin
